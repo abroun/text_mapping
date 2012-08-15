@@ -72,7 +72,9 @@ LINK_DIRECTORIES(
 	)
 
 ADD_LIBRARY( TextMappingShared SHARED
+    src/letter.cpp
     src/text_map.cpp
+    src/vtk/vtk_text_map_source.cpp
     )
 
 SET_TARGET_PROPERTIES( TextMappingShared

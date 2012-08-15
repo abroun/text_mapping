@@ -27,36 +27,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef TEXT_MAPPING_H
-#define TEXT_MAPPING_H
+#ifndef LETTER_H
+#define LETTER_H
 
 //--------------------------------------------------------------------------------------------------
-#include <stdint.h>
-#include <vector>
 #include <boost/shared_ptr.hpp>
 #include <Eigen/Core>
-#include "text_mapping/letter.h"
 
 //--------------------------------------------------------------------------------------------------
-//! Data structure to hold a map of text on the surface of a 3D object. Text is stored as letters
-//! with each letter having a position, orientation and bounding box.
-class TextMap
+//! Data structure that represents a letter on the surface of a 3D object.
+struct Letter
 {
-    public: typedef boost::shared_ptr<TextMap> Ptr;
-    public: typedef boost::shared_ptr<const TextMap> ConstPtr;
-
-    public: TextMap();
-    public: TextMap( const TextMap& otherMap );
+    Letter() {}
     
-    public: size_t getNumLetters() const { return mLetters.size(); }
-    public: const Letter& getLetter( uint32_t letterIdx ) const { return mLetters[ letterIdx ]; }
-    public: void getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const;
+    Eigen::Matrix4f mMtx;
+    float mWidth;
+    float mHeight;
+    char mCharacter;
     
-    public: void addLetter( const Letter& letter ) { mLetters.push_back( letter ); } 
+    Eigen::Vector3f getTopLeftPos() const;
+    Eigen::Vector3f getTopRightPos() const;
+    Eigen::Vector3f getBottomRightPos() const;
+    Eigen::Vector3f getBottomLeftPos() const;
     
-    private: std::vector<Letter, Eigen::aligned_allocator<Letter> > mLetters;
-    
-    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
-#endif // TEXT_MAPPING_H
+#endif // LETTER_H

@@ -55,11 +55,54 @@ MmbMainWindow::MmbMainWindow()
 {
     setupUi( this );
     
+    // Create a text map, and prepare to display it
+    mpModelTextMap = TextMap::Ptr( new TextMap() );
+    Letter letter;
+    letter.mMtx = Eigen::Matrix4f::Identity();
+    letter.mMtx.block<3,1>( 0, 3 ) = Eigen::Vector3f( 0.0, 0.0, 0.0 );
+    letter.mWidth = 0.2f;
+    letter.mHeight = 0.3f;
+    letter.mCharacter = 'A';
+    mpModelTextMap->addLetter( letter );
+    
+    letter.mMtx = Eigen::Matrix4f::Identity();
+    letter.mMtx.block<3,1>( 0, 3 ) = Eigen::Vector3f( 0.3, 0.1, 0.0 );
+    letter.mWidth = 0.2f;
+    letter.mHeight = 0.3f;
+    letter.mCharacter = '9';
+    mpModelTextMap->addLetter( letter );
+    
+    mpTextMapSource = vtkSmartPointer<vtkTextMapSource>::New();
+    mpTextMapSource->SetTextMapPtr( mpModelTextMap );
+    
+    mpTextMapMapper = vtkPolyDataMapper::New();
+    mpTextMapMapper->SetInput( mpTextMapSource->GetOutput() );
+
+    mpTextMapActor = vtkActor::New();
+    mpTextMapActor->SetMapper( mpTextMapMapper );
+    
+    // Turn off lighting on the actors
+    //mpTextMapActor->GetProperty()->SetLighting( false );
+    
+    // Load in a texture containing letters for the text map actor
+    mpLettersJpegReader = vtkSmartPointer<vtkJPEGReader>::New();
+    mpLettersJpegReader->SetFileName( "../data/font/letters.jpg" );
+    mpLettersJpegReader->Update();
+
+    mpLettersTexture = vtkSmartPointer<vtkTexture>::New();
+    mpLettersTexture->SetInputConnection( mpLettersJpegReader->GetOutputPort() );
+    mpLettersTexture->InterpolateOn(); 
+    
+    // Apply it to the text map actor
+    mpTextMapActor->SetTexture( mpLettersTexture ); 
+    
     // Set up a renderer and connect it to QT
     mpRenderer = vtkRenderer::New();
     qvtkWidget->GetRenderWindow()->AddRenderer( mpRenderer );
 
     mpRenderer->SetBackground( 0.0, 0.0, 0.0 );
+    
+    mpRenderer->AddActor( mpTextMapActor );
 
     // Hook up signals
     connect( action_Open, SIGNAL( triggered() ), this, SLOT( onOpen() ) );

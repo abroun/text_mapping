@@ -27,36 +27,37 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef TEXT_MAPPING_H
-#define TEXT_MAPPING_H
+#ifndef VTK_TEXT_MAP_SOURCE_H_
+#define VTK_TEXT_MAP_SOURCE_H_
 
 //--------------------------------------------------------------------------------------------------
-#include <stdint.h>
-#include <vector>
-#include <boost/shared_ptr.hpp>
-#include <Eigen/Core>
-#include "text_mapping/letter.h"
+#include <vtkPolyDataAlgorithm.h>
+#include "text_mapping/text_map.h"
 
 //--------------------------------------------------------------------------------------------------
-//! Data structure to hold a map of text on the surface of a 3D object. Text is stored as letters
-//! with each letter having a position, orientation and bounding box.
-class TextMap
+//! Produces the PolyData used to display a TextMap with VTK.
+class vtkTextMapSource : public vtkPolyDataAlgorithm
 {
-    public: typedef boost::shared_ptr<TextMap> Ptr;
-    public: typedef boost::shared_ptr<const TextMap> ConstPtr;
+    public: vtkTypeMacro( vtkTextMapSource, vtkPolyDataAlgorithm );
+    public: void PrintSelf( std::ostream& os, vtkIndent indent );
 
-    public: TextMap();
-    public: TextMap( const TextMap& otherMap );
+    // Constructs an empty TextMap source
+    public: static vtkTextMapSource* New();
+
+    // Sets the surfel model for the class
+    public: vtkSetMacro( TextMapPtr, TextMap::ConstPtr );
+    public: vtkGetMacro( TextMapPtr, TextMap::ConstPtr );
     
-    public: size_t getNumLetters() const { return mLetters.size(); }
-    public: const Letter& getLetter( uint32_t letterIdx ) const { return mLetters[ letterIdx ]; }
-    public: void getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const;
+    protected: vtkTextMapSource();
+    protected: ~vtkTextMapSource() {}
+
+    protected: virtual int RequestData( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
+    protected: virtual int RequestInformation( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
+
+    protected: TextMap::ConstPtr TextMapPtr;
     
-    public: void addLetter( const Letter& letter ) { mLetters.push_back( letter ); } 
-    
-    private: std::vector<Letter, Eigen::aligned_allocator<Letter> > mLetters;
-    
-    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    private: vtkTextMapSource( const vtkTextMapSource& );  // Not implemented.
+    void operator=( const vtkTextMapSource& );  // Not implemented.
 };
 
-#endif // TEXT_MAPPING_H
+#endif // VTK_TEXT_MAP_SOURCE_H_

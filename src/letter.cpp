@@ -27,36 +27,39 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef TEXT_MAPPING_H
-#define TEXT_MAPPING_H
-
 //--------------------------------------------------------------------------------------------------
-#include <stdint.h>
-#include <vector>
-#include <boost/shared_ptr.hpp>
-#include <Eigen/Core>
 #include "text_mapping/letter.h"
 
 //--------------------------------------------------------------------------------------------------
-//! Data structure to hold a map of text on the surface of a 3D object. Text is stored as letters
-//! with each letter having a position, orientation and bounding box.
-class TextMap
+// Letter
+//--------------------------------------------------------------------------------------------------
+Eigen::Vector3f Letter::getTopLeftPos() const
 {
-    public: typedef boost::shared_ptr<TextMap> Ptr;
-    public: typedef boost::shared_ptr<const TextMap> ConstPtr;
+    return mMtx.block<3,1>( 0, 3 ) 
+        - (mWidth/2.0)*mMtx.block<3,1>( 0, 0 )
+        + (mHeight/2.0)*mMtx.block<3,1>( 0, 1 );
+}
 
-    public: TextMap();
-    public: TextMap( const TextMap& otherMap );
-    
-    public: size_t getNumLetters() const { return mLetters.size(); }
-    public: const Letter& getLetter( uint32_t letterIdx ) const { return mLetters[ letterIdx ]; }
-    public: void getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const;
-    
-    public: void addLetter( const Letter& letter ) { mLetters.push_back( letter ); } 
-    
-    private: std::vector<Letter, Eigen::aligned_allocator<Letter> > mLetters;
-    
-    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-};
+//--------------------------------------------------------------------------------------------------
+Eigen::Vector3f Letter::getTopRightPos() const
+{
+    return mMtx.block<3,1>( 0, 3 ) 
+        + (mWidth/2.0)*mMtx.block<3,1>( 0, 0 )
+        + (mHeight/2.0)*mMtx.block<3,1>( 0, 1 );
+}
 
-#endif // TEXT_MAPPING_H
+//--------------------------------------------------------------------------------------------------
+Eigen::Vector3f Letter::getBottomRightPos() const
+{
+    return mMtx.block<3,1>( 0, 3 ) 
+        + (mWidth/2.0)*mMtx.block<3,1>( 0, 0 )
+        - (mHeight/2.0)*mMtx.block<3,1>( 0, 1 );
+}
+
+//--------------------------------------------------------------------------------------------------
+Eigen::Vector3f Letter::getBottomLeftPos() const
+{
+    return mMtx.block<3,1>( 0, 3 ) 
+        - (mWidth/2.0)*mMtx.block<3,1>( 0, 0 )
+        - (mHeight/2.0)*mMtx.block<3,1>( 0, 1 );
+}

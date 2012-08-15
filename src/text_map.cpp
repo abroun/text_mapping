@@ -41,3 +41,12 @@ TextMap::TextMap()
 TextMap::TextMap( const TextMap& otherMap )
 {
 }
+
+//--------------------------------------------------------------------------------------------------
+void TextMap::getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const
+{
+    // TODO: Implement this properly
+    *pFirstCornerOut = -Eigen::Vector3f( 1.0, 1.0, 1.0 );
+    *pSecondCornerOut = Eigen::Vector3f( 1.0, 1.0, 1.0 );
+}
+   

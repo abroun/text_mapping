@@ -47,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ui_mmb_main_window.h"
 #include <Eigen/Core>
 #include "text_mapping/text_map.h"
+#include "text_mapping/vtk/vtk_text_map_source.h"
 
 //--------------------------------------------------------------------------------------------------
 class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
@@ -69,6 +70,12 @@ class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
     private: vtkSmartPointer<vtkTexture> mpModelTexture;
     private: vtkSmartPointer<vtkPolyDataMapper> mpModelMapper;
     private: vtkSmartPointer<vtkActor> mpModelActor;
+    
+    private: vtkSmartPointer<vtkJPEGReader> mpLettersJpegReader;
+    private: vtkSmartPointer<vtkTexture> mpLettersTexture;
+    private: vtkSmartPointer<vtkTextMapSource> mpTextMapSource;
+    private: vtkSmartPointer<vtkPolyDataMapper> mpTextMapMapper;
+    private: vtkSmartPointer<vtkActor> mpTextMapActor;
     
     private: TextMap::Ptr mpModelTextMap;
     private: Eigen::Matrix4f mTransformToTarget;
