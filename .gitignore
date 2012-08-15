@@ -1,0 +1,9 @@
+build
+
+*.pyc
+
+# Eclipse stuff
+.settings
+.cproject
+.project
+
