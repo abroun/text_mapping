@@ -39,9 +39,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <iostream>
 #include <fstream>
-#include <string>
-#include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
 #include <vtkProperty.h>
 #include <vtkRenderWindow.h>
 #include <QtGui/qfiledialog.h>
@@ -56,7 +55,7 @@ MmbMainWindow::MmbMainWindow()
     setupUi( this );
     
     // Create a text map, and prepare to display it
-    mpModelTextMap = TextMap::Ptr( new TextMap() );
+    /*mpModelTextMap = TextMap::Ptr( new TextMap() );
     Letter letter;
     letter.mMtx = Eigen::Matrix4f::Identity();
     letter.mMtx.block<3,1>( 0, 3 ) = Eigen::Vector3f( 0.0, 0.0, 0.0 );
@@ -70,10 +69,10 @@ MmbMainWindow::MmbMainWindow()
     letter.mWidth = 0.2f;
     letter.mHeight = 0.3f;
     letter.mCharacter = '9';
-    mpModelTextMap->addLetter( letter );
+    mpModelTextMap->addLetter( letter );*/
     
     mpTextMapSource = vtkSmartPointer<vtkTextMapSource>::New();
-    mpTextMapSource->SetTextMapPtr( mpModelTextMap );
+    //mpTextMapSource->SetTextMapPtr( mpModelTextMap );
     
     mpTextMapMapper = vtkPolyDataMapper::New();
     mpTextMapMapper->SetInput( mpTextMapSource->GetOutput() );
@@ -104,10 +103,15 @@ MmbMainWindow::MmbMainWindow()
     
     mpRenderer->AddActor( mpTextMapActor );
 
+    onNew();    // Create a default text map
+    
     // Hook up signals
+    connect( action_New, SIGNAL( triggered() ), this, SLOT( onNew() ) );
     connect( action_Open, SIGNAL( triggered() ), this, SLOT( onOpen() ) );
     connect( action_Save, SIGNAL( triggered() ), this, SLOT( onSave() ) );
+    connect( action_Save_As, SIGNAL( triggered() ), this, SLOT( onSaveAs() ) );
     connect( action_Quit, SIGNAL( triggered() ), this, SLOT( close() ) );
+    connect( action_Set_Model, SIGNAL( triggered() ), this, SLOT( onSetModel() ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -115,19 +119,103 @@ MmbMainWindow::~MmbMainWindow()
 {
 }
 
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onNew()
+{
+    mTextMapFilename = "";
+    mpModelTextMap = TextMap::Ptr( new TextMap() );
+    mpTextMapSource->SetTextMapPtr( mpModelTextMap );
+    
+    if ( NULL != mpObjReader )
+    {
+        mpObjReader->SetFileName( "" );
+        mpObjReader->Update();
+    }
+    
+    // Update the 3D display
+    qvtkWidget->update();
+}
+
 //--------------------------------------------------------------------------------------------------
 void MmbMainWindow::onOpen()
 {
     QString filename = QFileDialog::getOpenFileName( this,
-         tr( "Open Object Model" ), "../data", tr("Object Files (*.obj)") );
+         tr( "Open Text Map" ), "../data/text_maps", tr("Text Map Files (*.map)") );
 
-    loadObjModel( filename );
+    if ( !filename.isEmpty() )
+    {
+        std::string newTextMapFilename = filename.toStdString();
+        TextMap::Ptr pNewTextMap = TextMap::loadTextMapFromFile( newTextMapFilename );
+        if ( NULL == pNewTextMap )
+        {
+            fprintf( stderr, "Error: Unable to open %s\n", newTextMapFilename.c_str() );
+        }
+        else
+        {
+            mpModelTextMap = pNewTextMap;
+            mpTextMapSource->SetTextMapPtr( mpModelTextMap );
+            mTextMapFilename = newTextMapFilename;
+            
+            const std::string& modelFilename = mpModelTextMap->getModelFilename();
+            if ( modelFilename == TextMap::NO_MODEL_FILENAME )
+            {
+                if ( NULL != mpObjReader )
+                {
+                    mpObjReader->SetFileName( "" );
+                    mpObjReader->Update();
+                }
+                
+                // Update the 3D display
+                qvtkWidget->update();
+            }
+            else
+            {
+                loadObjModel( modelFilename.c_str() );
+            }
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
 void MmbMainWindow::onSave()
 {
-    
+    if ( NULL != mpModelTextMap )
+    {
+        if ( mTextMapFilename == "" )
+        {
+            onSaveAs();
+        }
+        else
+        {
+            mpModelTextMap->saveToFile( mTextMapFilename );
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onSaveAs()
+{
+    if ( NULL != mpModelTextMap )
+    {
+        QString filename = QFileDialog::getSaveFileName( this,
+            tr( "Save Text Map" ), "../data/text_maps", tr("Text Map Files (*.map)") );
+        
+        if ( !filename.isEmpty() )
+        {
+            mTextMapFilename = filename.toStdString();
+            mpModelTextMap->saveToFile( mTextMapFilename );
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onSetModel()
+{
+    QString filename = QFileDialog::getOpenFileName( this,
+         tr( "Open Object Model" ), "../data", tr("Object Files (*.obj)") );
+
+    loadObjModel( filename );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -169,6 +257,8 @@ void MmbMainWindow::loadObjModel( QString filename )
 
         // Update the 3D display
         qvtkWidget->update();
+        
+        mpModelTextMap->setModelFilename( filename.toStdString() );
     }
 }
 

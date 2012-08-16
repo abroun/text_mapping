@@ -28,18 +28,144 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 //--------------------------------------------------------------------------------------------------
+#include <stdlib.h>
+#include <iostream>
+#include <fstream>
+#include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
+#include <Eigen/Geometry>
 #include "text_mapping/text_map.h"
+#include "text_mapping/utilities.h"
 
 //--------------------------------------------------------------------------------------------------
 // TextMap
 //--------------------------------------------------------------------------------------------------
+const std::string TextMap::NO_MODEL_FILENAME( "NO_MODEL" );
+
+//--------------------------------------------------------------------------------------------------
 TextMap::TextMap()
+    : mModelFilename( NO_MODEL_FILENAME )
 {
 }
 
 //--------------------------------------------------------------------------------------------------
-TextMap::TextMap( const TextMap& otherMap )
+TextMap::Ptr TextMap::loadTextMapFromFile( const std::string& filename )
 {
+    TextMap::Ptr pTextMap;
+    
+    std::ifstream mapFile( filename );
+    if ( mapFile.is_open() )
+    {
+        pTextMap = TextMap::Ptr( new TextMap() );
+        
+        std::string curLine;
+        
+        // First read out the object filename
+        if ( mapFile.good() )
+        {
+            std::getline( mapFile, curLine );
+            boost::trim( curLine );
+            
+            if ( curLine != NO_MODEL_FILENAME )
+            {                
+                boost::filesystem::path modelBasePath = 
+                    boost::filesystem::path( filename ).parent_path();
+                    
+                boost::filesystem::path::iterator basePathEndIter = modelBasePath.end();
+                
+                while ( curLine.find( "../" ) == 0 )
+                {
+                    curLine = curLine.substr( 3 );
+                    basePathEndIter--;
+                }
+                
+                boost::filesystem::path modelPath;
+                for ( boost::filesystem::path::iterator basePathIter = modelBasePath.begin();
+                    basePathIter != basePathEndIter; basePathIter++ )
+                {
+                    modelPath /= *basePathIter;
+                }
+                modelPath /= curLine;
+                
+                pTextMap->mModelFilename = modelPath.string();
+                
+                printf( "Got a model filename of %s\n", pTextMap->mModelFilename.c_str() );
+            }
+            
+            // Now read in the number of letters
+            uint32_t numLetters;
+            mapFile >> numLetters;
+            
+            pTextMap->mLetters.reserve( numLetters );
+            
+            // Read in the letters
+            for ( uint32_t letterIdx = 0; letterIdx < numLetters; letterIdx++ )
+            {
+                Letter letter;
+                Eigen::Vector3f pos;
+                Eigen::Vector3f eulerAnglesDegrees;
+                
+                mapFile >> letter.mCharacter;
+                mapFile >> pos[ 0 ] >> pos[ 1 ] >> pos[ 2 ];
+                mapFile >> eulerAnglesDegrees[ 0 ] >> eulerAnglesDegrees[ 1 ] >> eulerAnglesDegrees[ 2 ];
+                mapFile >> letter.mWidth >> letter.mHeight;
+                
+                letter.mMtx = Eigen::Matrix4f::Identity();
+                letter.mMtx.block<3,3>( 0, 0 ) = 
+                    ( Eigen::AngleAxisf( Utilities::degToRad( eulerAnglesDegrees[ 0 ] ), Eigen::Vector3f::UnitX() )
+                    * Eigen::AngleAxisf( Utilities::degToRad( eulerAnglesDegrees[ 1 ] ), Eigen::Vector3f::UnitY() )
+                    * Eigen::AngleAxisf( Utilities::degToRad( eulerAnglesDegrees[ 2 ] ), Eigen::Vector3f::UnitZ() ) ).toRotationMatrix();
+                letter.mMtx.block<3,1>( 0, 3 ) = pos;
+            
+                pTextMap->mLetters.push_back( letter );
+            }
+        }
+        
+        mapFile.close();
+    }
+    
+    return pTextMap;
+}
+    
+//--------------------------------------------------------------------------------------------------
+void TextMap::saveToFile( const std::string& filename )
+{
+    FILE* pMapFile = fopen( filename.c_str(), "w" );
+    if ( NULL != pMapFile )
+    {
+        std::string relativeModelFilename; 
+        if ( NO_MODEL_FILENAME == mModelFilename )
+        {
+            relativeModelFilename = NO_MODEL_FILENAME;
+        }
+        else
+        {
+            relativeModelFilename = Utilities::createRelativeFilename( filename, mModelFilename );
+        }
+        
+        // Write out the path to the model
+        fprintf( pMapFile, "%s\n", relativeModelFilename.c_str() );
+        
+        // Write out the number of letters in the map
+        fprintf( pMapFile, "%u\n", mLetters.size() );
+        
+        // Write out each letter
+        for ( uint32_t letterIdx = 0; letterIdx < mLetters.size(); letterIdx++ )
+        {
+            const Letter& letter = mLetters[ letterIdx ];
+
+            Eigen::Vector3f eulerAngles = letter.mMtx.block<3,3>( 0, 0 ).eulerAngles( 0, 1, 2 );
+            const Eigen::Vector3f& pos = letter.mMtx.block<3,1>( 0, 3 );
+            
+            fprintf( pMapFile, "%c %f %f %f %f %f %f %f %f\n", 
+                letter.mCharacter, pos[ 0 ], pos[ 1 ], pos[ 2 ],
+                Utilities::radToDeg( eulerAngles[ 0 ] ), 
+                Utilities::radToDeg( eulerAngles[ 1 ] ), 
+                Utilities::radToDeg( eulerAngles[ 2 ] ), letter.mWidth, letter.mHeight );
+        }
+        
+        fclose( pMapFile );
+    }
 }
 
 //--------------------------------------------------------------------------------------------------

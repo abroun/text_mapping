@@ -74,6 +74,7 @@ LINK_DIRECTORIES(
 ADD_LIBRARY( TextMappingShared SHARED
     src/letter.cpp
     src/text_map.cpp
+    src/utilities.cpp
     src/vtk/vtk_text_map_source.cpp
     )
 

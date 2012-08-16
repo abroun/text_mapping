@@ -32,28 +32,58 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include <stdint.h>
+#include <string>
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <Eigen/Core>
 #include "text_mapping/letter.h"
 
 //--------------------------------------------------------------------------------------------------
-//! Data structure to hold a map of text on the surface of a 3D object. Text is stored as letters
-//! with each letter having a position, orientation and bounding box.
+//! \brief Data structure to hold a map of text on the surface of a 3D object. 
+//! Text is stored as letters with each letter having a position, orientation and bounding box.
 class TextMap
 {
     public: typedef boost::shared_ptr<TextMap> Ptr;
     public: typedef boost::shared_ptr<const TextMap> ConstPtr;
 
-    public: TextMap();
-    public: TextMap( const TextMap& otherMap );
+    //! Placeholder used when no model filename is available
+    public: static const std::string NO_MODEL_FILENAME;
     
+    //! The default constructor for a TextMap
+    public: TextMap();
+    
+    //! Loads a TextMap from a file.
+    //! @param filename The name of the file to read the TextMap from
+    public: static TextMap::Ptr loadTextMapFromFile( const std::string& filename );
+    
+    //! Saves the contents of the TextMap to a file.
+    //! @param filename The name of the file to write the TextMap to.
+    public: void saveToFile( const std::string& filename );
+   
+    //! Gets the number of letters in the map.
     public: size_t getNumLetters() const { return mLetters.size(); }
+    
+    //! Gets the model filename. Returns NO_MODEL_FILENAME is no model is attached
+    public: const std::string& getModelFilename() const { return mModelFilename; }
+    
+    //! Sets the model filename for the TextMap.
+    //! @param The filename of a model of the object that the TextMap maps
+    public: void setModelFilename( const std::string& modelFilename ) { mModelFilename = modelFilename; }
+    
+    //! An accessor for individual letters
+    //! @param letterIdx The index of the letter to access
     public: const Letter& getLetter( uint32_t letterIdx ) const { return mLetters[ letterIdx ]; }
+    
+    //! Returns the 3D extents of the TextMap
+    //! @param[out] pFirstCornerOut Variable to hold the first bounding box corner
+    //! @param[out] pSecondCornerOut Variable to hold the second bounding box corner
     public: void getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const;
     
+    //! Add a new letter to the TextMap
+    //! @param letter The letter to add to the TextMap
     public: void addLetter( const Letter& letter ) { mLetters.push_back( letter ); } 
     
+    private: std::string mModelFilename;    // Optional filename of a model of the object the map is on
     private: std::vector<Letter, Eigen::aligned_allocator<Letter> > mLetters;
     
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;

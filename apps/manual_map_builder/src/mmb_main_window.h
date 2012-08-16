@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MMB_MAIN_WINDOW_H_
 
 //--------------------------------------------------------------------------------------------------
+#include <string>
 #include <QtGui/QMainWindow>
 #include <vtkRenderer.h>
 #include <vtkOBJReader.h>
@@ -57,8 +58,11 @@ class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
     public: MmbMainWindow();
     public: virtual ~MmbMainWindow();
 
+    public slots: void onNew();
     public slots: void onOpen();
     public slots: void onSave();
+    public slots: void onSaveAs();
+    public slots: void onSetModel();
     
     private: void loadObjModel( QString filename );
     private: void loadTextureForModel( QString filename );
@@ -79,7 +83,8 @@ class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
     
     private: TextMap::Ptr mpModelTextMap;
     private: Eigen::Matrix4f mTransformToTarget;
-
+    private: std::string mTextMapFilename;
+    
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
