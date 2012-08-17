@@ -111,8 +111,6 @@ int vtkTextMapSource::RequestData(
         {
             const Letter& letter = this->TextMapPtr->getLetter( letterIdx );
 
-            printf( "Drawing letter %i\n", letterIdx );
-            
             Eigen::Vector3d vertices[] =
             {
                 letter.getTopLeftPos().cast<double>(),

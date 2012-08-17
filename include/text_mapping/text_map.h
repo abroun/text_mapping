@@ -70,9 +70,13 @@ class TextMap
     //! @param The filename of a model of the object that the TextMap maps
     public: void setModelFilename( const std::string& modelFilename ) { mModelFilename = modelFilename; }
     
-    //! An accessor for individual letters
+    //! A const accessor for individual letters
     //! @param letterIdx The index of the letter to access
     public: const Letter& getLetter( uint32_t letterIdx ) const { return mLetters[ letterIdx ]; }
+    
+    //! A non const accessor for individual letters
+    //! @param letterIdx The index of the letter to access
+    public: Letter& getLetter( uint32_t letterIdx ) { return mLetters[ letterIdx ]; }
     
     //! Returns the 3D extents of the TextMap
     //! @param[out] pFirstCornerOut Variable to hold the first bounding box corner
@@ -82,6 +86,10 @@ class TextMap
     //! Add a new letter to the TextMap
     //! @param letter The letter to add to the TextMap
     public: void addLetter( const Letter& letter ) { mLetters.push_back( letter ); } 
+    
+    //! Deletes the letter at the given index from the TextMap
+    //! @param letterIdx The index of the letter to delete
+    public: void deleteLetter( uint32_t letterIdx ) { mLetters.erase( mLetters.begin() + letterIdx ); }
     
     private: std::string mModelFilename;    // Optional filename of a model of the object the map is on
     private: std::vector<Letter, Eigen::aligned_allocator<Letter> > mLetters;

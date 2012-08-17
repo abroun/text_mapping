@@ -38,6 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //--------------------------------------------------------------------------------------------------
 #include <string>
 #include <QtGui/QMainWindow>
+#include <QStringListModel>
 #include <vtkRenderer.h>
 #include <vtkOBJReader.h>
 #include <vtkPolyDataMapper.h>
@@ -63,9 +64,14 @@ class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
     public slots: void onSave();
     public slots: void onSaveAs();
     public slots: void onSetModel();
+    public slots: void btnDeleteLetterClicked();
+    public slots: void onCharacterTextEdited( const QString& characterText );
+    public slots: void onCurrentLetterChanged( const QModelIndex& current, const QModelIndex& previous );  
+    public slots: void onWidthOrHeightValueChanged( double value );
     
     private: void loadObjModel( QString filename );
     private: void loadTextureForModel( QString filename );
+    private: void refreshLetterList();
     
     private: vtkSmartPointer<vtkRenderer> mpRenderer;
 
@@ -84,6 +90,10 @@ class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
     private: TextMap::Ptr mpModelTextMap;
     private: Eigen::Matrix4f mTransformToTarget;
     private: std::string mTextMapFilename;
+    private: uint32_t mCurLetterIdx;
+    private: bool mbSelectingNewLetter;
+    
+    private: QSharedPointer<QStringListModel> mpLetterListModel;
     
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };

@@ -53,6 +53,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 MmbMainWindow::MmbMainWindow()
 {
     setupUi( this );
+    mpLetterListModel = QSharedPointer<QStringListModel>( new QStringListModel() );
+    this->listLetters->setModel( &(*mpLetterListModel) );
     
     // Create a text map, and prepare to display it
     /*mpModelTextMap = TextMap::Ptr( new TextMap() );
@@ -106,12 +108,24 @@ MmbMainWindow::MmbMainWindow()
     onNew();    // Create a default text map
     
     // Hook up signals
-    connect( action_New, SIGNAL( triggered() ), this, SLOT( onNew() ) );
-    connect( action_Open, SIGNAL( triggered() ), this, SLOT( onOpen() ) );
-    connect( action_Save, SIGNAL( triggered() ), this, SLOT( onSave() ) );
-    connect( action_Save_As, SIGNAL( triggered() ), this, SLOT( onSaveAs() ) );
-    connect( action_Quit, SIGNAL( triggered() ), this, SLOT( close() ) );
-    connect( action_Set_Model, SIGNAL( triggered() ), this, SLOT( onSetModel() ) );
+    connect( this->action_New, SIGNAL( triggered() ), this, SLOT( onNew() ) );
+    connect( this->action_Open, SIGNAL( triggered() ), this, SLOT( onOpen() ) );
+    connect( this->action_Save, SIGNAL( triggered() ), this, SLOT( onSave() ) );
+    connect( this->action_Save_As, SIGNAL( triggered() ), this, SLOT( onSaveAs() ) );
+    connect( this->action_Quit, SIGNAL( triggered() ), this, SLOT( close() ) );
+    connect( this->action_Set_Model, SIGNAL( triggered() ), this, SLOT( onSetModel() ) );
+    connect( this->listLetters->selectionModel(), 
+             SIGNAL( currentChanged( const QModelIndex&, const QModelIndex& ) ), 
+             this, 
+             SLOT( onCurrentLetterChanged( const QModelIndex&, const QModelIndex& ) ) );
+    
+    connect( this->btnDeleteLetter, SIGNAL( clicked() ), this, SLOT( btnDeleteLetterClicked() ) );
+    connect( this->lineEditCharacter, SIGNAL( textEdited( const QString& ) ),
+             this, SLOT( onCharacterTextEdited( const QString& ) ) );
+    connect( this->spinWidth, SIGNAL( valueChanged( double ) ), 
+             this, SLOT( onWidthOrHeightValueChanged( double ) ) );
+    connect( this->spinHeight, SIGNAL( valueChanged( double ) ), 
+             this, SLOT( onWidthOrHeightValueChanged( double ) ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -132,6 +146,8 @@ void MmbMainWindow::onNew()
         mpObjReader->SetFileName( "" );
         mpObjReader->Update();
     }
+    
+    refreshLetterList();
     
     // Update the 3D display
     qvtkWidget->update();
@@ -173,6 +189,9 @@ void MmbMainWindow::onOpen()
             {
                 loadObjModel( modelFilename.c_str() );
             }
+            
+            // Display the letters in a list
+            refreshLetterList();
         }
     }
 }
@@ -216,6 +235,97 @@ void MmbMainWindow::onSetModel()
          tr( "Open Object Model" ), "../data", tr("Object Files (*.obj)") );
 
     loadObjModel( filename );
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onCurrentLetterChanged( const QModelIndex& current, const QModelIndex& previous )
+{
+    mCurLetterIdx = current.row();
+    if ( mCurLetterIdx < mpModelTextMap->getNumLetters() )
+    {
+        mbSelectingNewLetter = true;
+        
+        const Letter& letter = mpModelTextMap->getLetter( mCurLetterIdx );
+        
+        char letterStringBuffer[] = { letter.mCharacter, '\0' };
+        this->lineEditCharacter->setText( letterStringBuffer );
+        this->spinWidth->setValue( letter.mWidth );
+        this->spinHeight->setValue( letter.mHeight );
+        this->groupLetterEdit->setEnabled( true );
+        
+        mbSelectingNewLetter = false;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::btnDeleteLetterClicked()
+{
+    if ( mCurLetterIdx < mpModelTextMap->getNumLetters() )
+    {
+        mpModelTextMap->deleteLetter( mCurLetterIdx );
+        
+        mpTextMapSource->Modified();
+        qvtkWidget->update();
+        refreshLetterList();
+        
+        this->groupLetterEdit->setEnabled( false ); 
+        
+        // Try to find the index of a new letter to select
+        if ( mCurLetterIdx >= mpModelTextMap->getNumLetters() )
+        {
+            if ( mpModelTextMap->getNumLetters() > 0 )
+            {
+                mCurLetterIdx = mpModelTextMap->getNumLetters() - 1;
+            }
+        }
+        
+        if ( mCurLetterIdx < mpModelTextMap->getNumLetters() )
+        {
+            QModelIndex selectionIdx = mpLetterListModel->index( mCurLetterIdx, 0 );
+            
+            this->listLetters->selectionModel()->select( 
+                selectionIdx, QItemSelectionModel::SelectCurrent );
+        
+            // TODO: Find away of having the selection model make this call...
+            onCurrentLetterChanged( selectionIdx, selectionIdx );
+        }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onCharacterTextEdited( const QString& characterText )
+{
+    // This will only be called when the text is edited by a human (i.e. not programmatically)
+    if ( mCurLetterIdx < mpModelTextMap->getNumLetters() )
+    {
+        char character = ' ';
+        if ( characterText.length() >= 1 )
+        {
+            character = characterText[ 0 ].toAscii();
+        }
+        
+        Letter& letter = mpModelTextMap->getLetter( mCurLetterIdx );
+        letter.mCharacter = character;
+        
+        mpTextMapSource->Modified();
+        qvtkWidget->update();
+        refreshLetterList();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onWidthOrHeightValueChanged( double value )
+{
+    if ( !mbSelectingNewLetter
+        && mCurLetterIdx < mpModelTextMap->getNumLetters() )
+    {
+         Letter& letter = mpModelTextMap->getLetter( mCurLetterIdx );
+         letter.mWidth = this->spinWidth->value();
+         letter.mHeight = this->spinHeight->value();
+         
+         mpTextMapSource->Modified();
+         qvtkWidget->update();
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -272,9 +382,7 @@ void MmbMainWindow::loadTextureForModel( QString filename )
     std::string mtlFilename;
     bool bFoundMtlFilename = false;
     if ( objFile.is_open() )
-    {
-        printf( "Opened obj file\n" );
-        
+    {        
         std::string curLine;
         while ( objFile.good() )
         {
@@ -359,4 +467,29 @@ void MmbMainWindow::loadTextureForModel( QString filename )
     
     // Apply it to the model actor
     mpModelActor->SetTexture( mpModelTexture ); 
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::refreshLetterList()
+{
+    // Create a list of strings representing the characters
+    QStringList list;
+    if ( NULL != mpModelTextMap && mpModelTextMap->getNumLetters() > 0 )
+    {
+        char shortStringBuffer[ 2 ];
+        shortStringBuffer[ 1 ] = '\0';
+        
+        for ( uint32_t letterIdx = 0; letterIdx < mpModelTextMap->getNumLetters(); letterIdx++ )
+        {
+            shortStringBuffer[ 0 ] = mpModelTextMap->getLetter( letterIdx ).mCharacter;
+            list << shortStringBuffer;
+        }
+    }
+    else
+    {
+        // Disable the controls for editing the letter
+        this->groupLetterEdit->setEnabled( false );
+    }
+            
+    mpLetterListModel->setStringList( list );
 }
