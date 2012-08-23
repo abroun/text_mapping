@@ -110,13 +110,16 @@ int vtkTextMapSource::RequestData(
         for ( uint32_t letterIdx = 0; letterIdx < numLetters; letterIdx++ )
         {
             const Letter& letter = this->TextMapPtr->getLetter( letterIdx );
+            
+            // Move letters forward just a bit to avoid z-fighting
+            Eigen::Vector3d vertexOffset = letter.mMtx.block<3,1>( 0, 2 ).cast<double>() * 0.0005;
 
             Eigen::Vector3d vertices[] =
             {
-                letter.getTopLeftPos().cast<double>(),
-                letter.getTopRightPos().cast<double>(),
-                letter.getBottomRightPos().cast<double>(),
-                letter.getBottomLeftPos().cast<double>()
+                letter.getTopLeftPos().cast<double>() + vertexOffset,
+                letter.getTopRightPos().cast<double>() + vertexOffset,
+                letter.getBottomRightPos().cast<double>() + vertexOffset,
+                letter.getBottomLeftPos().cast<double>() + vertexOffset
             };
 
             // Add vertices

@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MMB_MAIN_WINDOW_H_
 
 //--------------------------------------------------------------------------------------------------
+#include <ctime>
 #include <string>
 #include <QtGui/QMainWindow>
 #include <QStringListModel>
@@ -46,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vtkSmartPointer.h>
 #include <vtkJPEGReader.h>
 #include <vtkTexture.h>
+#include <vtkCallbackCommand.h>
 #include "ui_mmb_main_window.h"
 #include <Eigen/Core>
 #include "text_mapping/text_map.h"
@@ -64,10 +66,13 @@ class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
     public slots: void onSave();
     public slots: void onSaveAs();
     public slots: void onSetModel();
-    public slots: void btnDeleteLetterClicked();
+    public slots: void onBtnDeleteLetterClicked();
     public slots: void onCharacterTextEdited( const QString& characterText );
     public slots: void onCurrentLetterChanged( const QModelIndex& current, const QModelIndex& previous );  
     public slots: void onWidthOrHeightValueChanged( double value );
+    
+    public: static void onInteractorEvent( vtkObject* pCaller, 
+        unsigned long eid, void* pClientdata, void* pCalldata );
     
     private: void loadObjModel( QString filename );
     private: void loadTextureForModel( QString filename );
@@ -94,6 +99,9 @@ class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
     private: bool mbSelectingNewLetter;
     
     private: QSharedPointer<QStringListModel> mpLetterListModel;
+    
+    private: vtkSmartPointer<vtkCallbackCommand> mpOnEventCallback;
+    private: std::clock_t mDoubleClickStartTime;
     
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };

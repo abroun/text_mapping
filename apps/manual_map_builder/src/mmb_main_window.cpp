@@ -41,6 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <fstream>
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
+#include <vtkCellPicker.h>
 #include <vtkProperty.h>
 #include <vtkRenderWindow.h>
 #include <QtGui/qfiledialog.h>
@@ -51,6 +52,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // MmbMainWindow
 //--------------------------------------------------------------------------------------------------
 MmbMainWindow::MmbMainWindow()
+    : mDoubleClickStartTime( std::clock() )
 {
     setupUi( this );
     mpLetterListModel = QSharedPointer<QStringListModel>( new QStringListModel() );
@@ -107,6 +109,13 @@ MmbMainWindow::MmbMainWindow()
 
     onNew();    // Create a default text map
     
+    // Setup a callback object to listen for input events from the VTK widget
+    mpOnEventCallback = vtkCallbackCommand::New();
+    mpOnEventCallback->SetCallback( onInteractorEvent );
+    mpOnEventCallback->SetClientData( this );
+
+    qvtkWidget->GetInteractor()->AddObserver( vtkCommand::LeftButtonPressEvent, mpOnEventCallback );
+    
     // Hook up signals
     connect( this->action_New, SIGNAL( triggered() ), this, SLOT( onNew() ) );
     connect( this->action_Open, SIGNAL( triggered() ), this, SLOT( onOpen() ) );
@@ -119,7 +128,7 @@ MmbMainWindow::MmbMainWindow()
              this, 
              SLOT( onCurrentLetterChanged( const QModelIndex&, const QModelIndex& ) ) );
     
-    connect( this->btnDeleteLetter, SIGNAL( clicked() ), this, SLOT( btnDeleteLetterClicked() ) );
+    connect( this->btnDeleteLetter, SIGNAL( clicked() ), this, SLOT( onBtnDeleteLetterClicked() ) );
     connect( this->lineEditCharacter, SIGNAL( textEdited( const QString& ) ),
              this, SLOT( onCharacterTextEdited( const QString& ) ) );
     connect( this->spinWidth, SIGNAL( valueChanged( double ) ), 
@@ -258,7 +267,7 @@ void MmbMainWindow::onCurrentLetterChanged( const QModelIndex& current, const QM
 }
 
 //--------------------------------------------------------------------------------------------------
-void MmbMainWindow::btnDeleteLetterClicked()
+void MmbMainWindow::onBtnDeleteLetterClicked()
 {
     if ( mCurLetterIdx < mpModelTextMap->getNumLetters() )
     {
@@ -325,6 +334,86 @@ void MmbMainWindow::onWidthOrHeightValueChanged( double value )
          
          mpTextMapSource->Modified();
          qvtkWidget->update();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onInteractorEvent( vtkObject* pCaller, unsigned long eid, 
+                                       void* pClientdata, void* pCalldata )
+{
+    const float MAX_TIME_FOR_DOUBLE_CLICK = 0.01f;  // Time in seconds
+    
+    MmbMainWindow* pWin = (MmbMainWindow*)pClientdata;
+    vtkRenderWindowInteractor* pInteractor = pWin->qvtkWidget->GetInteractor();
+
+    switch ( eid )
+    {
+        case vtkCommand::LeftButtonPressEvent:
+        {
+            std::clock_t clickTime = std::clock();
+            
+            if ( ((float)(clickTime - pWin->mDoubleClickStartTime))/CLOCKS_PER_SEC <= MAX_TIME_FOR_DOUBLE_CLICK )
+            {
+                // Double click detected
+                pWin->mDoubleClickStartTime = 0;
+
+                // Pick from this location.
+                int* mousePos = pInteractor->GetEventPosition();
+                vtkSmartPointer<vtkCellPicker> pPicker = vtkSmartPointer<vtkCellPicker>::New();
+                int pickResult = pPicker->Pick( mousePos[ 0 ], mousePos[ 1 ], 0, pWin->mpRenderer );
+
+                if ( 0 != pickResult
+                    && NULL != pWin->mpModelTextMap )
+                {
+                    double* pickPos = pPicker->GetPickPosition();
+                    //double* pickNormal = pPicker->GetMapperNormal();
+
+                    Eigen::Vector3f letterPos( pickPos[ 0 ], pickPos[ 1 ], pickPos[ 2 ] );
+                    Eigen::Vector3f letterNormal( 0.0, 0.0, 1.0 );
+                                                  // pickNormal[ 0 ], pickNormal[ 1 ], pickNormal[ 2 ] );
+                    
+                    // Pick an arbitrary y-axis for the letter
+                    Eigen::Vector3f axisY;
+                    if ( letterNormal[ 1 ] > 0.95f )
+                    {
+                        // Letter normal is too close to ( 0.0, 1.0, 0.0 )
+                        axisY = Eigen::Vector3f( 1.0, 0.0, 0.0 );
+                    }
+                    else
+                    {
+                        axisY = Eigen::Vector3f( 0.0, 1.0, 0.0 );
+                    }
+                    
+                    // Now build an orthonormal rotation matrix for the letter
+                    Eigen::Vector3f axisX = axisY.cross( letterNormal );
+                    axisX.normalize();
+                    axisY = letterNormal.cross( axisX );
+                    axisY.normalize();
+                    
+                    Letter letter;
+                    letter.mMtx = Eigen::Matrix4f::Identity();
+                    letter.mMtx.block<3,1>( 0, 0 ) = axisX;
+                    letter.mMtx.block<3,1>( 0, 1 ) = axisY;
+                    letter.mMtx.block<3,1>( 0, 2 ) = letterNormal;
+                    letter.mMtx.block<3,1>( 0, 3 ) = letterPos;
+                    letter.mWidth = 0.02f;
+                    letter.mHeight = 0.03f;
+                    letter.mCharacter = 'A';
+                    pWin->mpModelTextMap->addLetter( letter );
+                    
+                    pWin->mpTextMapSource->Modified();
+                    pWin->qvtkWidget->update();
+                    pWin->refreshLetterList();
+                }
+            }
+            else
+            {
+                // No double click yet
+                pWin->mDoubleClickStartTime = clickTime;
+            }
+
+            break;
+        }
     }
 }
 
