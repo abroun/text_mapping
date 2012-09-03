@@ -76,7 +76,7 @@ std::string Utilities::createRelativeFilename( const std::string& baseFilename,
     
     if ( bFilesInSameDirectory )
     {
-        relativeFilename = otherFilenamePath.filename();
+        relativeFilename = otherFilenamePath.filename().string();
     }
     else
     {        
@@ -96,12 +96,12 @@ std::string Utilities::createRelativeFilename( const std::string& baseFilename,
         // Then append on the remaining elements of the other filename path
         while ( *curOtherFilenamePathElement != otherFilenamePath.filename() )
         {
-            relativeFilename += *curOtherFilenamePathElement;
+            relativeFilename += (*curOtherFilenamePathElement).string();
             relativeFilename += "/";
             
             curOtherFilenamePathElement++;
         }
-        relativeFilename += otherFilenamePath.filename();
+        relativeFilename += otherFilenamePath.filename().string();
     }
     
     return relativeFilename;
