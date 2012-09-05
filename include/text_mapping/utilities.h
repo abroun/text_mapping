@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include <stdint.h>
+#define _USE_MATH_DEFINES
 #include <math.h>
 #include <string>
 
@@ -42,12 +43,12 @@ class Utilities
     //! Converts degrees into radians
     //! @param degrees The input angle in degrees
     //! @return The angle converted to radians
-    public: static float degToRad( float degrees ) { return degrees*M_PI/180.0; }
+    public: static float degToRad( float degrees ) { return (float)(degrees*M_PI/180.0); }
 
     //! Converts radians into degrees
     //! @param radians The input angle in radians
     //! @return The angle converted to degrees
-    public: static float radToDeg( float radians ) { return radians*180.0/M_PI; }
+    public: static float radToDeg( float radians ) { return (float)(radians*180.0/M_PI); }
     
     //! Takes two absolute filenames, and returns a relative filename for the second filename
     //! from the directory of the first filename.

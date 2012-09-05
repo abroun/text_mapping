@@ -33,6 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //--------------------------------------------------------------------------------------------------
 #include <boost/shared_ptr.hpp>
 #include <Eigen/Core>
+#include <Eigen/StdVector>
 
 //--------------------------------------------------------------------------------------------------
 //! Data structure that represents a letter on the surface of a 3D object.
@@ -52,5 +53,7 @@ struct Letter
     
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
+
+EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION( Letter )
 
 #endif // LETTER_H
