@@ -147,7 +147,7 @@ void TextMap::saveToFile( const std::string& filename )
         fprintf( pMapFile, "%s\n", relativeModelFilename.c_str() );
         
         // Write out the number of letters in the map
-        fprintf( pMapFile, "%u\n", mLetters.size() );
+        fprintf( pMapFile, "%u\n", (uint32_t)mLetters.size() );
         
         // Write out each letter
         for ( uint32_t letterIdx = 0; letterIdx < mLetters.size(); letterIdx++ )

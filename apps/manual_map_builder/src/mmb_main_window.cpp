@@ -43,6 +43,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/filesystem.hpp>
 #include <vtkCellPicker.h>
 #include <vtkProperty.h>
+#include <vtkProp3DCollection.h>
 #include <vtkRenderWindow.h>
 #include <QtGui/qfiledialog.h>
 #include <Eigen/Geometry>
@@ -365,16 +366,17 @@ void MmbMainWindow::onInteractorEvent( vtkObject* pCaller, unsigned long eid,
                 if ( 0 != pickResult
                     && NULL != pWin->mpModelTextMap )
                 {
+                	printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+
                     double* pickPos = pPicker->GetPickPosition();
-                    //double* pickNormal = pPicker->GetMapperNormal();
+                    double* pickNormal = pPicker->GetMapperNormal();
 
                     Eigen::Vector3f letterPos( pickPos[ 0 ], pickPos[ 1 ], pickPos[ 2 ] );
-                    Eigen::Vector3f letterNormal( 0.0, 0.0, 1.0 );
-                                                  // pickNormal[ 0 ], pickNormal[ 1 ], pickNormal[ 2 ] );
+                    Eigen::Vector3f letterNormal( pickNormal[ 0 ], pickNormal[ 1 ], pickNormal[ 2 ] );
                     
                     // Pick an arbitrary y-axis for the letter
                     Eigen::Vector3f axisY;
-                    if ( letterNormal[ 1 ] > 0.95f )
+                    if ( fabsf( letterNormal[ 1 ] ) > 0.95f )
                     {
                         // Letter normal is too close to ( 0.0, 1.0, 0.0 )
                         axisY = Eigen::Vector3f( 1.0, 0.0, 0.0 );
