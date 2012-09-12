@@ -81,9 +81,9 @@ int main(int argc, char** argv)
 	{
 		std::string ImageAddress = NameLocation.at(i);
 		std::cout << "Image Name " <<ImageAddress << std::endl;
-		cv::Mat image;
+		cv::Mat image,colorimage;
 		image =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_GRAYSCALE);
-		//image =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
+		colorimage =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
 
 		imageSize.height = image.rows;
 		imageSize.width = image.cols;
@@ -97,7 +97,7 @@ int main(int argc, char** argv)
 		// number of corners on the chessboard
 		bool found = cv::findChessboardCorners(image,boardSize,imageCorners);
 
-		cv::drawChessboardCorners(image,boardSize,imageCorners,found); 
+		cv::drawChessboardCorners(colorimage,boardSize,imageCorners,found); 
 
 		//Get subpixel accuracy on the corners
 		//cv::cornerSubPix(image,imageCorners,cv::Size(5,5),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,30,0.1));
@@ -114,7 +114,7 @@ int main(int argc, char** argv)
 		else
 			std::cout << "Failed" << std::endl;
 
-		cv::imshow("Image",image);
+		cv::imshow("Image",colorimage);
 		cv::waitKey();
 		cv::destroyWindow("Image");
 
