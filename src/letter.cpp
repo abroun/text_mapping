@@ -36,30 +36,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Eigen::Vector3f Letter::getTopLeftPos() const
 {
     return mMtx.block<3,1>( 0, 3 ) 
-        - (mWidth/2.0)*mMtx.block<3,1>( 0, 0 )
-        + (mHeight/2.0)*mMtx.block<3,1>( 0, 1 );
+        - (mWidth/2.0f)*mMtx.block<3,1>( 0, 0 )
+        + (mHeight/2.0f)*mMtx.block<3,1>( 0, 1 );
 }
 
 //--------------------------------------------------------------------------------------------------
 Eigen::Vector3f Letter::getTopRightPos() const
 {
     return mMtx.block<3,1>( 0, 3 ) 
-        + (mWidth/2.0)*mMtx.block<3,1>( 0, 0 )
-        + (mHeight/2.0)*mMtx.block<3,1>( 0, 1 );
+        + (mWidth/2.0f)*mMtx.block<3,1>( 0, 0 )
+        + (mHeight/2.0f)*mMtx.block<3,1>( 0, 1 );
 }
 
 //--------------------------------------------------------------------------------------------------
 Eigen::Vector3f Letter::getBottomRightPos() const
 {
     return mMtx.block<3,1>( 0, 3 ) 
-        + (mWidth/2.0)*mMtx.block<3,1>( 0, 0 )
-        - (mHeight/2.0)*mMtx.block<3,1>( 0, 1 );
+        + (mWidth/2.0f)*mMtx.block<3,1>( 0, 0 )
+        - (mHeight/2.0f)*mMtx.block<3,1>( 0, 1 );
 }
 
 //--------------------------------------------------------------------------------------------------
 Eigen::Vector3f Letter::getBottomLeftPos() const
 {
     return mMtx.block<3,1>( 0, 3 ) 
-        - (mWidth/2.0)*mMtx.block<3,1>( 0, 0 )
-        - (mHeight/2.0)*mMtx.block<3,1>( 0, 1 );
+        - (mWidth/2.0f)*mMtx.block<3,1>( 0, 0 )
+        - (mHeight/2.0f)*mMtx.block<3,1>( 0, 1 );
 }

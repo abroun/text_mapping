@@ -34,28 +34,10 @@ SET( Boost_USE_STATIC_RUNTIME OFF )
 FIND_PACKAGE( Boost 1.46.1 REQUIRED COMPONENTS system filesystem )
 FIND_PACKAGE( Eigen3 REQUIRED )
 
-FIND_PACKAGE( SWIG REQUIRED )
-INCLUDE( ${SWIG_USE_FILE} )
-
-FIND_PACKAGE( PythonInterp )
-FIND_PACKAGE( PythonLibs )
-
-EXECUTE_PROCESS( COMMAND ${PYTHON_EXECUTABLE} --version
-              ERROR_VARIABLE PYTHON_VERSION_FULL
-              OUTPUT_STRIP_TRAILING_WHITESPACE )
-
-STRING(REGEX MATCH "[0-9].[0-9]" PYTHON_VERSION_MAJOR_MINOR "${PYTHON_VERSION_FULL}")
-IF(UNIX)
-    SET(PYTHON_PLUGIN_INSTALL_PATH lib/python${PYTHON_VERSION_MAJOR_MINOR}/site-packages/TextMapping )
-    SET(PYTHON_PACKAGES_PATH lib/python${PYTHON_VERSION_MAJOR_MINOR}/site-packages)
+IF(	WIN32 )
+	# We remove the security warnings as we're not writing code for production, just for researchers
+	ADD_DEFINITIONS( -D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS )
 ENDIF()
-IF(WIN32)
-    GET_FILENAME_COMPONENT(PYTHON_PATH "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Python\\PythonCore\\${PYTHON_VERSION_MAJOR_MINOR}\\InstallPath]" ABSOLUTE CACHE)
-    SET(PYTHON_PLUGIN_INSTALL_PATH "${PYTHON_PATH}/Lib/site-packages/TextMapping")
-    SET(PYTHON_PACKAGES_PATH "${PYTHON_PATH}/Lib/site-packages")
-ENDIF()
-
-INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_PATH})
 
 #SET( EIGEN_INCLUDE_DIR "" CACHE PATH "Headers for the eigen library" )
 
@@ -66,39 +48,72 @@ INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_PATH})
 INCLUDE_DIRECTORIES(
     .
     ${EIGEN3_INCLUDE_DIRS}
+	${Boost_INCLUDE_DIRS}
     ${PROJECT_SOURCE_DIR}/include )
 
 LINK_DIRECTORIES(
+	${Boost_LIBRARY_DIRS}
 	)
 
-ADD_LIBRARY( TextMappingShared SHARED
+ADD_LIBRARY( TextMapping
     src/letter.cpp
     src/text_map.cpp
     src/utilities.cpp
     src/vtk/vtk_text_map_source.cpp
     )
 
-SET_TARGET_PROPERTIES( TextMappingShared
-    PROPERTIES OUTPUT_NAME TextMapping )
 TARGET_LINK_LIBRARIES( 
-	TextMappingShared
+	TextMapping
     ${Boost_LIBRARIES}
+	vtkRendering
     )
 
-INSTALL( TARGETS TextMappingShared
-        LIBRARY DESTINATION lib )
-INSTALL( DIRECTORY include/text_mapping DESTINATION include
-        FILES_MATCHING PATTERN "*.h" )
+IF(UNIX)
+	INSTALL( TARGETS TextMapping
+			LIBRARY DESTINATION lib )
+	INSTALL( DIRECTORY include/text_mapping DESTINATION include
+			FILES_MATCHING PATTERN "*.h" )
+ENDIF()
 
 # Python interface using SWIG
-SET(CMAKE_SWIG_FLAGS "")
+FIND_PACKAGE( SWIG )
+IF( SWIG_FOUND )
+	INCLUDE( ${SWIG_USE_FILE} )
 
-ADD_SUBDIRECTORY(interfaces/python)
-SET_SOURCE_FILES_PROPERTIES(interfaces/python/TextMapping.i PROPERTIES CPLUSPLUS ON)
-SWIG_ADD_MODULE( TextMapping python interfaces/python/TextMapping.i )
-SWIG_LINK_LIBRARIES( TextMapping ${PYTHON_LIBRARIES} TextMappingShared )
-set_source_files_properties(${swig_generated_file_fullname} PROPERTIES 
-                  COMPILE_FLAGS "-fno-strict-aliasing -w" ) 
+	FIND_PACKAGE( PythonInterp )
+	FIND_PACKAGE( PythonLibs )
+
+	EXECUTE_PROCESS( COMMAND ${PYTHON_EXECUTABLE} --version
+				  ERROR_VARIABLE PYTHON_VERSION_FULL
+				  OUTPUT_STRIP_TRAILING_WHITESPACE )
+
+	STRING(REGEX MATCH "[0-9].[0-9]" PYTHON_VERSION_MAJOR_MINOR "${PYTHON_VERSION_FULL}")
+	IF(UNIX)
+		SET(PYTHON_PLUGIN_INSTALL_PATH lib/python${PYTHON_VERSION_MAJOR_MINOR}/site-packages/TextMapping )
+		SET(PYTHON_PACKAGES_PATH lib/python${PYTHON_VERSION_MAJOR_MINOR}/site-packages)
+	ENDIF()
+	IF(WIN32)
+		GET_FILENAME_COMPONENT(PYTHON_PATH "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Python\\PythonCore\\${PYTHON_VERSION_MAJOR_MINOR}\\InstallPath]" ABSOLUTE CACHE)
+		SET(PYTHON_PLUGIN_INSTALL_PATH "${PYTHON_PATH}/Lib/site-packages/TextMapping")
+		SET(PYTHON_PACKAGES_PATH "${PYTHON_PATH}/Lib/site-packages")
+	ENDIF()
+
+	INCLUDE_DIRECTORIES(${PYTHON_INCLUDE_PATH})
+	
+	SET(CMAKE_SWIG_FLAGS "")
+
+	ADD_SUBDIRECTORY(interfaces/python)
+	SET_SOURCE_FILES_PROPERTIES(interfaces/python/TextMapping.i PROPERTIES CPLUSPLUS ON)
+	SWIG_ADD_MODULE( TextMapping python interfaces/python/TextMapping.i )
+	SWIG_LINK_LIBRARIES( TextMapping ${PYTHON_LIBRARIES} TextMapping )
+	set_source_files_properties(${swig_generated_file_fullname} PROPERTIES 
+					  COMPILE_FLAGS "-fno-strict-aliasing -w" ) 
+					  
+	INSTALL( FILES ${CMAKE_BINARY_DIR}/${outdir}/_TextMapping.so
+          DESTINATION ${PYTHON_PACKAGES_PATH} )
+	INSTALL( FILES ${CMAKE_BINARY_DIR}/${outdir}/TextMapping.py
+			  DESTINATION ${PYTHON_PACKAGES_PATH} )
+ENDIF()
 
 # Add a target to generate API documentation with Doxygen
 FIND_PACKAGE( Doxygen )
@@ -115,11 +130,6 @@ ENDIF( DOXYGEN_FOUND )
 
 #SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE) 
 #SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-INSTALL( FILES ${CMAKE_BINARY_DIR}/${outdir}/_TextMapping.so
-          DESTINATION ${PYTHON_PACKAGES_PATH} )
-INSTALL( FILES ${CMAKE_BINARY_DIR}/${outdir}/TextMapping.py
-          DESTINATION ${PYTHON_PACKAGES_PATH} )
 
 ADD_SUBDIRECTORY( apps/manual_map_builder )
 ADD_SUBDIRECTORY( apps/text_mapper )

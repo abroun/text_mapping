@@ -342,7 +342,7 @@ void MmbMainWindow::onWidthOrHeightValueChanged( double value )
 void MmbMainWindow::onInteractorEvent( vtkObject* pCaller, unsigned long eid, 
                                        void* pClientdata, void* pCalldata )
 {
-    const float MAX_TIME_FOR_DOUBLE_CLICK = 0.01f;  // Time in seconds
+    const float MAX_TIME_FOR_DOUBLE_CLICK = 0.2f;  // Time in seconds
     
     MmbMainWindow* pWin = (MmbMainWindow*)pClientdata;
     vtkRenderWindowInteractor* pInteractor = pWin->qvtkWidget->GetInteractor();
@@ -352,7 +352,7 @@ void MmbMainWindow::onInteractorEvent( vtkObject* pCaller, unsigned long eid,
         case vtkCommand::LeftButtonPressEvent:
         {
             std::clock_t clickTime = std::clock();
-            
+
             if ( ((float)(clickTime - pWin->mDoubleClickStartTime))/CLOCKS_PER_SEC <= MAX_TIME_FOR_DOUBLE_CLICK )
             {
                 // Double click detected
