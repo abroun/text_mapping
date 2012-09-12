@@ -1,5 +1,9 @@
-* # Everything
+# Ignore all sub folders by default
+*/
 
-!contact_lenses
-!font
-!text_maps
+!contact_lenses/
+!font/
+!text_maps/
+!models/
+!point_clouds/
+

@@ -122,4 +122,4 @@ INSTALL( FILES ${CMAKE_BINARY_DIR}/${outdir}/TextMapping.py
           DESTINATION ${PYTHON_PACKAGES_PATH} )
 
 ADD_SUBDIRECTORY( apps/manual_map_builder )
-
+ADD_SUBDIRECTORY( apps/text_mapper )
