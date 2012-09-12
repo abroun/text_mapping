@@ -83,6 +83,7 @@ int main(int argc, char** argv)
 		std::cout << "Image Name " <<ImageAddress << std::endl;
 		cv::Mat image;
 		image =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_GRAYSCALE);
+		//image =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
 
 		imageSize.height = image.rows;
 		imageSize.width = image.cols;
@@ -96,13 +97,10 @@ int main(int argc, char** argv)
 		// number of corners on the chessboard
 		bool found = cv::findChessboardCorners(image,boardSize,imageCorners);
 
-		/*cv::drawChessboardCorners(image,boardSize,imageCorners,found); 
-		cv::imshow("Image",image);
-		cv::waitKey();
-		cv::destroyWindow("Image");*/
+		cv::drawChessboardCorners(image,boardSize,imageCorners,found); 
 
 		//Get subpixel accuracy on the corners
-		cv::cornerSubPix(image,imageCorners,cv::Size(5,5),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,30,0.1));
+		//cv::cornerSubPix(image,imageCorners,cv::Size(5,5),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,30,0.1));
 
 		//If we have a good board, add it to our data
 		if(imageCorners.size() == boardSize.area())
@@ -113,6 +111,13 @@ int main(int argc, char** argv)
 
 			successes++;
 		}
+		else
+			std::cout << "Failed" << std::endl;
+
+		cv::imshow("Image",image);
+		cv::waitKey();
+		cv::destroyWindow("Image");
+
 	}
 
 	std::vector<cv::Mat> rvecs,tvecs;

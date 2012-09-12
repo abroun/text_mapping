@@ -4,7 +4,9 @@ FIND_PACKAGE( OpenCV 2.3.1 REQUIRED )
 INCLUDE_DIRECTORIES(
     ${OpenCV_INCLUDE_DIRS} )
 
-SET( SRC_FILES src/camera_calibration.cpp )
+ADD_EXECUTABLE( camera_calibration src/camera_calibration.cpp )
+TARGET_LINK_LIBRARIES( camera_calibration ${OpenCV_LIBS} )
 
-ADD_EXECUTABLE( camera_calibration ${SRC_FILES} )
-TARGET_LINK_LIBRARIES( camera_calibration TextMapping ${OpenCV_LIBS} )
+ADD_EXECUTABLE( stereo_calibration src/stereo_calibration.cpp )
+TARGET_LINK_LIBRARIES( stereo_calibration ${OpenCV_LIBS} )
+
