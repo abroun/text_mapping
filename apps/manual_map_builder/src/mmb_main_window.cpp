@@ -342,7 +342,11 @@ void MmbMainWindow::onWidthOrHeightValueChanged( double value )
 void MmbMainWindow::onInteractorEvent( vtkObject* pCaller, unsigned long eid, 
                                        void* pClientdata, void* pCalldata )
 {
+#ifdef WIN32
     const float MAX_TIME_FOR_DOUBLE_CLICK = 0.2f;  // Time in seconds
+#else
+    const float MAX_TIME_FOR_DOUBLE_CLICK = 0.01f;  // Time in seconds
+#endif
     
     MmbMainWindow* pWin = (MmbMainWindow*)pClientdata;
     vtkRenderWindowInteractor* pInteractor = pWin->qvtkWidget->GetInteractor();
