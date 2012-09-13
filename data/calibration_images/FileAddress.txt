@@ -1,9 +1,3 @@
 10 7 225 150
-c8.jpg
-c9.jpg
-c10.jpg
-c11.jpg
-c12.jpg
-c13.jpg
-c14.jpg
-c15.jpg
+c20.jpg
+k20.bmp

@@ -82,13 +82,13 @@ int main(int argc, char** argv)
 		std::cout << "Image Name " <<ImageAddress << std::endl;
 		cv::Mat image,colorimage1,colorimage2;
 		image =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_GRAYSCALE);
-		//colorimage1 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
-		//colorimage2 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
+		colorimage1 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
+		colorimage2 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
 
 		imageSize.height = image.rows;
 		imageSize.width = image.cols;
 
-	    /*cv::imshow("Image",image);
+		/*cv::imshow("Image",image);
 		cv::waitKey();
 		cv::destroyWindow("Image");*/
 
