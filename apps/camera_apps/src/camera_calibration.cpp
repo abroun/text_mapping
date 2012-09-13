@@ -68,7 +68,6 @@ int main(int argc, char** argv)
 
 	int successes = 0;
 
-
 	//3D Scene Points
 	//Initialize the chessboard corners
 	//in the chessboard reference frame
@@ -81,9 +80,10 @@ int main(int argc, char** argv)
 	{
 		std::string ImageAddress = NameLocation.at(i);
 		std::cout << "Image Name " <<ImageAddress << std::endl;
-		cv::Mat image,colorimage;
+		cv::Mat image,colorimage1,colorimage2;
 		image =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_GRAYSCALE);
-		colorimage =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
+		colorimage1 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
+		colorimage2 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
 
 		imageSize.height = image.rows;
 		imageSize.width = image.cols;
@@ -94,13 +94,16 @@ int main(int argc, char** argv)
 
 		// output vector of image points
 		std::vector<cv::Point2f> imageCorners;
+
 		// number of corners on the chessboard
 		bool found = cv::findChessboardCorners(image,boardSize,imageCorners);
 
-		cv::drawChessboardCorners(colorimage,boardSize,imageCorners,found); 
+		//cv::drawChessboardCorners(colorimage1,boardSize,imageCorners,found);
 
 		//Get subpixel accuracy on the corners
-		//cv::cornerSubPix(image,imageCorners,cv::Size(5,5),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,30,0.1));
+		cv::cornerSubPix(image,imageCorners,cv::Size(11,11),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,100,0.225));
+
+		//cv::drawChessboardCorners(colorimage2,boardSize,imageCorners,found);
 
 		//If we have a good board, add it to our data
 		if(imageCorners.size() == boardSize.area())
@@ -114,18 +117,18 @@ int main(int argc, char** argv)
 		else
 			std::cout << "Failed" << std::endl;
 
-		cv::imshow("Image",colorimage);
+		/*cv::resize(colorimage1,colorimage1,cv::Size(1024,768));
+		cv::resize(colorimage2,colorimage2,cv::Size(1024,768));
+		cv::imshow("Pre Sub Pixel",colorimage1);
+		cv::imshow("Post Sub Pixel",colorimage2);
 		cv::waitKey();
-		cv::destroyWindow("Image");
+		cv::destroyWindow("Pre Sub Pixel");
+		cv::destroyWindow("Post Sub Pixel");*/
 
 	}
 
 	std::vector<cv::Mat> rvecs,tvecs;
-
 	std::cout << cv::calibrateCamera(objectPoints,imagePoints,imageSize,cameraMatrix,distCoeffs,rvecs,tvecs,0) << "\n\n" << cameraMatrix << std::endl;
-
-
-
 
 	std::cout << "Finished Camera Calibration" << std::endl;
 	std::cin.ignore();
