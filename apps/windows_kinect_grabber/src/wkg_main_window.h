@@ -54,12 +54,19 @@ class WkgMainWindow : public QMainWindow, private Ui::wkg_main_window
     public: WkgMainWindow();
     public: virtual ~WkgMainWindow();
 
+	public slots: void onCheckNearModeClicked( bool bChecked = false );
+	public slots: void onCbxViewCurrentIndexChanged( const QString& text );
+	public slots: void onBtnGrabFrameClicked();
+
     private: virtual void timerEvent( QTimerEvent* pEvent ) { update(); }
 
     private: bool tryToConnectToKinect();
+	private: HRESULT tryToSetNearMode( bool bOn );
     private: void update();
     private: HRESULT processDepth();
     private: HRESULT processColor();
+	private: void mapColorToDepth();
+	private: void drawImage();
 
 	private: INuiSensor* mpNuiSensor;
 
@@ -73,10 +80,19 @@ class WkgMainWindow : public QMainWindow, private Ui::wkg_main_window
     private: DWORD mImageWidth;
     private: DWORD mImageHeight;
     private: uint16_t* mpDepthBuffer;
+	private: uint8_t* mpDepthColorBuffer;	// For showing the depth buffer with the RGB image mapped to it
     private: uint8_t* mpColorBuffer;
 
     private: QGraphicsScene* mpScene;
     private: QGraphicsPixmapItem* mpPixmapItem;
+
+	private: enum eView
+	{
+		eV_RgbCamera,
+		eV_DepthCamera
+	};
+
+	private: eView mCurView;
 
     private: static const NUI_IMAGE_RESOLUTION IMAGE_RESOLUTION = NUI_IMAGE_RESOLUTION_640x480;
 };

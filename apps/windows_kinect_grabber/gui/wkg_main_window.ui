@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Kinect Grabber</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
@@ -29,11 +29,46 @@
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="btnGrabFrame">
-      <property name="text">
-       <string>Grab Frame</string>
-      </property>
-     </widget>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QCheckBox" name="checkNearMode">
+        <property name="text">
+         <string>Enable Near Mode</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>View:</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="cbxView">
+        <item>
+         <property name="text">
+          <string>RGB Camera</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Depth Camera</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnGrabFrame">
+        <property name="text">
+         <string>Grab Frame</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>
