@@ -1,0 +1,41 @@
+Dependancies
+=============
+
+Before you can build this code you will need to install the following packages (package names are for Ubuntu 10.04) so they may be different in different distributions
+
+    binutils-avr
+    avr-libc
+    gcc-avr
+    cmake
+    cmake-curses-gui    (recommended but not essential)
+    python-serial       (this contains pyserial which is used when flashing the CM-5)
+
+Building
+=========
+
+To build this code
+
+    mkdir build
+    cd build
+    ccmake ../
+
+    Inside ccmake press 'c' to configure the make process (you may have to press it twice) and then 'g' to generate the make files
+
+Then run
+
+    make
+
+After this you should have a firmware image called firmware.hex which you can download to the CM5
+
+Downloading and Running the Firmware
+=====================================
+
+The CM-5 contains a boot loader written by Robotis that lets you download firmware to the CM-5 over a serial connection. You can see this for yourself by connecting to the CM-5 using something like cutecom and holding down the '#' key whilst powering the CM-5 off and then on.
+
+We use a python script called flasher.py to take a firmware in the Intel HEX file format and then download it to the CM-5 using the boot loader. To use flasher from the build directory after making firmware.hex run
+
+    ../../../scripts/robotis_flasher/flasher.py firmware.hex
+
+Follow the onscreen instructions and your new firmware should be downloaded and run.
+
+Enjoy! :)

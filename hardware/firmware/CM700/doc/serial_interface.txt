@@ -1,0 +1,138 @@
+The firmware provides a simple ascii based serial interface that allows for easy control of the firmware over your favorite terminal program such as cutecom or minicom etc.
+
+This interface can be used programmatically using a serial library such as pyserial
+
+To use the interface, connect to the CM-700 using a terminal program at the correct baud rate (at the time of writing this is 57600 bps.
+
+To use a command, type the command name followed by any arguments and press enter. The available commands are
+
+SetGaitSpeed
+=============
+
+Usage
+    SetGaitSpeed speed
+
+Starts the robot walking with the given speed. A positive speed walks forward and a negative speed walks backwards. A speed of zero stops the robot.
+
+Example
+    SetGaitSpeed 0      # Stops the robot
+
+SetAnimFrame
+=============
+
+Usage
+    SetAnimFrame frame
+
+Sets the current animation frame to be edited
+
+ClearAnimFrame
+===============
+
+Usage
+    ClearAnimFrame
+
+Clears all motor commands from the animation frame currently being edited
+
+
+SetMotor
+=========
+
+Usage
+    SetMotor motorId position [speed]
+
+Puts a motor command in the current animation frame to move the motor with id 'motorId' to 'poistion' with a given 'speed'. The range of acceptable values for postion and speed are the same as those given in the RX-28 manual i.e. [0,1023]
+
+Note: This command only affects the current animation frame so unless that frame is part of the animation being played the command will not have an immediate effect on the motor
+
+SetNextAnimFrame
+=================
+
+Usage
+    SetNextAnimFrame nextFrame
+
+Links the current animation frame to another frame. A frame can be linked to itself to form a very tight loop. If 'nextFrame' is set to -1 then the frame is not linked to another frame and so any animation will stop once it reaches this point
+
+SetAnimWaitTimeMS
+==================
+
+Usage
+    SetAnimWaitTimeMS waitTimeMS
+
+Sets the time in milliseconds before the firmware will move on to the next frame in animation
+
+StartAnimFromFrame
+===================
+
+Usage
+    StartAnimFromFrame frame
+
+Starts playing an animation from the given frame. Once the waitTimeMS has passed for a frame the animation will move onto the next frame unless -1 has been given as the index of the next frame
+
+StopAnim
+=========
+
+Usage
+    StopAnim
+
+Stops an animation if it's playing
+
+LoadAnimTable
+==============
+
+Usage
+    LoadAnimTable
+
+Attempts to load a saved animation table from the EEPROM of the CM-700. This will happen automatically on firmware startup.
+
+SaveAnimTable
+==============
+
+Usage
+    SaveAnimTable
+
+Saves the current animation table to the EEPROM of the CM-700. This may take some time.
+
+
+===============
+Usage Examples
+===============
+
+Simple Animation
+=================
+
+This is the serial version of the animation example in main.cpp
+
+    SetAnimFrame 0
+    ClearAnimFrame
+    SetMotor 1 0 0
+    SetMotor 2 1023 0
+    SetNextAnimFrame 1
+    SetAnimWaitTimeMS 1000
+    
+    SetAnimFrame 1
+    ClearAnimFrame
+    SetMotor 1 1023 0
+    SetMotor 2 0 0
+    SetNextAnimFrame 0
+    SetAnimWaitTimeMS 1000
+
+    StartAnimFromFrame 0
+
+Direct Motor Control
+=====================
+
+This slightly obtuse example lets you control the motors directly
+
+    SetAnimFrame 0
+    ClearAnimFrame
+    SetNextAnimFrame 0
+    SetAnimWaitTimeMS 0
+
+    StartAnimFromFrame 0        # Start an animation that just plays frame 0 in a loop
+
+    # From this point on any motor commands you send will be executed immediately
+    SetMotor 1 500 0
+    
+
+
+
