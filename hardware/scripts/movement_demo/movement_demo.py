@@ -10,7 +10,10 @@ import sys
 DEFAULT_MOTOR_SPEED = 100
 
 #---------------------------------------------------------------------------------------------------
-DEFAULT_SERIAL_PORT = "/dev/ttyUSB0"
+if sys.platform == "win32":
+	DEFAULT_SERIAL_PORT = "COM3"
+else:
+	DEFAULT_SERIAL_PORT = "/dev/ttyUSB0"
 DEFAULT_BAUD_RATE = 57600
 
 parser = optparse.OptionParser( usage="usage: %prog [options]" )
