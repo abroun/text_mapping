@@ -131,5 +131,8 @@ ENDIF( DOXYGEN_FOUND )
 #SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE) 
 #SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+# Add in applications
+ADD_SUBDIRECTORY( apps/camera_apps )
 ADD_SUBDIRECTORY( apps/manual_map_builder )
 ADD_SUBDIRECTORY( apps/text_mapper )
+ADD_SUBDIRECTORY( apps/windows_kinect_grabber )
