@@ -59,6 +59,13 @@ class Utilities
     //!         baseFilename
     public: static std::string createRelativeFilename( const std::string& baseFilename, 
         const std::string& otherFilename );
+
+    //! Returns the directory for a data folder.
+    //! If the environment variable TEXT_MAPPING_DATA_DIR is set, then this value will
+    //! be returned. Otherwise it returns an absolute path to "../data" from the current
+    //! working directory.
+    //! @return An absolute path to the data directory.
+    public: static std::string getDataDir();
 };
 
 #endif // UTILITIES_H

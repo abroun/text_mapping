@@ -39,12 +39,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 #include <ctime>
 #include <string>
+#include <vector>
 #include <QtGui/QMainWindow>
 #include <QtGui/QGraphicsPixmapItem>
 #include "ui_wkg_main_window.h"
 #include <Eigen/Core>
 #include <windows.h>
 #include <NuiApi.h>
+#include <opencv2/core/core.hpp>
+
+//--------------------------------------------------------------------------------------------------
+struct FrameData
+{
+    std::vector<uint16_t> mDepthBuffer;
+    std::vector<uint8_t> mColorBuffer;
+};
 
 //--------------------------------------------------------------------------------------------------
 class WkgMainWindow : public QMainWindow, private Ui::wkg_main_window
@@ -57,6 +66,10 @@ class WkgMainWindow : public QMainWindow, private Ui::wkg_main_window
 	public slots: void onCheckNearModeClicked( bool bChecked = false );
 	public slots: void onCbxViewCurrentIndexChanged( const QString& text );
 	public slots: void onBtnGrabFrameClicked();
+    public slots: void onBtnGrabCalibrationImageClicked();
+    public slots: void onBtnClearCalibrationImagesClicked();
+    public slots: void onBtnCalculateCameraMatricesClicked();
+    public slots: void onBtnSaveCameraMatricesClicked();
 
     private: virtual void timerEvent( QTimerEvent* pEvent ) { update(); }
 
@@ -67,6 +80,7 @@ class WkgMainWindow : public QMainWindow, private Ui::wkg_main_window
     private: HRESULT processColor();
 	private: void mapColorToDepth();
 	private: void drawImage();
+    private: void updateNumCalibrationImagesDisplay();
 
 	private: INuiSensor* mpNuiSensor;
 
@@ -93,6 +107,19 @@ class WkgMainWindow : public QMainWindow, private Ui::wkg_main_window
 	};
 
 	private: eView mCurView;
+    private: std::vector<FrameData> mCalibrationImages;
+
+    // Camera calibration matrices
+    private: bool mbHaveValidCameraMatrices;
+    private: cv::Mat mDepthCameraCalibrationMtx;
+    private: cv::Mat mDepthCameraDistortionCoeffs;
+    private: cv::Mat mColorCameraCalibrationMtx;
+    private: cv::Mat mColorCameraDistortionCoeffs;
+
+    private: cv::Mat mDepthToColorCameraRotation;
+    private: cv::Mat mDepthToColorCameraTranslation;
+    private: cv::Mat mDepthToColorCameraEssentialMatrix;
+    private: cv::Mat mDepthToColorCameraFundamentalMatrix;
 
     private: static const NUI_IMAGE_RESOLUTION IMAGE_RESOLUTION = NUI_IMAGE_RESOLUTION_640x480;
 };

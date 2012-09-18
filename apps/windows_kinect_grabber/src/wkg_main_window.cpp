@@ -34,9 +34,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include <stdint.h>
+#include <iostream>
 #include <vtkRenderWindow.h>
 #include <Eigen/Geometry>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+#include <QtGui/qfiledialog.h>
 #include "wkg_main_window.h"
+#include "text_mapping/utilities.h"
+
+//--------------------------------------------------------------------------------------------------
+static boost::random::mt19937 gRandomNumberGenerator;
 
 //--------------------------------------------------------------------------------------------------
 // WkgMainWindow
@@ -50,7 +60,8 @@ WkgMainWindow::WkgMainWindow()
     mbDepthReceived( false ),
     mbColorReceived( false ),
     mpPixmapItem( NULL ),
-	mCurView( eV_RgbCamera )
+	mCurView( eV_RgbCamera ),
+    mbHaveValidCameraMatrices( false )
 {
     setupUi( this );
 
@@ -81,11 +92,16 @@ WkgMainWindow::WkgMainWindow()
 	connect( this->cbxView, SIGNAL( currentIndexChanged( const QString& ) ), 
 		this, SLOT( onCbxViewCurrentIndexChanged( const QString& ) ) );
 	connect( this->btnGrabFrame, SIGNAL( clicked() ), this, SLOT( onBtnGrabFrameClicked() ) );
-
+    connect( this->btnGrabCalibrationImage, SIGNAL( clicked() ), this, SLOT( onBtnGrabCalibrationImageClicked() ) );
+    connect( this->btnClearCalibrationImages, SIGNAL( clicked() ), this, SLOT( onBtnClearCalibrationImagesClicked() ) );
+    connect( this->btnCalculateCameraMatrices, SIGNAL( clicked() ), this, SLOT( onBtnCalculateCameraMatricesClicked() ) );
+    connect( this->btnSaveCameraMatrices, SIGNAL( clicked() ), this, SLOT( onBtnSaveCameraMatricesClicked() ) );    
+    
 	// Default the view to the RGB Camera
 	this->cbxView->setCurrentIndex( 0 );
 
 	tryToSetNearMode( false );
+    updateNumCalibrationImagesDisplay();
 
     // Start a time which will call our update event
     startTimer( 1000 / 30 );    // Try to run at 30 fps
@@ -142,6 +158,213 @@ void WkgMainWindow::onCbxViewCurrentIndexChanged( const QString& text )
 //--------------------------------------------------------------------------------------------------
 void WkgMainWindow::onBtnGrabFrameClicked()
 {
+}
+
+//--------------------------------------------------------------------------------------------------
+void WkgMainWindow::onBtnGrabCalibrationImageClicked()
+{
+    if ( mbColorReceived && mbDepthReceived )
+    {
+        // Copy the current color and depth images
+        FrameData frameData;
+        frameData.mColorBuffer.resize( mImageWidth*mImageHeight*4 );
+        frameData.mDepthBuffer.resize( mImageWidth*mImageHeight );
+
+        memcpy( &frameData.mColorBuffer[ 0 ], mpColorBuffer, mImageWidth*mImageHeight*4 );
+        memcpy( &frameData.mDepthBuffer[ 0 ], mpDepthBuffer, mImageWidth*mImageHeight*sizeof( uint16_t ) );
+
+        // Save the frame
+        mCalibrationImages.push_back( frameData );
+        updateNumCalibrationImagesDisplay();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void WkgMainWindow::onBtnClearCalibrationImagesClicked()
+{
+    mCalibrationImages.clear();
+    updateNumCalibrationImagesDisplay();
+}
+
+//--------------------------------------------------------------------------------------------------
+void WkgMainWindow::onBtnCalculateCameraMatricesClicked()
+{
+    const uint32_t NUM_SAMPLE_POINTS = 100;
+    const uint32_t MAX_NUM_SAMPLE_ATTEMPTS = 10000;
+
+    if ( mCalibrationImages.size() > 0 )
+    {
+        // Get world points and image points for each calibration image
+        std::vector< std::vector<cv::Point3f> > worldPointList;
+        std::vector< std::vector<cv::Point2f> > depthImagePointList;
+        std::vector< std::vector<cv::Point2f> > colorImagePointList;
+
+        boost::random::uniform_int_distribution<> distX( 0, mImageWidth - 1 );
+        boost::random::uniform_int_distribution<> distY( 0, mImageHeight - 1 );
+
+        for ( uint32_t imageIdx = 0; imageIdx < mCalibrationImages.size(); imageIdx++ )
+        {
+            const FrameData& frameData = mCalibrationImages[ imageIdx ];
+
+            std::vector<cv::Point3f> worldPoints;
+            std::vector<cv::Point2f> depthImagePoints;
+            std::vector<cv::Point2f> colorImagePoints;
+
+            worldPoints.reserve( NUM_SAMPLE_POINTS );
+            depthImagePoints.reserve( NUM_SAMPLE_POINTS );
+            colorImagePoints.reserve( NUM_SAMPLE_POINTS );
+
+            uint32_t numPointsTried = 0;
+            while ( worldPoints.size() < NUM_SAMPLE_POINTS 
+                && numPointsTried < MAX_NUM_SAMPLE_ATTEMPTS )
+            {
+                // Pick points at random from the depth image
+                int x = distX( gRandomNumberGenerator );
+                int y = distY( gRandomNumberGenerator );
+
+                int depthPixelIdx = y*mImageWidth + x;
+                uint16_t depthValue = frameData.mDepthBuffer[ depthPixelIdx ];
+
+                // Check that the depth value is valid
+                if ( depthValue > 0 )
+                {
+                    // The depth value is valid. Now see if we have a corresponding color value
+                    LONG colorX;
+                    LONG colorY;
+                    HRESULT hr = NuiImageGetColorPixelCoordinatesFromDepthPixelAtResolution(
+                        IMAGE_RESOLUTION,
+                        IMAGE_RESOLUTION,
+                        NULL,
+                        x, y, depthValue,
+                        &colorX, &colorY );
+
+                    if ( FAILED( hr ) )
+                    {
+                        printf( "Error: Failed to get color pixel coordinates\n" );
+                        return;
+                    }
+
+                    // Check that the color coordinates are valid
+                    if ( colorX >= 0 && colorX < (LONG)mImageWidth
+                        && colorY >= 0 && colorY < (LONG)mImageHeight )
+                    {
+                        // We have a valid color so save a new set of points
+                        Vector4 v = NuiTransformDepthImageToSkeleton( x, y, depthValue, IMAGE_RESOLUTION );
+                        worldPoints.push_back( cv::Point3f( v.x, v.y, v.z ) );
+                        depthImagePoints.push_back( cv::Point2f( x, y ) );
+                        colorImagePoints.push_back( cv::Point2f( colorX, colorY ) );
+                    }
+                }
+
+                numPointsTried++;
+            }
+
+            // Only proceed if we got enough points
+            if ( worldPoints.size() < NUM_SAMPLE_POINTS )
+            {
+                printf( "Error: Unable to find %i sample points for image %i\n", NUM_SAMPLE_POINTS, imageIdx );
+                return;
+            }
+
+            worldPointList.push_back( worldPoints );
+            depthImagePointList.push_back( depthImagePoints );
+            colorImagePointList.push_back( colorImagePoints );
+        }
+
+        // Use the OpenCV camera calibration routines to determine camera matrices
+        mDepthCameraCalibrationMtx = cv::Mat( 3, 3, CV_32F );
+        float *pM = (float*)mDepthCameraCalibrationMtx.data;
+        pM[ 0 ] = 600.0f; pM[ 1 ] = 0.0f; pM[ 2 ] = mImageWidth/2.0f;
+        pM[ 3 ] = 0.0f; pM[ 4 ] = 600.0f; pM[ 5 ] = mImageHeight/2.0f;
+        pM[ 6 ] = 0.0f; pM[ 7 ] = 0.0f; pM[ 8 ] = 1.0f;
+
+        mDepthCameraDistortionCoeffs = cv::Mat( 1, 5, CV_32F );
+        mDepthCameraDistortionCoeffs.setTo( 0.0f );
+
+        std::vector<cv::Mat> depthRotationVectors;
+        std::vector<cv::Mat> depthTranslationVectors;
+        
+        float reprojectionError = cv::calibrateCamera(
+            worldPointList, depthImagePointList, 
+            cv::Size( mImageWidth, mImageHeight ), 
+            mDepthCameraCalibrationMtx, mDepthCameraDistortionCoeffs, 
+            depthRotationVectors, depthTranslationVectors, CV_CALIB_USE_INTRINSIC_GUESS );
+
+        std::cout << "Depth Reprojection Error = " << reprojectionError << "\n";
+        std::cout << "Depth Camera Calibration Matrix:\n";
+        std::cout << mDepthCameraCalibrationMtx << "\n";
+
+        mColorCameraCalibrationMtx = cv::Mat( 3, 3, CV_32F );
+        pM = (float*)mColorCameraCalibrationMtx.data;
+        pM[ 0 ] = 600.0f; pM[ 1 ] = 0.0f; pM[ 2 ] = mImageWidth/2.0f;
+        pM[ 3 ] = 0.0f; pM[ 4 ] = 600.0f; pM[ 5 ] = mImageHeight/2.0f;
+        pM[ 6 ] = 0.0f; pM[ 7 ] = 0.0f; pM[ 8 ] = 1.0f;
+
+        mColorCameraDistortionCoeffs = cv::Mat( 1, 5, CV_32F );
+        mColorCameraDistortionCoeffs.setTo( 0.0f );
+
+        std::vector<cv::Mat> colorRotationVectors;
+        std::vector<cv::Mat> colorTranslationVectors;
+
+        reprojectionError = cv::calibrateCamera(
+            worldPointList, colorImagePointList, 
+            cv::Size( mImageWidth, mImageHeight ), 
+            mColorCameraCalibrationMtx, mColorCameraDistortionCoeffs, 
+            colorRotationVectors, colorTranslationVectors, CV_CALIB_USE_INTRINSIC_GUESS );
+
+        std::cout << "Color Reprojection Error = " << reprojectionError << "\n";
+        std::cout << "Color Camera Calibration Matrix:\n";
+        std::cout << mColorCameraCalibrationMtx << "\n";
+
+        // Use the stereo calibration routine to determine the relative poses of the cameras
+        int flags = CV_CALIB_FIX_INTRINSIC;
+        reprojectionError = cv::stereoCalibrate(
+            worldPointList, depthImagePointList, colorImagePointList, 
+            mDepthCameraCalibrationMtx, mDepthCameraDistortionCoeffs, 
+            mColorCameraCalibrationMtx, mColorCameraDistortionCoeffs, 
+            cv::Size( mImageWidth, mImageHeight ), 
+            mDepthToColorCameraRotation, mDepthToColorCameraTranslation, 
+            mDepthToColorCameraEssentialMatrix, mDepthToColorCameraFundamentalMatrix, 
+            cv::TermCriteria( cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 1e-6 ), flags );
+
+        std::cout << "Stereo Reprojection Error = " << reprojectionError << "\n";
+        std::cout << "Relative Rotation:\n";
+        std::cout << mDepthToColorCameraRotation << "\n";
+        std::cout << "Relative Translation:\n";
+        std::cout << mDepthToColorCameraTranslation << "\n";
+
+        mbHaveValidCameraMatrices = true;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void WkgMainWindow::onBtnSaveCameraMatricesClicked()
+{
+    if ( mbHaveValidCameraMatrices )
+    {
+        std::string baseDir = Utilities::getDataDir() + "/point_clouds/calibration_data";
+
+        std::cout << "Base dir is " << baseDir << "\n";
+
+        QString filename = QFileDialog::getSaveFileName( this,
+            tr( "Save Calibration Data" ), baseDir.c_str(), tr("YAML Files (*.yaml)") );
+        
+        if ( !filename.isEmpty() )
+        {
+            cv::FileStorage dataFile( filename.toStdString(), cv::FileStorage::WRITE );
+            
+            dataFile << "DepthCameraCalibrationMtx" << mDepthCameraCalibrationMtx;
+            dataFile << "DepthCameraDistortionCoeffs" << mDepthCameraDistortionCoeffs;
+            dataFile << "ColorCameraCalibrationMtx" << mColorCameraCalibrationMtx;
+            dataFile << "ColorCameraDistortionCoeffs" << mColorCameraDistortionCoeffs;
+            dataFile << "DepthToColorCameraRotation" << mDepthToColorCameraRotation;
+            dataFile << "DepthToColorCameraTranslation" << mDepthToColorCameraTranslation;
+            dataFile << "DepthToColorCameraEssentialMatrix" << mDepthToColorCameraEssentialMatrix;
+            dataFile << "DepthToColorCameraFundamentalMatrix" << mDepthToColorCameraFundamentalMatrix;
+
+            dataFile.release();
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -317,9 +540,9 @@ HRESULT WkgMainWindow::processDepth()
 	float zScaleMean = 0.0f;
 	float zScaleM2 = 0.0f;
 
-	for ( int y = 0; y < mImageHeight; y++ )
+	for ( int y = 0; y < (int)mImageHeight; y++ )
 	{
-		for ( int x = 0; x < mImageWidth; x++ )
+		for ( int x = 0; x < (int)mImageWidth; x++ )
 		{
 			uint16_t depthValue = mpDepthBuffer[ y*mImageWidth + x ];
 
@@ -351,7 +574,7 @@ HRESULT WkgMainWindow::processDepth()
 		}
 	}
 
-	if ( numPoints > 0 )
+	/*if ( numPoints > 0 )
 	{
 		printf( "xScale mean %2.8f var %2.8f   yScale mean %2.8f var %2.8f   zScale mean %2.4f var %2.4f\n", 
 			xScaleMean, xScaleM2/numPoints, yScaleMean, yScaleM2/numPoints, zScaleMean, zScaleM2/numPoints );
@@ -359,7 +582,7 @@ HRESULT WkgMainWindow::processDepth()
 	else
 	{
 		printf( "No depth points\n" );
-	}
+	}*/
 
     return hr;
 }
@@ -443,7 +666,7 @@ void WkgMainWindow::drawImage()
 	QPixmap pixmap( mImageWidth, mImageHeight );
 	QImage image( pImageBuffer, mImageWidth, mImageHeight, QImage::Format_RGB32 );
 
-	// Mirror the image horizontally for diaply
+	// Mirror the image horizontally for display
 	pixmap.convertFromImage( image.mirrored( true, false ) );
 
 	if ( NULL == mpPixmapItem )
@@ -454,4 +677,11 @@ void WkgMainWindow::drawImage()
 	{
 		mpPixmapItem->setPixmap( pixmap );
 	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void WkgMainWindow::updateNumCalibrationImagesDisplay()
+{
+    this->lblNumCalibrationImages->setText( 
+        QString( "Calibration Images: " ) + QString::number( mCalibrationImages.size() ) );
 }
