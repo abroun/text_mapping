@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 #include <vtkRenderWindow.h>
 #include <Eigen/Geometry>
+#include "frame_dialog.h"
 #include "tm_main_window.h"
 
 //--------------------------------------------------------------------------------------------------
@@ -45,15 +46,81 @@ TmMainWindow::TmMainWindow()
 {
     setupUi( this );
 
+    mpFrameListModel = QSharedPointer<QStringListModel>( new QStringListModel() );
+    this->listViewFrames->setModel( &(*mpFrameListModel) );
+
     // Set up a renderer and connect it to QT
     mpRenderer = vtkRenderer::New();
     qvtkWidget->GetRenderWindow()->AddRenderer( mpRenderer );
 
     mpRenderer->SetBackground( 0.0, 0.0, 0.0 );
+
+    // Hook up signals
+    connect( this->listViewFrames->selectionModel(), 
+             SIGNAL( currentChanged( const QModelIndex&, const QModelIndex& ) ), 
+             this, 
+             SLOT( onCurrentFrameChanged( const QModelIndex&, const QModelIndex& ) ) );
+    
+    connect( this->btnAddFrame, SIGNAL( clicked() ), this, SLOT( onBtnAddFrameClicked() ) );
+    connect( this->btnEditFrame, SIGNAL( clicked() ), this, SLOT( onBtnEditFrameClicked() ) );
+    connect( this->btnDeleteFrame, SIGNAL( clicked() ), this, SLOT( onBtnDeleteFrameClicked() ) );
 }
 
 //--------------------------------------------------------------------------------------------------
 TmMainWindow::~TmMainWindow()
 {
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onCurrentFrameChanged( const QModelIndex& current, const QModelIndex& previous )
+{
+    // TODO: Do stuff...
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnAddFrameClicked()
+{
+    FrameData newFrameData;
+    if ( FrameDialog::createNewFrame( &newFrameData ) )
+    {
+        mFrames.push_back( newFrameData );
+        refreshFrameList();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnEditFrameClicked()
+{
+    int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+    if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
+    {
+        FrameDialog::editFrame( &mFrames[ curFrameIdx ] );
+        refreshFrameList();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnDeleteFrameClicked()
+{
+    int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+    if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
+    {
+        mFrames.erase( mFrames.begin() + curFrameIdx );
+        refreshFrameList();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::refreshFrameList()
+{
+    // Create a list of strings and thumbnails representing the frames
+    QStringList list;
+    for ( uint32_t frameIdx = 0; frameIdx < mFrames.size(); frameIdx++ )
+    {
+        QString frameName = QString( "frame " ) + QString::number( frameIdx );
+        list << frameName;
+    }
+            
+    mpFrameListModel->setStringList( list );
 }
 

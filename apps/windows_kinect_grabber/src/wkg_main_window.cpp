@@ -344,8 +344,6 @@ void WkgMainWindow::onBtnSaveCameraMatricesClicked()
     {
         std::string baseDir = Utilities::getDataDir() + "/point_clouds/calibration_data";
 
-        std::cout << "Base dir is " << baseDir << "\n";
-
         QString filename = QFileDialog::getSaveFileName( this,
             tr( "Save Calibration Data" ), baseDir.c_str(), tr("YAML Files (*.yaml)") );
         

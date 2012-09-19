@@ -28,46 +28,38 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 //--------------------------------------------------------------------------------------------------
-// File: tm_main_window.h
-// Desc: The main window object
+// File: frame_dialog.h
+// Desc: A dialog which allows the user to set the properties of a frame
 //--------------------------------------------------------------------------------------------------
 
-#ifndef MMB_MAIN_WINDOW_H_
-#define MMB_MAIN_WINDOW_H_
+#ifndef FRAME_DIALOG_H_
+#define FRAME_DIALOG_H_
 
 //--------------------------------------------------------------------------------------------------
-#include <ctime>
-#include <string>
-#include <vector>
-#include <QtGui/QMainWindow>
-#include <QStringListModel>
-#include <vtkRenderer.h>
-#include <vtkSmartPointer.h>
-#include "ui_tm_main_window.h"
-#include <Eigen/Core>
+#include <QtGui/QDialog>
+#include "ui_frame_dialog.h"
 #include "frame_data.h"
 
 //--------------------------------------------------------------------------------------------------
-class TmMainWindow : public QMainWindow, private Ui::tm_main_window
+class FrameDialog : public QDialog, private Ui::frame_dialog
 {
     Q_OBJECT
 
-    public: TmMainWindow();
-    public: virtual ~TmMainWindow();
+    public: FrameDialog();
+    public: virtual ~FrameDialog();
 
-    public slots: void onCurrentFrameChanged( const QModelIndex& current, const QModelIndex& previous );  
-    public slots: void onBtnAddFrameClicked();
-    public slots: void onBtnEditFrameClicked();
-    public slots: void onBtnDeleteFrameClicked();
+    public: static bool createNewFrame( FrameData* pFrameDataOut );
+	public: static void editFrame( FrameData* pFrameDataInOut );
 
-    private: void refreshFrameList();
-
-    private: vtkSmartPointer<vtkRenderer> mpRenderer;
-    private: QSharedPointer<QStringListModel> mpFrameListModel;
-
-    private: std::vector<FrameData> mFrames;
-
-    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+	public slots: void onBtnChooseHighResImageClicked();
+	public slots: void onBtnChooseKinectColorImageClicked();
+	public slots: void onBtnChooseKinectDepthPointCloudClicked();
+    public slots: void onAccept();
+	
+	private: void setFrameData( const FrameData& frameData );
+	private: const FrameData& getFrameData() const { return mFrameData; }
+	
+	private: FrameData mFrameData;
 };
 
-#endif // TM_MAIN_WINDOW_H_
+#endif // FRAME_DIALOG_H_

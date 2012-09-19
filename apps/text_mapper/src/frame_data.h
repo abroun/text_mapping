@@ -28,46 +28,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 //--------------------------------------------------------------------------------------------------
-// File: tm_main_window.h
-// Desc: The main window object
+// File: frame_data.h
+// Desc: A simple struct for holding the properties and data of a frame
 //--------------------------------------------------------------------------------------------------
 
-#ifndef MMB_MAIN_WINDOW_H_
-#define MMB_MAIN_WINDOW_H_
+#ifndef FRAME_DATA_H_
+#define FRAME_DATA_H_
 
 //--------------------------------------------------------------------------------------------------
-#include <ctime>
 #include <string>
-#include <vector>
-#include <QtGui/QMainWindow>
-#include <QStringListModel>
-#include <vtkRenderer.h>
-#include <vtkSmartPointer.h>
-#include "ui_tm_main_window.h"
-#include <Eigen/Core>
-#include "frame_data.h"
+#include "ui_frame_dialog.h"
 
 //--------------------------------------------------------------------------------------------------
-class TmMainWindow : public QMainWindow, private Ui::tm_main_window
+struct FrameData
 {
-    Q_OBJECT
-
-    public: TmMainWindow();
-    public: virtual ~TmMainWindow();
-
-    public slots: void onCurrentFrameChanged( const QModelIndex& current, const QModelIndex& previous );  
-    public slots: void onBtnAddFrameClicked();
-    public slots: void onBtnEditFrameClicked();
-    public slots: void onBtnDeleteFrameClicked();
-
-    private: void refreshFrameList();
-
-    private: vtkSmartPointer<vtkRenderer> mpRenderer;
-    private: QSharedPointer<QStringListModel> mpFrameListModel;
-
-    private: std::vector<FrameData> mFrames;
-
-    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+    std::string mHighResImageFilename;
+	std::string mKinectColorImageFilename;
+	std::string mKinectDepthPointCloudFilename;
 };
 
-#endif // TM_MAIN_WINDOW_H_
+#endif // FRAME_DATA_H_

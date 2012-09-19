@@ -3,9 +3,16 @@ FIND_PACKAGE( Qt4 REQUIRED )
 INCLUDE( ${QT_USE_FILE} )
 ADD_DEFINITIONS( ${QT_DEFINITIONS} )
 
-SET( TEXT_MAPPER_SOURCES src/text_mapper.cpp src/tm_main_window.cpp )
-SET( TEXT_MAPPER_HEADERS src/tm_main_window.h )
-SET( TEXT_MAPPER_FORMS gui/tm_main_window.ui)
+SET( TEXT_MAPPER_SOURCES 
+    src/frame_dialog.cpp
+	src/text_mapper.cpp 
+	src/tm_main_window.cpp )
+SET( TEXT_MAPPER_HEADERS
+	src/frame_dialog.h
+	src/tm_main_window.h )
+SET( TEXT_MAPPER_FORMS 
+	gui/frame_dialog.ui
+	gui/tm_main_window.ui )
 
 QT4_WRAP_CPP( TEXT_MAPPER_HEADERS_MOC ${TEXT_MAPPER_HEADERS} )
 QT4_WRAP_UI( TEXT_MAPPER_FORMS_HEADERS ${TEXT_MAPPER_FORMS} )
