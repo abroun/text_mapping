@@ -18,7 +18,7 @@
     <item>
      <layout class="QVBoxLayout" name="verticalLayout_4">
       <item>
-       <widget class="QVTKWidget" name="qvtkWidget">
+       <widget class="QVTKWidget" name="qvtkWidget" native="true">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
           <horstretch>0</horstretch>
@@ -95,13 +95,13 @@
        </size>
       </property>
       <property name="title">
-       <string>GroupBox</string>
+       <string>Frames</string>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
-          <widget class="QListView" name="listView">
+          <widget class="QListView" name="listViewFrames">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
              <horstretch>0</horstretch>
@@ -117,16 +117,23 @@
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="pushButton">
+          <widget class="QPushButton" name="btnAddFrame">
            <property name="text">
-            <string>PushButton</string>
+            <string>Add Frame</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="pushButton_2">
+          <widget class="QPushButton" name="btnEditFrame">
            <property name="text">
-            <string>PushButton</string>
+            <string>Edit Frame</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnDeleteFrame">
+           <property name="text">
+            <string>Delete Frame</string>
            </property>
           </widget>
          </item>
@@ -143,7 +150,7 @@
      <x>0</x>
      <y>0</y>
      <width>655</width>
-     <height>25</height>
+     <height>26</height>
     </rect>
    </property>
   </widget>

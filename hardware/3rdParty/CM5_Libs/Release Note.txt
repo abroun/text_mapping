@@ -1,0 +1,36 @@
+======================================================
+       CM-5 Library - Ported from CM-700 library
+======================================================
+
+======================================================
+       CM-700 Library & Example Version / v1.01
+======================================================
+
+>>> New functionality/features: <<<
+
+    * First released.
+        
+>>> Changes: <<<
+    
+    * ZigBee_RC100 code changed.
+    
+>>> Bug fixes: <<<
+    
+    * 'Dynamixel.c' bug fixed.
+
+
+======================================================
+       CM-700 Library & Example Version / v1.00
+======================================================
+
+>>> New functionality/features: <<<
+
+    * First released.
+        
+>>> Changes: <<<
+    
+    * None
+    
+>>> Bug fixes: <<<
+    
+    * None

@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 //--------------------------------------------------------------------------------------------------
+#include <cstdlib>
 #include <boost/filesystem.hpp>
 #include "text_mapping/utilities.h"
 
@@ -105,4 +106,25 @@ std::string Utilities::createRelativeFilename( const std::string& baseFilename,
     }
     
     return relativeFilename;
+}
+
+//--------------------------------------------------------------------------------------------------
+std::string Utilities::getDataDir()
+{
+    const char* pDirectoryName = std::getenv( "TEXT_MAPPING_DATA_DIR" );
+
+    std::string directoryName;
+    if ( NULL == pDirectoryName )
+    {
+        printf( "NULL pDirectoryName...\n" );
+        directoryName = "../data";
+    }
+    else
+    {
+        printf( "Got %s\n", pDirectoryName );
+        directoryName = std::string( pDirectoryName );
+    }
+
+     boost::filesystem::path directoryPath( directoryName );
+     return boost::filesystem::absolute( directoryPath ).string();
 }
