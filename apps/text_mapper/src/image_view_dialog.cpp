@@ -28,39 +28,69 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 //--------------------------------------------------------------------------------------------------
-// File: frame_dialog.h
-// Desc: A dialog which allows the user to set the properties of a frame
+// File: image_view_dialog.cpp
+// Desc: Simple dialog for viewing frame images
 //--------------------------------------------------------------------------------------------------
 
-#ifndef FRAME_DIALOG_H_
-#define FRAME_DIALOG_H_
+//--------------------------------------------------------------------------------------------------
+#include "image_view_dialog.h"
 
 //--------------------------------------------------------------------------------------------------
-#include <QtGui/QDialog>
-#include "ui_frame_dialog.h"
-#include "frame_data.h"
+const int32_t DEFAULT_MAX_IMAGE_WIDTH = 800;
+const int32_t DEFAULT_MAX_IMAGE_HEIGHT = 600;
 
 //--------------------------------------------------------------------------------------------------
-class FrameDialog : public QDialog, private Ui::frame_dialog
+// ImageViewDialog
+//--------------------------------------------------------------------------------------------------
+ImageViewDialog::ImageViewDialog()
+    : mpPixmapItem( NULL )
 {
-    Q_OBJECT
+    setupUi( this );
 
-    public: FrameDialog();
-    public: virtual ~FrameDialog();
+    this->setWindowFlags( Qt::Window );
 
-    public: static bool createNewFrame( FrameData* pFrameDataOut );
-	public: static void editFrame( FrameData* pFrameDataInOut );
+	// Create somewhere to show the current image
+    mpScene = new QGraphicsScene( this->graphicsView );
+    mpScene->setSceneRect( 0, 0, DEFAULT_MAX_IMAGE_WIDTH, DEFAULT_MAX_IMAGE_HEIGHT );
+    this->graphicsView->setScene( mpScene );
+}
 
-	public slots: void onBtnChooseHighResImageClicked();
-	public slots: void onBtnChooseKinectColorImageClicked();
-	public slots: void onBtnChooseKinectDepthPointCloudClicked();
-	
-    protected: virtual void accept();
+//--------------------------------------------------------------------------------------------------
+ImageViewDialog::~ImageViewDialog()
+{
+	if ( NULL != mpScene )
+    {
+        delete mpScene;
+        mpScene = NULL;
+    }
+}
 
-	private: void setFrameData( const FrameData& frameData );
-	private: const FrameData& getFrameData() const { return mFrameData; }
-	
-	private: FrameData mFrameData;
-};
+//--------------------------------------------------------------------------------------------------
+void ImageViewDialog::setImage( const cv::Mat& image )
+{
+	if ( image.type() != CV_8UC3 )
+	{
+		printf( "Warning: Invalid image type...\n" );
+	}
 
-#endif // FRAME_DIALOG_H_
+    // Take a copy of the image
+    mImage = image;
+
+    // Prepare for image
+    mpScene->setSceneRect( 0, 0, mImage.cols, mImage.rows );
+
+	// Draw the color image
+	QPixmap pixmap( mImage.cols, mImage.rows );
+    QImage qtImage( mImage.data, mImage.cols, mImage.rows, QImage::Format_RGB888 );
+
+    pixmap.convertFromImage( qtImage );
+
+	if ( NULL == mpPixmapItem )
+	{
+		mpPixmapItem = mpScene->addPixmap( pixmap );
+	}
+	else
+	{
+		mpPixmapItem->setPixmap( pixmap );
+	}
+}

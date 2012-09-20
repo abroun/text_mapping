@@ -81,6 +81,8 @@ class WkgMainWindow : public QMainWindow, private Ui::wkg_main_window
 	private: void mapColorToDepth();
 	private: void drawImage();
     private: void updateNumCalibrationImagesDisplay();
+    private: void saveDepthDataToSpcFile( const std::string& filename,
+                 uint16_t* pDepthData, uint8_t* pDepthColorData, bool bBinary );
 
 	private: INuiSensor* mpNuiSensor;
 

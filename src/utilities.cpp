@@ -116,12 +116,10 @@ std::string Utilities::getDataDir()
     std::string directoryName;
     if ( NULL == pDirectoryName )
     {
-        printf( "NULL pDirectoryName...\n" );
         directoryName = "../data";
     }
     else
     {
-        printf( "Got %s\n", pDirectoryName );
         directoryName = std::string( pDirectoryName );
     }
 

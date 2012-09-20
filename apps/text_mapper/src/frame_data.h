@@ -37,6 +37,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include <string>
+#include <opencv2/core/core.hpp>
 #include "ui_frame_dialog.h"
 
 //--------------------------------------------------------------------------------------------------
@@ -45,6 +46,9 @@ struct FrameData
     std::string mHighResImageFilename;
 	std::string mKinectColorImageFilename;
 	std::string mKinectDepthPointCloudFilename;
+
+    cv::Mat mHighResImage;
+    cv::Mat mKinectColorImage;
 };
 
 #endif // FRAME_DATA_H_

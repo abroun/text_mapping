@@ -37,15 +37,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include <ctime>
+#include <list>
 #include <string>
 #include <vector>
+#include <Eigen/Core>
 #include <QtGui/QMainWindow>
 #include <QStringListModel>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
 #include "ui_tm_main_window.h"
-#include <Eigen/Core>
+#include "image_view_dialog.h"
 #include "frame_data.h"
+#include "text_mapping/letter.h"
 
 //--------------------------------------------------------------------------------------------------
 class TmMainWindow : public QMainWindow, private Ui::tm_main_window
@@ -59,13 +62,20 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public slots: void onBtnAddFrameClicked();
     public slots: void onBtnEditFrameClicked();
     public slots: void onBtnDeleteFrameClicked();
+    public slots: void onBtnDetectTextClicked();
 
     private: void refreshFrameList();
+    private: void refreshImageDisplays( const FrameData& frameData );
+
+    private: typedef std::list<Letter, Eigen::aligned_allocator<Letter> > LetterList;
+    private: LetterList detectTextInImage( cv::Mat image );
 
     private: vtkSmartPointer<vtkRenderer> mpRenderer;
     private: QSharedPointer<QStringListModel> mpFrameListModel;
 
     private: std::vector<FrameData> mFrames;
+    private: ImageViewDialog mHighResImageViewDialog;
+    private: ImageViewDialog mKinectColorImageViewDialog;
 
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };

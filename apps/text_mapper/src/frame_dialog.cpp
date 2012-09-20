@@ -35,6 +35,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //--------------------------------------------------------------------------------------------------
 #include <stdint.h>
 #include <QtGui/qfiledialog.h>
+#include <QtGui/qmessagebox.h>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "text_mapping/utilities.h"
 #include "frame_dialog.h"
 
@@ -49,7 +52,6 @@ FrameDialog::FrameDialog()
 	connect( this->btnChooseHighResImage, SIGNAL( clicked() ), this, SLOT( onBtnChooseHighResImageClicked() ) );
 	connect( this->btnChooseKinectColorImage, SIGNAL( clicked() ), this, SLOT( onBtnChooseKinectColorImageClicked() ) );
 	connect( this->btnChooseKinectDepthPointCloud, SIGNAL( clicked() ), this, SLOT( onBtnChooseKinectDepthPointCloudClicked() ) );
-    connect( this->buttonBox, SIGNAL( accepted() ), this, SLOT( onAccept() ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -65,14 +67,9 @@ bool FrameDialog::createNewFrame( FrameData* pFrameDataOut )
 
     if ( dialog.exec() == QDialog::Accepted )
 	{
-        printf( "Accepted!\n" );
 		*pFrameDataOut = dialog.getFrameData();
         bFrameCreated = true;
 	}
-    else
-    {
-        printf( "Rejected...\n" );
-    }
 
     return bFrameCreated;
 }
@@ -94,13 +91,12 @@ void FrameDialog::onBtnChooseHighResImageClicked()
 {
 	std::string baseDir = Utilities::getDataDir() + "/images/high_res";
 
-	QString filename = QFileDialog::getSaveFileName( this,
+	QString filename = QFileDialog::getOpenFileName( this,
 		tr( "High Res Image" ), baseDir.c_str(), tr("Images (*.jpeg *.jpg *.png *.bmp)") );
 	
 	if ( !filename.isEmpty() )
 	{
-		editHighResImageFilename->setText( filename );
-		mFrameData.mHighResImageFilename = filename.toStdString();
+		this->editHighResImageFilename->setText( filename );
 	}
 }
 
@@ -109,13 +105,12 @@ void FrameDialog::onBtnChooseKinectColorImageClicked()
 {
 	std::string baseDir = Utilities::getDataDir() + "/images/kinect";
 
-	QString filename = QFileDialog::getSaveFileName( this,
+	QString filename = QFileDialog::getOpenFileName( this,
 		tr( "Kinect Color Image" ), baseDir.c_str(), tr("Images (*.jpeg *.jpg *.png *.bmp)") );
 	
 	if ( !filename.isEmpty() )
 	{
-		editKinectColorImageFilename->setText( filename );
-		mFrameData.mKinectColorImageFilename = filename.toStdString();
+		this->editKinectColorImageFilename->setText( filename );
 	}
 }
 
@@ -124,25 +119,51 @@ void FrameDialog::onBtnChooseKinectDepthPointCloudClicked()
 {
 	std::string baseDir = Utilities::getDataDir() + "/point_clouds";
 
-	QString filename = QFileDialog::getSaveFileName( this,
+    QString filename = QFileDialog::getOpenFileName( this,
 		tr( "Kinect Depth Point Cloud" ), baseDir.c_str(), tr("Simple Point Cloud (*.spc)") );
 	
 	if ( !filename.isEmpty() )
 	{
-		editKinectDepthPointCloudFilename->setText( filename );
-		mFrameData.mKinectDepthPointCloudFilename = filename.toStdString();
+		this->editKinectDepthPointCloudFilename->setText( filename );
 	}
 }
 
 //--------------------------------------------------------------------------------------------------
-void FrameDialog::onAccept()
+void FrameDialog::accept()
 {
-    this->setResult( QDialog::Accepted );
+    mFrameData.mHighResImageFilename = this->editHighResImageFilename->text().toStdString();
+    mFrameData.mKinectColorImageFilename = this->editKinectColorImageFilename->text().toStdString();
+    mFrameData.mKinectDepthPointCloudFilename = this->editKinectDepthPointCloudFilename->text().toStdString();
+
+    // Try to load in the images
+    mFrameData.mHighResImage = cv::imread( mFrameData.mHighResImageFilename );
+    if ( NULL == mFrameData.mHighResImage.data )
+    {
+        QMessageBox::critical( this, "Error", "Unable to load high resolution image" );
+        return;
+    }
+    cv::cvtColor( mFrameData.mHighResImage, mFrameData.mHighResImage, CV_BGR2RGB );
+
+    mFrameData.mKinectColorImage = cv::imread( mFrameData.mKinectColorImageFilename );
+    if ( NULL == mFrameData.mKinectColorImage.data )
+    {
+        QMessageBox::critical( this, "Error", "Unable to load Kinect color image" );
+        return;
+    }
+    cv::cvtColor( mFrameData.mKinectColorImage, mFrameData.mKinectColorImage, CV_BGR2RGB );
+
+    QDialog::accept();
 }
 
 //--------------------------------------------------------------------------------------------------
 void FrameDialog::setFrameData( const FrameData& frameData )
 {
 	mFrameData = frameData;
+    mFrameData.mHighResImage = cv::Mat();
+    mFrameData.mKinectColorImage = cv::Mat();
+
+    this->editHighResImageFilename->setText( mFrameData.mHighResImageFilename.c_str() );
+    this->editKinectColorImageFilename->setText( mFrameData.mKinectColorImageFilename.c_str() );
+    this->editKinectDepthPointCloudFilename->setText( mFrameData.mKinectDepthPointCloudFilename.c_str() );
 }
 

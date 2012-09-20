@@ -39,6 +39,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <Eigen/Geometry>
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
 #include <QtGui/qfiledialog.h>
@@ -158,6 +160,55 @@ void WkgMainWindow::onCbxViewCurrentIndexChanged( const QString& text )
 //--------------------------------------------------------------------------------------------------
 void WkgMainWindow::onBtnGrabFrameClicked()
 {
+	if ( mbColorReceived && mbDepthReceived )
+    {
+        // Take a copy of the current color and depth images
+		cv::Mat colorImage( mImageHeight, mImageWidth, CV_8UC4 );
+		memcpy( colorImage.data, mpColorBuffer, mImageWidth*mImageHeight*4 );
+
+        cv::Mat depthData( mImageHeight, mImageWidth, CV_16U );
+        memcpy( depthData.data, mpDepthBuffer, mImageWidth*mImageHeight*sizeof( uint16_t ) );
+
+        cv::Mat depthColorImage( mImageHeight, mImageWidth, CV_8UC4 );
+        memcpy( depthColorImage.data, mpDepthColorBuffer, mImageWidth*mImageHeight*4 );
+
+        // Flip the images about the vertical
+        cv::flip( colorImage, colorImage, 1 );
+        cv::flip( depthData, depthData, 1 );
+        cv::flip( depthColorImage, depthColorImage, 1 );
+
+		// First save the color image
+		std::string baseDir = Utilities::getDataDir() + "/images/kinect";
+		QString filename = QFileDialog::getSaveFileName( this,
+            tr( "Save Color Image" ), baseDir.c_str(), tr( "Image Files (*.jpg *.bmp)" ) );
+
+		if ( !filename.isEmpty() )
+        {
+			boost::filesystem::path filePath( filename.toStdString() );
+			if ( filePath.extension() != ".jpg" && filePath.extension() != ".bmp" )
+			{
+				filePath.replace_extension( ".jpg" );
+			}
+
+			cv::imwrite( filePath.string(), colorImage );
+			
+			// Next save the depth data as a point cloud
+			baseDir = Utilities::getDataDir() + "/point_clouds";
+			filename = QFileDialog::getSaveFileName( this,
+				tr( "Save Point Cloud" ), baseDir.c_str(), tr( "Simple Point Cloud (*.spc)" ) );
+
+			if ( !filename.isEmpty() )
+			{
+				filePath = boost::filesystem::path( filename.toStdString() );
+				if ( filePath.extension() != ".spc" )
+				{
+					filePath.replace_extension( ".spc" );
+				}
+
+                saveDepthDataToSpcFile( filePath.string(), (uint16_t*)depthData.data, depthColorImage.data, true );
+			}
+		}
+	}
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -683,3 +734,81 @@ void WkgMainWindow::updateNumCalibrationImagesDisplay()
     this->lblNumCalibrationImages->setText( 
         QString( "Calibration Images: " ) + QString::number( mCalibrationImages.size() ) );
 }
+
+//------------------------------------------------------------------------------
+void WkgMainWindow::saveDepthDataToSpcFile( const std::string& filename, 
+    uint16_t* pDepthData, uint8_t* pDepthColorData, bool bBinary )
+{
+    FILE* pSpcFile = fopen( filename.c_str(), "wb" );
+
+    if ( NULL != pSpcFile )
+    {
+        uint32_t width = mImageWidth;
+        uint32_t height = mImageHeight;
+        uint32_t focalLengthMM = 2*NUI_CAMERA_DEPTH_NOMINAL_FOCAL_LENGTH_IN_PIXELS; // Doubled because we use a 640x480 resolution
+
+        fprintf( pSpcFile, "WIDTH %u\n", width );
+        fprintf( pSpcFile, "HEIGHT %u\n", height );
+        fprintf( pSpcFile, "FOCAL_LENGTH_MM %u\n", focalLengthMM );
+        fprintf( pSpcFile, "BINARY %i\n", (int32_t)bBinary );
+
+        // Write out depth data
+        fprintf( pSpcFile, "DEPTH_DATA\n" );
+        std::vector<float> depthBuffer;
+        depthBuffer.resize( width*height );
+        float* pCurDepth = &depthBuffer[ 0 ];
+
+        for ( uint32_t v = 0; v < height; v++ )
+        {
+            for ( uint32_t u = 0; u < width; u++ )
+            {
+                uint16_t depthValue = pDepthData[ v*width + u ];
+                if ( depthValue > 0 )
+                {
+                    *pCurDepth = (float)depthValue / 1000.0f;
+                }
+                else
+                {
+                    *pCurDepth = std::numeric_limits<float>::quiet_NaN();
+                }
+
+                pCurDepth++;
+            }
+        }
+
+        if ( bBinary )
+        {
+            fwrite( &depthBuffer[ 0 ], sizeof( float ), width*height, pSpcFile );
+        }
+        else
+        {
+            for ( uint32_t i = 0; i < depthBuffer.size(); i++ )
+            {
+                fprintf( pSpcFile, "%f\n", depthBuffer[ i ] );
+            }
+        }
+
+        // Write out rgba data
+        fprintf( pSpcFile, "RGBA_DATA\n" );
+
+        if ( bBinary )
+        {
+            fwrite( pDepthColorData, sizeof( uint8_t ), 4*width*height, pSpcFile );
+        }
+        else
+        {
+            for ( uint32_t i = 0; i < width*height; i++ )
+            {
+                fprintf( pSpcFile, "%i %i %i %i\n",
+                    pDepthColorData[ 4*i ], pDepthColorData[ 4*i + 1 ],
+                    pDepthColorData[ 4*i + 1 ], pDepthColorData[ 4*i + 3 ] );
+            }
+        }
+
+        fclose( pSpcFile );
+    }
+    else
+    {
+        throw std::runtime_error( "Unable to open file" );
+    }
+} 

@@ -64,6 +64,7 @@ TmMainWindow::TmMainWindow()
     connect( this->btnAddFrame, SIGNAL( clicked() ), this, SLOT( onBtnAddFrameClicked() ) );
     connect( this->btnEditFrame, SIGNAL( clicked() ), this, SLOT( onBtnEditFrameClicked() ) );
     connect( this->btnDeleteFrame, SIGNAL( clicked() ), this, SLOT( onBtnDeleteFrameClicked() ) );
+    connect( this->btnDetectText, SIGNAL( clicked() ), this, SLOT( onBtnDetectTextClicked() ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -83,8 +84,13 @@ void TmMainWindow::onBtnAddFrameClicked()
     FrameData newFrameData;
     if ( FrameDialog::createNewFrame( &newFrameData ) )
     {
+        refreshImageDisplays( newFrameData );
+
         mFrames.push_back( newFrameData );
         refreshFrameList();
+
+        // Select the last item that was added
+        this->listViewFrames->setCurrentIndex( mpFrameListModel->index( mFrames.size() - 1 ) );
     }
 }
 
@@ -95,6 +101,8 @@ void TmMainWindow::onBtnEditFrameClicked()
     if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
     {
         FrameDialog::editFrame( &mFrames[ curFrameIdx ] );
+
+        refreshImageDisplays( mFrames[ curFrameIdx ] );
         refreshFrameList();
     }
 }
@@ -107,6 +115,24 @@ void TmMainWindow::onBtnDeleteFrameClicked()
     {
         mFrames.erase( mFrames.begin() + curFrameIdx );
         refreshFrameList();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnDetectTextClicked()
+{
+    int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+    if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
+    {
+        printf( "Detecting text...\n" );
+
+        LetterList letterList = detectTextInImage( mFrames[ curFrameIdx ].mHighResImage );
+
+        printf( "Found %u letter%s\n", letterList.size(), ( letterList.size() == 1 ? "" : "s" ) );
+    }
+    else
+    {
+        printf( "Error: No frame selected\n" );
     }
 }
 
@@ -124,3 +150,35 @@ void TmMainWindow::refreshFrameList()
     mpFrameListModel->setStringList( list );
 }
 
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::refreshImageDisplays( const FrameData& frameData )
+{
+    mHighResImageViewDialog.setImage( frameData.mHighResImage );
+    mHighResImageViewDialog.setWindowTitle( "High Res Image" );
+    mHighResImageViewDialog.show();
+    mKinectColorImageViewDialog.setImage( frameData.mKinectColorImage );
+    mKinectColorImageViewDialog.setWindowTitle( "Kinect Color Image" );
+    mKinectColorImageViewDialog.show();
+}
+
+//--------------------------------------------------------------------------------------------------
+TmMainWindow::LetterList TmMainWindow::detectTextInImage( cv::Mat image )
+{
+    // TODO: Magic text detection stuff
+
+    // TODO: Create a list of letters to send back
+    LetterList letterList;
+
+    // AB: An example of how the existing letter class could be used...
+    float letterX = 100.0f;
+    float letterY = 300.0f;
+
+    Letter letter;
+    letter.mMtx = Eigen::Matrix4f::Identity();
+    letter.mMtx.block<2,1>( 0, 3 ) = Eigen::Vector2f( letterX, letterY );
+    letter.mCharacter = 'A';
+    letterList.push_back( letter );
+
+
+    return letterList;
+}

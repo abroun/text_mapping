@@ -28,39 +28,34 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 //--------------------------------------------------------------------------------------------------
-// File: frame_dialog.h
-// Desc: A dialog which allows the user to set the properties of a frame
+// File: image_view_dialog.h
+// Desc: Simple dialog for viewing frame images
 //--------------------------------------------------------------------------------------------------
 
-#ifndef FRAME_DIALOG_H_
-#define FRAME_DIALOG_H_
+#ifndef IMAGE_VIEW_DIALOG_H_
+#define IMAGE_VIEW_DIALOG_H_
 
 //--------------------------------------------------------------------------------------------------
+#include <stdint.h>
 #include <QtGui/QDialog>
-#include "ui_frame_dialog.h"
-#include "frame_data.h"
+#include <QtGui/QMainWindow>
+#include <QtGui/QGraphicsPixmapItem>
+#include <opencv2/core/core.hpp>
+#include "ui_image_view_dialog.h"
 
 //--------------------------------------------------------------------------------------------------
-class FrameDialog : public QDialog, private Ui::frame_dialog
+class ImageViewDialog : public QDialog, private Ui::image_view_dialog
 {
     Q_OBJECT
 
-    public: FrameDialog();
-    public: virtual ~FrameDialog();
-
-    public: static bool createNewFrame( FrameData* pFrameDataOut );
-	public: static void editFrame( FrameData* pFrameDataInOut );
-
-	public slots: void onBtnChooseHighResImageClicked();
-	public slots: void onBtnChooseKinectColorImageClicked();
-	public slots: void onBtnChooseKinectDepthPointCloudClicked();
+    public: ImageViewDialog();
+    public: virtual ~ImageViewDialog();
 	
-    protected: virtual void accept();
-
-	private: void setFrameData( const FrameData& frameData );
-	private: const FrameData& getFrameData() const { return mFrameData; }
+	public: void setImage( const cv::Mat& image );
 	
-	private: FrameData mFrameData;
+	private: QGraphicsScene* mpScene;
+    private: QGraphicsPixmapItem* mpPixmapItem;
+    private: cv::Mat mImage;
 };
 
-#endif // FRAME_DIALOG_H_
+#endif // IMAGE_VIEW_DIALOG_H_
