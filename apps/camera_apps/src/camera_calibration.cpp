@@ -7,9 +7,9 @@
 #include "opencv2/highgui/highgui.hpp"
 
 const std::string FILE_DIR = "E:/MOET Work/text_mapping/data/calibration_images/";
-const std::string FILE_ADDRESS = FILE_DIR + "FileAddress.txt";
+const std::string FILE_ADDRESS = FILE_DIR + "calibrationFileAddress.txt";
 
-std::vector<std::string> LoadConfig(std::string FileAddress, cv::Size* pBoardSizeOut, cv::Size* pBoardSizeMmOut )
+std::vector<std::string> LoadConfig(std::string FileAddress, cv::Size* pBoardSizeOut, cv::Size* pBoardSizeMmOut,std::string* note)
 {
 	std::ifstream LOADFILE(FileAddress.c_str());
 	if (!LOADFILE.is_open())
@@ -21,7 +21,7 @@ std::vector<std::string> LoadConfig(std::string FileAddress, cv::Size* pBoardSiz
 	if ( getline(LOADFILE, firstLine) )
 	{
 		std::stringstream ss( firstLine );
-		ss >> pBoardSizeOut->width >> pBoardSizeOut->height >> pBoardSizeMmOut->width >> pBoardSizeMmOut->height;
+		ss >> pBoardSizeOut->width >> pBoardSizeOut->height >> pBoardSizeMmOut->width >> pBoardSizeMmOut->height >> *note;
 	}
 
 	std::string value;
@@ -47,7 +47,9 @@ int main(int argc, char** argv)
 
 	cv::Size imageSize;
 
-	std::vector<std::string> NameLocation = LoadConfig(FILE_ADDRESS,&boardSize,&boardSizeMm);
+	std::string note;
+
+	std::vector<std::string> NameLocation = LoadConfig(FILE_ADDRESS,&boardSize,&boardSizeMm,&note);
 
 	float squareWidth = ((float)boardSizeMm.width/1000.0f)/(boardSize.width-1);
 	float squareHeight = ((float)boardSizeMm.height/1000.0f)/(boardSize.height-1);
@@ -82,8 +84,8 @@ int main(int argc, char** argv)
 		std::cout << "Image Name " <<ImageAddress << std::endl;
 		cv::Mat image,colorimage1,colorimage2;
 		image =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_GRAYSCALE);
-		colorimage1 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
-		colorimage2 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
+		//colorimage1 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
+		//colorimage2 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
 
 		imageSize.height = image.rows;
 		imageSize.width = image.cols;
@@ -111,24 +113,30 @@ int main(int argc, char** argv)
 			//Add Image and scene points from one view
 			imagePoints.push_back(imageCorners);
 			objectPoints.push_back(objectCorners);
-
+			std::cout << "Successfully found " << imageCorners.size() << " corners" << std::endl;
 			successes++;
 		}
 		else
 			std::cout << "Failed" << std::endl;
 
-		/*cv::resize(colorimage1,colorimage1,cv::Size(1024,768));
-		cv::resize(colorimage2,colorimage2,cv::Size(1024,768));
-		cv::imshow("Pre Sub Pixel",colorimage1);
-		cv::imshow("Post Sub Pixel",colorimage2);
-		cv::waitKey();
-		cv::destroyWindow("Pre Sub Pixel");
-		cv::destroyWindow("Post Sub Pixel");*/
+		//cv::resize(colorimage1,colorimage1,cv::Size(1024,768));
+		//cv::resize(colorimage2,colorimage2,cv::Size(1024,768));
+		//cv::imshow("Pre Sub Pixel",colorimage1);
+		//cv::imshow("Post Sub Pixel",colorimage2);
+		//cv::waitKey();
+		//cv::destroyWindow("Pre Sub Pixel");
+		//cv::destroyWindow("Post Sub Pixel");
 
 	}
 
 	std::vector<cv::Mat> rvecs,tvecs;
-	std::cout << cv::calibrateCamera(objectPoints,imagePoints,imageSize,cameraMatrix,distCoeffs,rvecs,tvecs,0) << "\n\n" << cameraMatrix << std::endl;
+	std::cout << cv::calibrateCamera(objectPoints,imagePoints,imageSize,cameraMatrix,distCoeffs,rvecs,tvecs,0)<< std::endl;
+
+	cv::FileStorage fs((FILE_DIR + note + "_cameraMatrix.yml").c_str(), cv::FileStorage::WRITE);
+    fs << "cameraMatrix" << cameraMatrix;
+	fs << "distCoeffs" << distCoeffs;
+
+	std::cout << cameraMatrix << std::endl;
 
 	std::cout << "Finished Camera Calibration" << std::endl;
 	std::cin.ignore();
