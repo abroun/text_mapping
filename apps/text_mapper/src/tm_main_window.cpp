@@ -128,7 +128,7 @@ void TmMainWindow::onBtnDetectTextClicked()
 
         LetterList letterList = detectTextInImage( mFrames[ curFrameIdx ].mHighResImage );
 
-        printf( "Found %u letter%s\n", letterList.size(), ( letterList.size() == 1 ? "" : "s" ) );
+        printf( "Found %u letter%s\n", (uint32_t)letterList.size(), ( letterList.size() == 1 ? "" : "s" ) );
     }
     else
     {
@@ -159,6 +159,9 @@ void TmMainWindow::refreshImageDisplays( const FrameData& frameData )
     mKinectColorImageViewDialog.setImage( frameData.mKinectColorImage );
     mKinectColorImageViewDialog.setWindowTitle( "Kinect Color Image" );
     mKinectColorImageViewDialog.show();
+    mKinectDepthColorImageViewDialog.setImage( frameData.mpKinectDepthPointCloud->getImage() );
+    mKinectDepthColorImageViewDialog.setWindowTitle( "Kinect Depth Camera Color Image" );
+    mKinectDepthColorImageViewDialog.show();
 }
 
 //--------------------------------------------------------------------------------------------------

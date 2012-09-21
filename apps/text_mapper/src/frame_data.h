@@ -38,7 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //--------------------------------------------------------------------------------------------------
 #include <string>
 #include <opencv2/core/core.hpp>
-#include "ui_frame_dialog.h"
+#include "text_mapping/point_cloud.h"
 
 //--------------------------------------------------------------------------------------------------
 struct FrameData
@@ -49,6 +49,7 @@ struct FrameData
 
     cv::Mat mHighResImage;
     cv::Mat mKinectColorImage;
+    PointCloud::Ptr mpKinectDepthPointCloud;
 };
 
 #endif // FRAME_DATA_H_

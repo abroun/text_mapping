@@ -42,7 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <Eigen/Core>
 #include <QtGui/QMainWindow>
-#include <QStringListModel>
+#include <QtGui/QStringListModel>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
 #include "ui_tm_main_window.h"
@@ -76,6 +76,7 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: std::vector<FrameData> mFrames;
     private: ImageViewDialog mHighResImageViewDialog;
     private: ImageViewDialog mKinectColorImageViewDialog;
+    private: ImageViewDialog mKinectDepthColorImageViewDialog;
 
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };

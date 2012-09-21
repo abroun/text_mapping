@@ -68,9 +68,10 @@ ImageViewDialog::~ImageViewDialog()
 //--------------------------------------------------------------------------------------------------
 void ImageViewDialog::setImage( const cv::Mat& image )
 {
-	if ( image.type() != CV_8UC3 )
+	if ( image.type() != CV_8UC3 && image.type() != CV_8UC4 )
 	{
 		printf( "Warning: Invalid image type...\n" );
+		return;
 	}
 
     // Take a copy of the image
@@ -81,9 +82,17 @@ void ImageViewDialog::setImage( const cv::Mat& image )
 
 	// Draw the color image
 	QPixmap pixmap( mImage.cols, mImage.rows );
-    QImage qtImage( mImage.data, mImage.cols, mImage.rows, QImage::Format_RGB888 );
 
-    pixmap.convertFromImage( qtImage );
+	if ( image.type() == CV_8UC3 )
+	{
+		QImage qtImage( mImage.data, mImage.cols, mImage.rows, QImage::Format_RGB888 );
+		pixmap.convertFromImage( qtImage );
+	}
+	else if ( image.type() == CV_8UC4 )
+	{
+		QImage qtImage( mImage.data, mImage.cols, mImage.rows, QImage::Format_RGB32 );
+		pixmap.convertFromImage( qtImage );
+	}
 
 	if ( NULL == mpPixmapItem )
 	{

@@ -152,6 +152,14 @@ void FrameDialog::accept()
     }
     cv::cvtColor( mFrameData.mKinectColorImage, mFrameData.mKinectColorImage, CV_BGR2RGB );
 
+    // Try to load in the point cloud
+    mFrameData.mpKinectDepthPointCloud = PointCloud::loadTextMapFromSpcFile( mFrameData.mKinectDepthPointCloudFilename );
+    if ( NULL == mFrameData.mpKinectDepthPointCloud )
+    {
+    	QMessageBox::critical( this, "Error", "Unable to load Kinect point cloud" );
+		return;
+    }
+
     QDialog::accept();
 }
 
@@ -161,6 +169,7 @@ void FrameDialog::setFrameData( const FrameData& frameData )
 	mFrameData = frameData;
     mFrameData.mHighResImage = cv::Mat();
     mFrameData.mKinectColorImage = cv::Mat();
+    mFrameData.mpKinectDepthPointCloud = PointCloud::Ptr();
 
     this->editHighResImageFilename->setText( mFrameData.mHighResImageFilename.c_str() );
     this->editKinectColorImageFilename->setText( mFrameData.mKinectColorImageFilename.c_str() );

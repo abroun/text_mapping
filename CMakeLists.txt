@@ -33,6 +33,7 @@ SET( Boost_USE_MULTITHREADED ON )
 SET( Boost_USE_STATIC_RUNTIME OFF )
 FIND_PACKAGE( Boost 1.46.1 REQUIRED COMPONENTS system filesystem )
 FIND_PACKAGE( Eigen3 REQUIRED )
+FIND_PACKAGE( OpenCV 2.3.1 REQUIRED )
 
 IF(	WIN32 )
 	# We remove the security warnings as we're not writing code for production, just for researchers
@@ -49,6 +50,7 @@ INCLUDE_DIRECTORIES(
     .
     ${EIGEN3_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
+	${OpenCV_INCLUDE_DIRS}
     ${PROJECT_SOURCE_DIR}/include )
 
 LINK_DIRECTORIES(
@@ -57,6 +59,7 @@ LINK_DIRECTORIES(
 
 ADD_LIBRARY( TextMapping
     src/letter.cpp
+    src/point_cloud.cpp
     src/text_map.cpp
     src/utilities.cpp
     src/vtk/vtk_text_map_source.cpp
@@ -66,6 +69,7 @@ TARGET_LINK_LIBRARIES(
 	TextMapping
     ${Boost_LIBRARIES}
 	vtkRendering
+	${OpenCV_LIBS}
     )
 
 IF(UNIX)
