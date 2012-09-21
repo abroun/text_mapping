@@ -51,6 +51,9 @@ class PointCloud
     public: PointCloud();
 
     //! Constructor for the PointCloud
+    //! @param width The width of the depth camera image plane in pixels
+    //! @param height The height of the depth camera image plane in pixels
+    //! @param focalLengthMM The focal length of the depth camera in millimetres
 	public: PointCloud( uint32_t width, uint32_t height, float focalLengthMM );
 
     //! The destructor
@@ -67,19 +70,39 @@ class PointCloud
     public: const cv::Mat& getImage() const { return mImage; }
 
     //! Returns the number of points in the point cloud
+    //! @return Number of points in the point cloud
     public: uint32_t getNumPoints() const { return mPointWorldPositions.size(); }
 
     //! Gets the index of the point that corresponds to coordinates on the image plane.
+    //! @param u The horizontal coordinate of the image position
+	//! @param v The vertical coordinate of the image position
     //! @return The index of the point at the position, or INVALID_POINT_IDX if there is no point
     public: int32_t getPointIdxAtImagePos( int32_t u, int32_t v ) const;
 
     //! Gets the position of a point in the camera space of the depth camera which captured the image
+    //! @param pointIdx The index of the desired point
 	//! @return The position of the point
     public: Eigen::Vector3f getPointWorldPos( int32_t pointIdx ) const { return mPointWorldPositions[ pointIdx ]; }
 
     //! Gets the position of a point in the image space of the depth camera which captured the image
+    //! @param pointIdx The index of the desired point
 	//! @return The 2D image position of the point
 	public: Eigen::Vector2f getPointImagePos( int32_t pointIdx ) const;
+
+	//! Gets the color of a point based on its position in the image space of the depth camera
+	//! which captured the image
+	//! @param pointIdx The index of the desired point
+	//! @param[out] pRedOut Variable to hold the red channel
+	//! @param[out] pGreenOut Variable to hold the green channel
+	//! @param[out] pBlueOut Variable to hold the blue channel
+	//! @param[out] pAlphaOut Variable to hold the alpha channel
+	public: void getPointColor( int32_t pointIdx,
+		uint8_t* pRedOut, uint8_t* pGreenOut, uint8_t* pBlueOut, uint8_t* pAlphaOut ) const;
+
+	//! Returns the 3D extents of the PointCloud
+	//! @param[out] pFirstCornerOut Variable to hold the first bounding box corner
+	//! @param[out] pSecondCornerOut Variable to hold the second bounding box corner
+	public: void getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const;
 
     private: float mFocalLengthMM;
     private: cv::Mat mImage;

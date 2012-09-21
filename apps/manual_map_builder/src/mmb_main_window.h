@@ -39,7 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ctime>
 #include <string>
 #include <QtGui/QMainWindow>
-#include <QStringListModel>
+#include <QtGui/QStringListModel>
 #include <vtkRenderer.h>
 #include <vtkOBJReader.h>
 #include <vtkPolyDataMapper.h>

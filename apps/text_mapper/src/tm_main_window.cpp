@@ -35,7 +35,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //--------------------------------------------------------------------------------------------------
 #include <stdint.h>
 #include <vtkRenderWindow.h>
+#include <vtkProperty.h>
+#include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
 #include <Eigen/Geometry>
+#include "text_mapping/utilities.h"
 #include "frame_dialog.h"
 #include "tm_main_window.h"
 
@@ -54,6 +58,49 @@ TmMainWindow::TmMainWindow()
     qvtkWidget->GetRenderWindow()->AddRenderer( mpRenderer );
 
     mpRenderer->SetBackground( 0.0, 0.0, 0.0 );
+
+    vtkSmartPointer<vtkPoints> points =
+        vtkSmartPointer<vtkPoints>::New();
+      points->InsertNextPoint(0,0,0);
+      points->InsertNextPoint(1,1,1);
+      points->InsertNextPoint(2,2,2);
+      vtkSmartPointer<vtkPolyData> polydata =
+        vtkSmartPointer<vtkPolyData>::New();
+      polydata->SetPoints(points);
+
+    // Set up the pipeline to render a point cloud
+    mpPointCloudSource = vtkSmartPointer<vtkPointCloudSource>::New();
+    mpCubeSource = vtkSmartPointer<vtkCubeSource>::New();
+    mpPointCloudGlyphs = vtkSmartPointer<vtkGlyph3D>::New();
+    mpPointCloudMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mpPointCloudActor = vtkSmartPointer<vtkActor>::New();
+
+    mpCubeSource->SetXLength( 0.001 );
+    mpCubeSource->SetYLength( 0.001 );
+    mpCubeSource->SetZLength( 0.001 );
+    mpPointCloudGlyphs->SetSourceConnection( mpCubeSource->GetOutputPort() );
+    //mpPointCloudGlyphs->SetInput( mpPointCloudSource->GetOutput() );
+    //mpPointCloudGlyphs->SetInput( polydata );
+
+    //mpPointCloudMapper->SetInputConnection( mpPointCloudGlyphs->GetOutputPort() );
+    mpPointCloudMapper->SetInputConnection( mpPointCloudSource->GetOutputPort() );
+    //mpPointCloudMapper->SetInput( polydata );
+    //mpPointCloudMapper->SetColorModeToDefault();
+	//	mpPointCloudMapper->SetScalarRange(-10.0, 10.0);
+	//	mpPointCloudMapper->SetScalarVisibility(1);
+
+
+    //mpPointCloudMapper->SetInputConnection( mpCubeSource->GetOutputPort() );
+
+    mpPointCloudActor->SetMapper( mpPointCloudMapper );
+
+    //mpPointCloudActor->GetProperty()->SetRepresentationToPoints();
+
+    mpRenderer->AddActor( mpPointCloudActor );
+
+    std::string dataDir = Utilities::getDataDir();
+    QString modelFilename = QString( dataDir.c_str() ) + "/models/carrs_crackers.obj";
+    loadObjModel( modelFilename );
 
     // Hook up signals
     connect( this->listViewFrames->selectionModel(), 
@@ -162,6 +209,19 @@ void TmMainWindow::refreshImageDisplays( const FrameData& frameData )
     mKinectDepthColorImageViewDialog.setImage( frameData.mpKinectDepthPointCloud->getImage() );
     mKinectDepthColorImageViewDialog.setWindowTitle( "Kinect Depth Camera Color Image" );
     mKinectDepthColorImageViewDialog.show();
+
+    mpPointCloudSource->SetPointCloudPtr( frameData.mpKinectDepthPointCloud );
+    this->qvtkWidget->update();
+
+    int32_t idx0 = frameData.mpKinectDepthPointCloud->getPointIdxAtImagePos( 324, 200 );
+    int32_t idx1 = frameData.mpKinectDepthPointCloud->getPointIdxAtImagePos( 372, 198 );
+    if ( PointCloud::INVALID_POINT_IDX != idx0 && PointCloud::INVALID_POINT_IDX != idx1 )
+    {
+    	Eigen::Vector3f p0 = frameData.mpKinectDepthPointCloud->getPointWorldPos( idx0 );
+    	Eigen::Vector3f p1 = frameData.mpKinectDepthPointCloud->getPointWorldPos( idx1 );
+
+    	printf( "Distance between points is %f\n", (p1 - p0).norm() );
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -184,4 +244,143 @@ TmMainWindow::LetterList TmMainWindow::detectTextInImage( cv::Mat image )
 
 
     return letterList;
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::loadObjModel( QString filename )
+{
+    if ( !filename.isEmpty() )
+    {
+        if ( NULL != mpObjReader )
+        {
+            // Object has already been setup so just update the model
+            mpObjReader->SetFileName( filename.toLatin1() );
+            mpObjReader->Update();
+        }
+        else
+        {
+            // Prepare to read in Obj files
+            mpObjReader = vtkSmartPointer<vtkOBJReader>::New();
+            mpObjReader->SetFileName( filename.toLatin1() );
+            mpObjReader->Update();
+
+            // Create mappers to graphics library
+            mpModelMapper = vtkPolyDataMapper::New();
+            mpModelMapper->SetInput( mpObjReader->GetOutput() );
+
+            // Actors coordinate geometry, properties, transformation
+            mpModelActor = vtkActor::New();
+            mpModelActor->SetMapper( mpModelMapper );
+
+            // Turn off lighting on the actors
+            //mpModelActor->GetProperty()->SetLighting( false );
+
+            // Add the actors to the scene
+            mpRenderer->AddActor( mpModelActor );
+        }
+
+        // VTK can't handle multiple textures on an object, so for now just load in the first
+        // texture used by the OBJ file. At the moment we only handle JPG files
+        loadTextureForModel( filename );
+
+        // Update the 3D display
+        qvtkWidget->update();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::loadTextureForModel( QString filename )
+{
+    // Open the OBJ file
+    std::ifstream objFile( filename.toStdString() );
+
+    // Find the line containing the name of the MTL file
+    std::string mtlFilename;
+    bool bFoundMtlFilename = false;
+    if ( objFile.is_open() )
+    {
+        std::string curLine;
+        while ( objFile.good() )
+        {
+            std::getline( objFile, curLine );
+            boost::trim( curLine );
+
+            if ( boost::find_first( curLine, "mtllib" ) )
+            {
+                std::vector<std::string> tokens;
+                boost::split( tokens, curLine, boost::is_any_of( "\t " ) );
+
+                if ( tokens.size() >= 2 )
+                {
+                    mtlFilename = tokens[ 1 ];
+                    bFoundMtlFilename = true;
+                    break;
+                }
+            }
+        }
+
+        objFile.close();
+    }
+
+    if ( !bFoundMtlFilename )
+    {
+        fprintf( stderr, "Error: Unable to find MTL file in %s\n", filename.toStdString().c_str() );
+        return;
+    }
+
+    // Open the MTL file
+    boost::filesystem::path objFilePath( filename.toStdString() );
+    boost::filesystem::path mtlFilePath = objFilePath.parent_path();
+    mtlFilePath /= mtlFilename;
+
+    std::ifstream mtlFile( mtlFilePath.string() );
+
+    // Find the first diffuse texture map
+    std::string textureFilename;
+    bool bFoundTextureFilename = false;
+    if ( mtlFile.is_open() )
+    {
+        std::string curLine;
+        while ( mtlFile.good() )
+        {
+            std::getline( mtlFile, curLine );
+            boost::trim( curLine );
+
+            if ( boost::find_first( curLine, "map_Kd" ) )
+            {
+                std::vector<std::string> tokens;
+                boost::split( tokens, curLine, boost::is_any_of( "\t " ) );
+
+                if ( tokens.size() >= 2 )
+                {
+                    textureFilename = tokens[ 1 ];
+                    bFoundTextureFilename = true;
+                    break;
+                }
+            }
+        }
+
+        mtlFile.close();
+    }
+
+    if ( !bFoundTextureFilename )
+    {
+        fprintf( stderr, "Error: Unable to find Texture file in %s\n", mtlFilePath.string().c_str() );
+        return;
+    }
+
+    // Open the texture
+    boost::filesystem::path textureFilePath = objFilePath.parent_path();
+    textureFilePath /= textureFilename;
+
+    mpModelJpegReader = vtkSmartPointer<vtkJPEGReader>::New();
+    mpModelJpegReader->SetFileName( textureFilePath.string().c_str() );
+    mpModelJpegReader->Update();
+
+    mpModelTexture = vtkSmartPointer<vtkTexture>::New();
+    mpModelTexture->SetInputConnection( mpModelJpegReader->GetOutputPort() );
+    mpModelTexture->InterpolateOn();
+
+    // Apply it to the model actor
+    mpModelActor->SetTexture( mpModelTexture );
 }

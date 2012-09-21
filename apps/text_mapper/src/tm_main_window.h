@@ -43,12 +43,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <Eigen/Core>
 #include <QtGui/QMainWindow>
 #include <QtGui/QStringListModel>
+#include <vtkCubeSource.h>
+#include <vtkGlyph3D.h>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkActor.h>
+
+#include <vtkOBJReader.h>
+#include <vtkJPEGReader.h>
+#include <vtkTexture.h>
+
 #include "ui_tm_main_window.h"
 #include "image_view_dialog.h"
 #include "frame_data.h"
 #include "text_mapping/letter.h"
+#include "text_mapping/vtk/vtk_point_cloud_source.h"
 
 //--------------------------------------------------------------------------------------------------
 class TmMainWindow : public QMainWindow, private Ui::tm_main_window
@@ -71,6 +81,26 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: LetterList detectTextInImage( cv::Mat image );
 
     private: vtkSmartPointer<vtkRenderer> mpRenderer;
+
+    // Stuff to render a point cloud
+    private: vtkSmartPointer<vtkPointCloudSource> mpPointCloudSource;
+    private: vtkSmartPointer<vtkCubeSource> mpCubeSource;
+    private: vtkSmartPointer<vtkGlyph3D> mpPointCloudGlyphs;
+    private: vtkSmartPointer<vtkPolyDataMapper> mpPointCloudMapper;
+    private: vtkSmartPointer<vtkActor> mpPointCloudActor;
+
+    // Model stuff
+    // TODO: Refactor into external library
+    private: void loadObjModel( QString filename );
+    private: void loadTextureForModel( QString filename );
+
+    private: vtkSmartPointer<vtkOBJReader> mpObjReader;
+	private: vtkSmartPointer<vtkJPEGReader> mpModelJpegReader;
+	private: vtkSmartPointer<vtkTexture> mpModelTexture;
+	private: vtkSmartPointer<vtkPolyDataMapper> mpModelMapper;
+	private: vtkSmartPointer<vtkActor> mpModelActor;
+
+    // Frame list
     private: QSharedPointer<QStringListModel> mpFrameListModel;
 
     private: std::vector<FrameData> mFrames;

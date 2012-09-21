@@ -185,9 +185,9 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 							pPointCloud->mPointMap[ pixelIdx ] = pPointCloud->mPointWorldPositions.size();
 
 							pPointCloud->mPointWorldPositions.push_back( Eigen::Vector3f(
-								((float)x - imageCentreX)/1000.0f,
-								((float)y - imageCentreY)/1000.0f,
-								focalLengthMM/1000.0f ) );
+								depthValue*((float)x - imageCentreX)/focalLengthMM,
+								depthValue*((float)y - imageCentreY)/focalLengthMM,
+								depthValue ) );
 						}
 					}
 				}
@@ -241,4 +241,57 @@ Eigen::Vector2f PointCloud::getPointImagePos( int32_t pointIdx ) const
 		imageCentreY + mFocalLengthMM*pos[ 1 ]/pos[ 2 ] );
 }
 
+//--------------------------------------------------------------------------------------------------
+void PointCloud::getPointColor( int32_t pointIdx,
+		uint8_t* pRedOut, uint8_t* pGreenOut, uint8_t* pBlueOut, uint8_t* pAlphaOut ) const
+{
+	Eigen::Vector2i imagePos = getPointImagePos( pointIdx ).cast<int>();
+
+	if ( imagePos[ 0 ] >= 0 && imagePos[ 0 ] < mImage.cols
+		&& imagePos[ 1 ] >= 0 && imagePos[ 1 ] < mImage.rows )
+	{
+		uint8_t* pPixel = mImage.data + 4*( imagePos[ 1 ]*mImage.cols + imagePos[ 0 ] );
+
+		*pRedOut = pPixel[ 2 ];
+		*pGreenOut = pPixel[ 1 ];
+		*pBlueOut = pPixel[ 0 ];
+		*pAlphaOut = pPixel[ 3 ];
+	}
+	else
+	{
+		*pRedOut = 255;
+		*pGreenOut = 0;
+		*pBlueOut = 0;
+		*pAlphaOut = 0;
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void PointCloud::getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const
+{
+	if ( mPointWorldPositions.size() > 0 )
+	{
+		*pFirstCornerOut = mPointWorldPositions[ 0 ];
+		*pSecondCornerOut = mPointWorldPositions[ 0 ];
+
+		for ( uint32_t pointIdx = 1; pointIdx < mPointWorldPositions.size(); pointIdx++ )
+		{
+			const Eigen::Vector3f& p = mPointWorldPositions[ pointIdx ];
+
+			if ( p[ 0 ] < (*pFirstCornerOut)[ 0 ] ) (*pFirstCornerOut)[ 0 ] = p[ 0 ];
+			if ( p[ 1 ] < (*pFirstCornerOut)[ 1 ] ) (*pFirstCornerOut)[ 1 ] = p[ 1 ];
+			if ( p[ 2 ] < (*pFirstCornerOut)[ 2 ] ) (*pFirstCornerOut)[ 2 ] = p[ 2 ];
+
+			if ( p[ 0 ] > (*pSecondCornerOut)[ 0 ] ) (*pSecondCornerOut)[ 0 ] = p[ 0 ];
+			if ( p[ 1 ] > (*pSecondCornerOut)[ 1 ] ) (*pSecondCornerOut)[ 1 ] = p[ 1 ];
+			if ( p[ 2 ] > (*pSecondCornerOut)[ 2 ] ) (*pSecondCornerOut)[ 2 ] = p[ 2 ];
+		}
+	}
+	else
+	{
+		// No points so return default bounding box
+		*pFirstCornerOut = Eigen::Vector3f( -1.0f, -1.0f, -1.0f );
+		*pSecondCornerOut = Eigen::Vector3f( 1.0f, 1.0f, 1.0f );
+	}
+}
 
