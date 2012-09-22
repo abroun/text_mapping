@@ -20,7 +20,7 @@ class MainWindow:
     LEFT_MOTOR_ID = 16
     RIGHT_MOTOR_ID = 14
     
-    MOTOR_SPEED = 100
+    MOTOR_SPEED = 200
     MAX_MOTOR_POS = 1023
     
     #-----------------------------------------------------------------------------------------------
@@ -115,7 +115,7 @@ class MainWindow:
 if __name__ == "__main__":
 
     if sys.platform == "win32":
-        DEFAULT_SERIAL_PORT = "COM3"
+        DEFAULT_SERIAL_PORT = "COM6"
     else:
         DEFAULT_SERIAL_PORT = "/dev/ttyUSB0"
     DEFAULT_BAUD_RATE = 57600
