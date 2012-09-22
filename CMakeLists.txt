@@ -62,6 +62,7 @@ ADD_LIBRARY( TextMapping
     src/point_cloud.cpp
     src/text_map.cpp
     src/utilities.cpp
+    src/vtk/vtk_point_cloud_source.cpp
     src/vtk/vtk_text_map_source.cpp
     )
 
