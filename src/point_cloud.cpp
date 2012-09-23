@@ -179,6 +179,9 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 						uint32_t pixelIdx = y*width + x;
 
 						float depthValue = depthBuffer[ pixelIdx ];
+
+						depthValue /= 8.0f;
+
 						if ( !std::isnan( depthValue ) )
 						{
 							// We've found a valid point
