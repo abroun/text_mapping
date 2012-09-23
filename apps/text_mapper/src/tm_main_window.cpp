@@ -103,6 +103,8 @@ TmMainWindow::TmMainWindow()
     QString modelFilename = QString( dataDir.c_str() ) + "/models/carrs_crackers.obj";
     loadObjModel( modelFilename );
 
+    loadCameras();
+
     // Hook up signals
     connect( this->listViewFrames->selectionModel(), 
              SIGNAL( currentChanged( const QModelIndex&, const QModelIndex& ) ), 
@@ -250,6 +252,44 @@ TmMainWindow::LetterList TmMainWindow::detectTextInImage( cv::Mat image )
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::loadCameras()
+{
+    float HALF_KINECT_IMAGE_HEIGHT = 640.0f/2.0f;
+
+    // TODO: Move away from hard coded cameras
+    std::string dataDir = Utilities::getDataDir();
+    std::string kinectCalibrationFilename = dataDir + "/point_clouds/calibration_data/windows_kinect.yaml";
+
+    // Load in the Kinect calibration file
+    cv::FileStorage fs;
+    fs.open( kinectCalibrationFilename, cv::FileStorage::READ );
+
+    // Read out matrices for the color and depth camera on the Kinect
+    cv::Mat depthCameraCalibrationMatrix;
+    cv::Mat colorCameraCalibrationMatrix;
+
+    fs[ "DepthCameraCalibrationMtx" ] >> depthCameraCalibrationMatrix;
+    fs[ "ColorCameraCalibrationMtx" ] >> colorCameraCalibrationMatrix;
+
+    cv::Mat depthToColorCameraRotationMatrix;
+    cv::Mat depthToColorCameraTranslationVector;
+
+    fs[ "DepthToColorCameraRotation" ] >> depthToColorCameraRotationMatrix;
+    fs[ "DepthToColorCameraTranslation" ] >> depthToColorCameraTranslationVector;
+
+    // Set up the cameras
+    mKinectDepthCamera.setCameraInWorldSpaceMatrix( Eigen::Matrix4f::Identity() );
+    mKinectDepthCamera.setCalibrationMatrix(
+        Eigen::Map<Eigen::Matrix3d>( (double*)colorCameraCalibrationMatrix.data, 3, 3 ),
+        HALF_KINECT_IMAGE_HEIGHT );
+
+    // Display them in the VTK renderer
+    mKinectDepthCamera.showInRenderer( mpRenderer );
+    //mKinectColorCamera.showInRenderer( mpRenderer );
+    qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::loadObjModel( QString filename )
 {
     if ( !filename.isEmpty() )
@@ -279,7 +319,11 @@ void TmMainWindow::loadObjModel( QString filename )
             //mpModelActor->GetProperty()->SetLighting( false );
 
             // Add the actors to the scene
+
             mpRenderer->AddActor( mpModelActor );
+            mpModelActor->SetPosition( 0.02, -0.04, 0.72 );
+            mpModelActor->SetScale( 0.5 );
+            mpModelActor->SetOrientation( 170.0, 120.0, 0.0 );
         }
 
         // VTK can't handle multiple textures on an object, so for now just load in the first

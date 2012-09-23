@@ -6,6 +6,7 @@ ADD_DEFINITIONS( ${QT_DEFINITIONS} )
 FIND_PACKAGE( OpenCV 2.3.1 REQUIRED )
 
 SET( TEXT_MAPPER_SOURCES 
+    src/camera.cpp
     src/frame_dialog.cpp
 	src/image_view_dialog.cpp
 	src/text_mapper.cpp 

@@ -56,6 +56,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ui_tm_main_window.h"
 #include "image_view_dialog.h"
+#include "camera.h"
 #include "frame_data.h"
 #include "text_mapping/letter.h"
 #include "text_mapping/vtk/vtk_point_cloud_source.h"
@@ -79,6 +80,8 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
 
     private: typedef std::list<Letter, Eigen::aligned_allocator<Letter> > LetterList;
     private: LetterList detectTextInImage( cv::Mat image );
+
+    private: void loadCameras();
 
     private: vtkSmartPointer<vtkRenderer> mpRenderer;
 
@@ -107,6 +110,10 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: ImageViewDialog mHighResImageViewDialog;
     private: ImageViewDialog mKinectColorImageViewDialog;
     private: ImageViewDialog mKinectDepthColorImageViewDialog;
+
+    private: Camera mHighResCamera;
+    private: Camera mKinectColorCamera;
+    private: Camera mKinectDepthCamera;
 
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
