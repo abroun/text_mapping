@@ -36,6 +36,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdint.h>
 #include <vtkRenderWindow.h>
 #include <vtkProperty.h>
+#include <vtkCellPicker.h>
+#include <vtkProp3DCollection.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <Eigen/Geometry>
@@ -105,6 +107,29 @@ TmMainWindow::TmMainWindow()
 
     loadCameras();
 
+    // Create a text map, source, and actor
+    mpTextMapSource = vtkSmartPointer<vtkTextMapSource>::New();
+    mpTextMapMapper = vtkPolyDataMapper::New();
+    mpTextMapMapper->SetInput( mpTextMapSource->GetOutput() );
+
+    mpTextMapActor = vtkActor::New();
+    mpTextMapActor->SetMapper( mpTextMapMapper );
+
+    // Load in a texture containing letters for the text map actor
+    mpLettersJpegReader = vtkSmartPointer<vtkJPEGReader>::New();
+    std::string fontsFilename = Utilities::getDataDir() + "/font/letters.jpg";
+    mpLettersJpegReader->SetFileName( fontsFilename.c_str() );
+    mpLettersJpegReader->Update();
+
+    mpLettersTexture = vtkSmartPointer<vtkTexture>::New();
+    mpLettersTexture->SetInputConnection( mpLettersJpegReader->GetOutputPort() );
+    mpLettersTexture->InterpolateOn(); 
+    
+    // Apply it to the text map actor
+    mpTextMapActor->SetTexture( mpLettersTexture ); 
+
+    mpRenderer->AddActor( mpTextMapActor );
+
     // Hook up signals
     connect( this->listViewFrames->selectionModel(), 
              SIGNAL( currentChanged( const QModelIndex&, const QModelIndex& ) ), 
@@ -115,6 +140,13 @@ TmMainWindow::TmMainWindow()
     connect( this->btnEditFrame, SIGNAL( clicked() ), this, SLOT( onBtnEditFrameClicked() ) );
     connect( this->btnDeleteFrame, SIGNAL( clicked() ), this, SLOT( onBtnDeleteFrameClicked() ) );
     connect( this->btnDetectText, SIGNAL( clicked() ), this, SLOT( onBtnDetectTextClicked() ) );
+
+    connect( this->btnLeft, SIGNAL( clicked() ), this, SLOT( onBtnLeftClicked() ) );
+    connect( this->btnRight, SIGNAL( clicked() ), this, SLOT( onBtnRightClicked() ) );
+    connect( this->btnUp, SIGNAL( clicked() ), this, SLOT( onBtnUpClicked() ) );
+    connect( this->btnDown, SIGNAL( clicked() ), this, SLOT( onBtnDownClicked() ) );
+
+    connect( this->checkShowModel, SIGNAL( clicked() ), this, SLOT( onCheckShowModelClicked() ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -141,6 +173,13 @@ void TmMainWindow::onBtnAddFrameClicked()
 
         // Select the last item that was added
         this->listViewFrames->setCurrentIndex( mpFrameListModel->index( mFrames.size() - 1 ) );
+
+        // TODO: Fix text map creation
+        if ( mFrames.size() == 1 )
+        {
+            mpFrameTextMap = TextMap::Ptr( new TextMap() );
+            mpTextMapSource->SetTextMapPtr( mpFrameTextMap );
+        }
     }
 }
 
@@ -168,6 +207,27 @@ void TmMainWindow::onBtnDeleteFrameClicked()
     }
 }
 
+struct Letter2D
+{
+    Letter2D( char c, double tl_x, double tl_y, double tr_x, double tr_y,
+        double bl_x, double bl_y, double br_x, double br_y )
+        : mCharacter( c ),
+        mTopLeft( tl_x, tl_y ),
+        mTopRight( tr_x, tr_y ),
+        mBottomLeft( bl_x, bl_y ),
+        mBottomRight( br_x, br_y ) {}
+
+    char mCharacter;
+    Eigen::Vector2d mTopLeft;
+    Eigen::Vector2d mTopRight;
+    Eigen::Vector2d mBottomLeft;
+    Eigen::Vector2d mBottomRight;
+
+    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+};
+
+typedef std::vector<Letter2D, Eigen::aligned_allocator<Letter2D> > Letter2DVector;
+
 //--------------------------------------------------------------------------------------------------
 void TmMainWindow::onBtnDetectTextClicked()
 {
@@ -179,11 +239,117 @@ void TmMainWindow::onBtnDetectTextClicked()
         LetterList letterList = detectTextInImage( mFrames[ curFrameIdx ].mHighResImage );
 
         printf( "Found %u letter%s\n", (uint32_t)letterList.size(), ( letterList.size() == 1 ? "" : "s" ) );
+
+
+        // Add the found letters to the text map
+        vtkCamera* pCurCamera = mpRenderer->GetActiveCamera();
+        mHighResCamera.setAsActiveCamera( mpRenderer );
+
+        vtkSmartPointer<vtkCellPicker> pPicker = vtkSmartPointer<vtkCellPicker>::New();
+
+        Letter2DVector letters2D;
+        letters2D.push_back( Letter2D( 'C', 1091.0, 382.0, 1220.0, 391.0, 1076.0, 535.0, 1180.0, 548.0 ) );
+
+        for ( uint32_t letterIdx = 0; letterIdx < letters2D.size(); letterIdx++ )
+        {
+            const Letter2D& letter2D = letters2D[ letterIdx ];
+
+            printf( "Trying to pick\n" );
+
+            // Pick each corner in turn
+            if ( pPicker->Pick( letter2D.mTopLeft[ 0 ], letter2D.mTopLeft[ 1 ], 0.0, mpRenderer ) )
+            {
+                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+
+                double* pickPos = pPicker->GetPickPosition();
+            }
+
+            if ( pPicker->Pick( letter2D.mTopRight[ 0 ], letter2D.mTopRight[ 1 ], 0.0, mpRenderer ) )
+            {
+                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+
+                double* pickPos = pPicker->GetPickPosition();
+            }
+
+            if ( pPicker->Pick( letter2D.mBottomLeft[ 0 ], letter2D.mBottomLeft[ 1 ], 0.0, mpRenderer ) )
+            {
+                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+
+                double* pickPos = pPicker->GetPickPosition();
+            }
+
+            if ( pPicker->Pick( letter2D.mBottomRight[ 0 ], letter2D.mBottomRight[ 1 ], 0.0, mpRenderer ) )
+            {
+                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+
+                double* pickPos = pPicker->GetPickPosition();
+            }
+
+            if ( pPicker->Pick( 0.5, 0.5, 0.0, mpRenderer ) )
+            {
+                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+
+                double* pickPos = pPicker->GetPickPosition();
+            }
+
+        }
+
+        /*Letter letter;
+        letter.mMtx = Eigen::Matrix4f::Identity();
+        letter.mMtx.block<3,1>( 0, 3 ) = Eigen::Vector3f( 0.0, 0.0, 0.7 );
+        letter.mCharacter = 'A';
+        letter.mWidth = 0.3;
+        letter.mHeight = 0.4;
+
+        mpFrameTextMap->addLetter( letter );
+        mpTextMapSource->Modified();*/
+
+        // Restore the camera
+        //mpRenderer->SetActiveCamera( pCurCamera );
+
+        qvtkWidget->update();
+
+        
     }
     else
     {
         printf( "Error: No frame selected\n" );
     }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnLeftClicked()
+{
+    mHighResCamera.tweakLookAtPos( Eigen::Vector3d( -0.02, 0.0, 0.0 ) );
+    this->qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnRightClicked()
+{
+    mHighResCamera.tweakLookAtPos( Eigen::Vector3d( 0.02, 0.0, 0.0 ) );
+    this->qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnUpClicked()
+{
+    mHighResCamera.tweakLookAtPos( Eigen::Vector3d( 0.0, -0.02, 0.0 ) );
+    this->qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnDownClicked()
+{
+    mHighResCamera.tweakLookAtPos( Eigen::Vector3d( 0.0, 0.02, 0.0 ) );
+    this->qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onCheckShowModelClicked()
+{
+    mpModelActor->SetVisibility( this->checkShowModel->isChecked() ? 1 : 0 );
+    this->qvtkWidget->update();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -254,38 +420,113 @@ TmMainWindow::LetterList TmMainWindow::detectTextInImage( cv::Mat image )
 //--------------------------------------------------------------------------------------------------
 void TmMainWindow::loadCameras()
 {
-    float HALF_KINECT_IMAGE_HEIGHT = 640.0f/2.0f;
+    mKinectDepthCamera.setImageSize( 640.0f, 480.0f );
+    mKinectColorCamera.setImageSize( 640.0f, 480.0f );
+    mHighResCamera.setImageSize( 2272.0f, 1704.0f );
 
     // TODO: Move away from hard coded cameras
     std::string dataDir = Utilities::getDataDir();
     std::string kinectCalibrationFilename = dataDir + "/point_clouds/calibration_data/windows_kinect.yaml";
+    std::string highResCalibrationFilename = dataDir + "/calibration_images/canon_zoom4_cameraMatrix_2.yml";
+    std::string highResPoseFilename = dataDir + "/calibration_images/stereo_calibration.yml";
 
     // Load in the Kinect calibration file
-    cv::FileStorage fs;
-    fs.open( kinectCalibrationFilename, cv::FileStorage::READ );
+    cv::FileStorage fileStorage;
+    fileStorage.open( kinectCalibrationFilename, cv::FileStorage::READ );
 
     // Read out matrices for the color and depth camera on the Kinect
     cv::Mat depthCameraCalibrationMatrix;
     cv::Mat colorCameraCalibrationMatrix;
 
-    fs[ "DepthCameraCalibrationMtx" ] >> depthCameraCalibrationMatrix;
-    fs[ "ColorCameraCalibrationMtx" ] >> colorCameraCalibrationMatrix;
+    fileStorage[ "DepthCameraCalibrationMtx" ] >> depthCameraCalibrationMatrix;
+    fileStorage[ "ColorCameraCalibrationMtx" ] >> colorCameraCalibrationMatrix;
 
     cv::Mat depthToColorCameraRotationMatrix;
     cv::Mat depthToColorCameraTranslationVector;
 
-    fs[ "DepthToColorCameraRotation" ] >> depthToColorCameraRotationMatrix;
-    fs[ "DepthToColorCameraTranslation" ] >> depthToColorCameraTranslationVector;
+    fileStorage[ "DepthToColorCameraRotation" ] >> depthToColorCameraRotationMatrix;
+    fileStorage[ "DepthToColorCameraTranslation" ] >> depthToColorCameraTranslationVector;
+
+    fileStorage.release();
+
+    // Now load in calibration files for the high resolution camera
+    fileStorage.open( highResCalibrationFilename, cv::FileStorage::READ );
+    cv::Mat highResCameraCalibrationMatrix;
+    fileStorage[ "cameraMatrix" ] >> highResCameraCalibrationMatrix;
+    fileStorage.release();
+
+    fileStorage.open( highResPoseFilename, cv::FileStorage::READ );
+    cv::Mat colorToHighResCameraRotationMatrix;
+    cv::Mat colorToHighResCameraTranslationVector;
+    fileStorage[ "R" ] >> colorToHighResCameraRotationMatrix;
+    fileStorage[ "T" ] >> colorToHighResCameraTranslationVector;
+    fileStorage.release();
 
     // Set up the cameras
-    mKinectDepthCamera.setCameraInWorldSpaceMatrix( Eigen::Matrix4f::Identity() );
+
+    // Depth
+    mKinectDepthCamera.setCameraInWorldSpaceMatrix( Eigen::Matrix4d::Identity() );
     mKinectDepthCamera.setCalibrationMatrix(
-        Eigen::Map<Eigen::Matrix3d>( (double*)colorCameraCalibrationMatrix.data, 3, 3 ),
-        HALF_KINECT_IMAGE_HEIGHT );
+        Eigen::Map<Eigen::Matrix3d>( (double*)depthCameraCalibrationMatrix.data, 3, 3 ) );
+
+    // Color
+    Eigen::Matrix4d kinectColorCameraInWorldSpaceMatrix = Eigen::Matrix4d::Identity();
+    kinectColorCameraInWorldSpaceMatrix.block<3,3>( 0, 0 ) = 
+        Eigen::Map<Eigen::Matrix3d>( (double*)depthToColorCameraRotationMatrix.data, 3, 3 );
+    kinectColorCameraInWorldSpaceMatrix.block<3,1>( 0, 3 ) = 
+        Eigen::Map<Eigen::Vector3d>( (double*)depthToColorCameraTranslationVector.data, 3, 1 );
+
+    // HACK: Flipping about the y-axis. This should be done back in the kinect grabber
+    kinectColorCameraInWorldSpaceMatrix.block<1,4>( 0, 0 ) = -kinectColorCameraInWorldSpaceMatrix.block<1,4>( 0, 0 );
+
+    mKinectColorCamera.setCameraInWorldSpaceMatrix( kinectColorCameraInWorldSpaceMatrix );
+    mKinectColorCamera.setCalibrationMatrix(
+        Eigen::Map<Eigen::Matrix3d>( (double*)colorCameraCalibrationMatrix.data, 3, 3 ) );
+
+    // High Resolution
+    Eigen::Matrix4d highResCameraInColorCameraSpaceMatrix = Eigen::Matrix4d::Identity();
+    highResCameraInColorCameraSpaceMatrix.block<3,3>( 0, 0 ) = 
+        Eigen::Map<Eigen::Matrix3d>( (double*)colorToHighResCameraRotationMatrix.data, 3, 3 );
+    highResCameraInColorCameraSpaceMatrix.block<3,1>( 0, 3 ) = 
+        Eigen::Map<Eigen::Vector3d>( (double*)colorToHighResCameraTranslationVector.data, 3, 1 );
+    highResCameraInColorCameraSpaceMatrix( 1, 3 ) = -highResCameraInColorCameraSpaceMatrix( 1, 3 );
+
+    // HACK: Flipping about the x-axis.
+    //highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 ) = -highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 );
+
+    Eigen::Matrix4d highResCameraInWorldSpaceMatrix =
+        kinectColorCameraInWorldSpaceMatrix*highResCameraInColorCameraSpaceMatrix;
+
+    // HACK: Flipping about the x-axis.
+    //highResCameraInWorldSpaceMatrix.block<1,4>( 1, 0 ) = -highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 );
+
+    const Eigen::Vector3d HIGH_RES_CAMERA_OFFSET( -0.04, 0.02, 0.0 );
+    const float HIGH_RES_CAMERA_FOV_SCALE = 1.0/0.9;
+
+    mHighResCamera.setCameraInWorldSpaceMatrix( highResCameraInWorldSpaceMatrix );
+    mHighResCamera.setCalibrationMatrix(
+        Eigen::Map<Eigen::Matrix3d>( (double*)highResCameraCalibrationMatrix.data, 3, 3 )*HIGH_RES_CAMERA_FOV_SCALE );
+    mHighResCamera.setClipPlanes( 0.55, 2.0 );
+
+    mHighResCamera.tweakLookAtPos( HIGH_RES_CAMERA_OFFSET );
+
+    mKinectDepthCamera.setClipPlanes( 0.01, 2.0 );
+    mKinectColorCamera.setClipPlanes( 0.01, 2.0 );
+    mHighResCamera.setClipPlanes( 0.01, 2.0 );
 
     // Display them in the VTK renderer
     mKinectDepthCamera.showInRenderer( mpRenderer );
-    //mKinectColorCamera.showInRenderer( mpRenderer );
+    mKinectDepthCamera.setColor( 0, 255, 0 );
+    mKinectColorCamera.showInRenderer( mpRenderer );
+    mHighResCamera.showInRenderer( mpRenderer );
+    mHighResCamera.setColor( 0, 0, 255 );
+
+    mHighResCamera.addPickPoint( Eigen::Vector2d( 1057.0, 124.0 ) );
+    mHighResCamera.addPickPoint( Eigen::Vector2d( 1523.0, 176.0 ) );
+    mHighResCamera.addPickPoint( Eigen::Vector2d( 1025.0, 1556.0 ) );
+    mHighResCamera.addPickPoint( Eigen::Vector2d( 1496.0, 1562.0 ) );
+    //mKinectDepthCamera.addPickPoint( Eigen::Vector2d( 480.0, 360.0 ) );
+
     qvtkWidget->update();
 }
 
@@ -321,9 +562,11 @@ void TmMainWindow::loadObjModel( QString filename )
             // Add the actors to the scene
 
             mpRenderer->AddActor( mpModelActor );
-            mpModelActor->SetPosition( 0.02, -0.04, 0.72 );
+            mpModelActor->SetPosition( 0.02, -0.05, 0.72 );
             mpModelActor->SetScale( 0.5 );
-            mpModelActor->SetOrientation( 170.0, 120.0, 0.0 );
+            mpModelActor->SetOrientation( 170.0, 120.0 + 175.0, 0.0 );
+
+            mpModelActor->SetVisibility( this->checkShowModel->isChecked() ? 1 : 0 );
         }
 
         // VTK can't handle multiple textures on an object, so for now just load in the first

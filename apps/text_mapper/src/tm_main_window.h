@@ -60,6 +60,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "frame_data.h"
 #include "text_mapping/letter.h"
 #include "text_mapping/vtk/vtk_point_cloud_source.h"
+#include "text_mapping/text_map.h"
+#include "text_mapping/vtk/vtk_text_map_source.h"
 
 //--------------------------------------------------------------------------------------------------
 class TmMainWindow : public QMainWindow, private Ui::tm_main_window
@@ -74,6 +76,12 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public slots: void onBtnEditFrameClicked();
     public slots: void onBtnDeleteFrameClicked();
     public slots: void onBtnDetectTextClicked();
+    
+    public slots: void onBtnLeftClicked();
+    public slots: void onBtnRightClicked();
+    public slots: void onBtnUpClicked();
+    public slots: void onBtnDownClicked();
+    public slots: void onCheckShowModelClicked();
 
     private: void refreshFrameList();
     private: void refreshImageDisplays( const FrameData& frameData );
@@ -111,6 +119,16 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: ImageViewDialog mKinectColorImageViewDialog;
     private: ImageViewDialog mKinectDepthColorImageViewDialog;
 
+    // Text map stuff
+    private: vtkSmartPointer<vtkJPEGReader> mpLettersJpegReader;
+    private: vtkSmartPointer<vtkTexture> mpLettersTexture;
+    private: vtkSmartPointer<vtkTextMapSource> mpTextMapSource;
+    private: vtkSmartPointer<vtkPolyDataMapper> mpTextMapMapper;
+    private: vtkSmartPointer<vtkActor> mpTextMapActor;
+    
+    private: TextMap::Ptr mpFrameTextMap;
+
+    // Cameras
     private: Camera mHighResCamera;
     private: Camera mKinectColorCamera;
     private: Camera mKinectDepthCamera;
