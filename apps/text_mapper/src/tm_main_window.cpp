@@ -242,67 +242,99 @@ void TmMainWindow::onBtnDetectTextClicked()
 
 
         // Add the found letters to the text map
-        vtkCamera* pCurCamera = mpRenderer->GetActiveCamera();
-        mHighResCamera.setAsActiveCamera( mpRenderer );
+        //vtkCamera* pCurCamera = mpRenderer->GetActiveCamera();
+        //mHighResCamera.setAsActiveCamera( mpRenderer );
 
         vtkSmartPointer<vtkCellPicker> pPicker = vtkSmartPointer<vtkCellPicker>::New();
 
         Letter2DVector letters2D;
         letters2D.push_back( Letter2D( 'C', 1091.0, 382.0, 1220.0, 391.0, 1076.0, 535.0, 1180.0, 548.0 ) );
+		letters2D.push_back( Letter2D( 'a', 1192.0, 457.0, 1298.0, 457.0, 1188.0, 550.0, 1180.0, 548.0 ) );
 
         for ( uint32_t letterIdx = 0; letterIdx < letters2D.size(); letterIdx++ )
         {
             const Letter2D& letter2D = letters2D[ letterIdx ];
+			Eigen::Vector3f topLeft;
+			Eigen::Vector3f topRight;
+			Eigen::Vector3f bottomLeft;
 
-            printf( "Trying to pick\n" );
+            //mHighResCamera.addPickPoint( letter2D.mTopLeft );
+            //mHighResCamera.addPickPoint( letter2D.mTopRight );
+            //mHighResCamera.addPickPoint( letter2D.mBottomLeft );
+            //mHighResCamera.addPickPoint( letter2D.mBottomRight );
 
-            // Pick each corner in turn
-            if ( pPicker->Pick( letter2D.mTopLeft[ 0 ], letter2D.mTopLeft[ 1 ], 0.0, mpRenderer ) )
-            {
-                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+            Eigen::Vector3d lineStartPos;
+            Eigen::Vector3d lineDir;
+            mHighResCamera.getLineForPickPoint( letter2D.mTopLeft, &lineStartPos, &lineDir );
 
-                double* pickPos = pPicker->GetPickPosition();
-            }
+            float result = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
+                lineStartPos.cast<float>(), lineDir.cast<float>() );
 
-            if ( pPicker->Pick( letter2D.mTopRight[ 0 ], letter2D.mTopRight[ 1 ], 0.0, mpRenderer ) )
-            {
-                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+            if ( result < 0.0 )
+			{
+				continue;
+			}
+			topLeft = lineStartPos.cast<float>() + result*lineDir.cast<float>();
 
-                double* pickPos = pPicker->GetPickPosition();
-            }
+            mHighResCamera.getLineForPickPoint( letter2D.mTopRight, &lineStartPos, &lineDir );
 
-            if ( pPicker->Pick( letter2D.mBottomLeft[ 0 ], letter2D.mBottomLeft[ 1 ], 0.0, mpRenderer ) )
-            {
-                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+            result = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
+                lineStartPos.cast<float>(), lineDir.cast<float>() );
 
-                double* pickPos = pPicker->GetPickPosition();
-            }
+            if ( result < 0.0 )
+			{
+				continue;
+			}
+			topRight = lineStartPos.cast<float>() + result*lineDir.cast<float>();
 
-            if ( pPicker->Pick( letter2D.mBottomRight[ 0 ], letter2D.mBottomRight[ 1 ], 0.0, mpRenderer ) )
-            {
-                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+            mHighResCamera.getLineForPickPoint( letter2D.mBottomLeft, &lineStartPos, &lineDir );
 
-                double* pickPos = pPicker->GetPickPosition();
-            }
+            result = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
+                lineStartPos.cast<float>(), lineDir.cast<float>() );
 
-            if ( pPicker->Pick( 0.5, 0.5, 0.0, mpRenderer ) )
-            {
-                printf( "Intersected with %i props\n", pPicker->GetProp3Ds()->GetNumberOfItems () );
+            if ( result < 0.0 )
+			{
+				continue;
+			}
+			bottomLeft = lineStartPos.cast<float>() + result*lineDir.cast<float>();
 
-                double* pickPos = pPicker->GetPickPosition();
-            }
+            mHighResCamera.getLineForPickPoint( letter2D.mBottomRight, &lineStartPos, &lineDir );
+
+            result = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
+                lineStartPos.cast<float>(), lineDir.cast<float>() );
+
+            if ( result < 0.0 )
+			{
+				continue;
+			}
+
+
+			Eigen::Vector3f centrePos = topLeft + (topRight - topLeft)/2.0 + (bottomLeft - topLeft)/2.0;
+			Eigen::Vector3f axisY = topLeft - bottomLeft;
+			float height = axisY.norm();
+			axisY.normalize();
+			Eigen::Vector3f axisX = topRight - topLeft;
+			float width = axisX.norm();
+			axisX.normalize();
+
+			Eigen::Vector3f axisZ = axisX.cross( axisY );
+
+			Letter letter;
+			letter.mMtx = Eigen::Matrix4f::Identity();
+			letter.mMtx.block<3,1>( 0, 0 ) = axisX;
+			letter.mMtx.block<3,1>( 0, 1 ) = axisY;
+			letter.mMtx.block<3,1>( 0, 2 ) = axisZ;
+			letter.mMtx.block<3,1>( 0, 3 ) = centrePos;
+			letter.mCharacter = letter2D.mCharacter;
+			letter.mWidth = width;
+			letter.mHeight = height;
+
+			mpFrameTextMap->addLetter( letter );
+			mpTextMapSource->Modified();
 
         }
 
-        /*Letter letter;
-        letter.mMtx = Eigen::Matrix4f::Identity();
-        letter.mMtx.block<3,1>( 0, 3 ) = Eigen::Vector3f( 0.0, 0.0, 0.7 );
-        letter.mCharacter = 'A';
-        letter.mWidth = 0.3;
-        letter.mHeight = 0.4;
-
-        mpFrameTextMap->addLetter( letter );
-        mpTextMapSource->Modified();*/
+        
 
         // Restore the camera
         //mpRenderer->SetActiveCamera( pCurCamera );

@@ -298,3 +298,57 @@ void PointCloud::getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector
 	}
 }
 
+//--------------------------------------------------------------------------------------------------
+float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir, float close )
+{
+    bool bPointFound = false;
+    float closestDistance = FLT_MAX;
+    float closestRayToPointSquared = FLT_MAX;
+
+	printf( "Start Pos is %f %f %f\n", lineStart[ 0 ], lineStart[ 1 ], lineStart[ 2 ] );
+    printf( "Dir length is %f\n", lineDir.squaredNorm() );
+
+     uint32_t pointIdx = 0;
+    for  ( ; pointIdx < mPointWorldPositions.size(); pointIdx++ )
+    {
+        const Eigen::Vector3f& pos = mPointWorldPositions[ pointIdx ];
+
+        Eigen::Vector3f vectorToPos = pos - lineStart;
+        float distanceToClosestApproach = vectorToPos.dot( lineDir );
+
+        if ( distanceToClosestApproach > 0.0f )
+        {
+            Eigen::Vector3f closestPoint = lineStart + distanceToClosestApproach*lineDir;
+
+            float rayToPointSquared = ( pos - closestPoint ).squaredNorm();
+
+            if ( rayToPointSquared < closestRayToPointSquared )
+            {
+                closestRayToPointSquared = rayToPointSquared;
+            }
+
+            if ( rayToPointSquared < close*close )
+            {
+                // The ray comes close enough for contact
+                if ( distanceToClosestApproach < closestDistance )
+                {
+                    bPointFound = true;
+                    closestDistance = distanceToClosestApproach;
+                }
+            }
+        }
+    }
+
+    printf( "Checked %u points\n", pointIdx );
+
+    printf( "Closest we got was %f\n", sqrtf( closestRayToPointSquared ) );
+
+    if ( !bPointFound )
+    {
+        return -1.0f;
+    }
+    else
+    {
+        return closestDistance;
+    }
+}
