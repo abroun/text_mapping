@@ -114,6 +114,37 @@ void Camera::addPickPoint( const Eigen::Vector2d& screenPos )
 }
 
 //--------------------------------------------------------------------------------------------------
+void Camera::getLineForPickPoint( const Eigen::Vector2d& screenPos, Eigen::Vector3d* pLineStartOut, Eigen::Vector3d* pLineDirOut )
+{
+	Eigen::Vector2d normalisedScreenPos( 
+        (2.0*screenPos[ 0 ])/mImageWidth - 1.0, (2.0*screenPos[ 1 ])/mImageHeight - 1.0 );
+
+    double halfVerticalAngle = 0.5*Utilities::degToRad( mpVtkCamera->GetViewAngle() );
+    double verticalLength = tan( halfVerticalAngle );
+    double horizontalLength = verticalLength*(mImageWidth/mImageHeight);
+
+    Eigen::Vector3d cameraPos;
+    Eigen::Vector3d cameraAxisX;
+    Eigen::Vector3d cameraAxisY;
+    Eigen::Vector3d cameraAxisZ;
+    mpVtkCamera->GetPosition( cameraPos[ 0 ], cameraPos[ 1 ], cameraPos[ 2 ] );
+    mpVtkCamera->GetDirectionOfProjection( cameraAxisZ[ 0 ], cameraAxisZ[ 1 ], cameraAxisZ[ 2 ] );
+    mpVtkCamera->GetViewUp( cameraAxisY[ 0 ], cameraAxisY[ 1 ], cameraAxisY[ 2 ] );
+
+    cameraAxisX = cameraAxisY.cross( cameraAxisZ );
+
+    Eigen::Vector3d startPos = cameraPos;
+    Eigen::Vector3d rayDir = cameraAxisZ 
+        - normalisedScreenPos[ 0 ]*horizontalLength*cameraAxisX
+        - normalisedScreenPos[ 1 ]*verticalLength*cameraAxisY;
+
+    rayDir.normalize();
+
+    *pLineStartOut = startPos;
+    *pLineDirOut = rayDir;
+}
+
+//--------------------------------------------------------------------------------------------------
 void Camera::updatePickLines()
 {
     // Now draw lines from the pick points

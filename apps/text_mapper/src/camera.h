@@ -54,6 +54,7 @@ class Camera
     public: void setClipPlanes( float near, float far );
 
     public: void addPickPoint( const Eigen::Vector2d& screenPos );
+    public: void getLineForPickPoint( const Eigen::Vector2d& screenPos, Eigen::Vector3d* pLineStartOut, Eigen::Vector3d* pLineDirOut );
 
     public: void updatePickLines();
     public: void tweakLookAtPos( const Eigen::Vector3d& offset );
