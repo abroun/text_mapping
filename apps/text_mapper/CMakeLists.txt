@@ -10,11 +10,13 @@ SET( TEXT_MAPPER_SOURCES
     src/frame_dialog.cpp
 	src/image_view_dialog.cpp
 	src/text_mapper.cpp 
-	src/tm_main_window.cpp )
+	src/tm_main_window.cpp 
+	src/text_detection.cpp)
 SET( TEXT_MAPPER_HEADERS
 	src/frame_dialog.h
 	src/image_view_dialog.h
-	src/tm_main_window.h )
+	src/tm_main_window.h 
+	src/text_detection.h)
 SET( TEXT_MAPPER_FORMS 
 	gui/frame_dialog.ui
 	gui/image_view_dialog.ui
@@ -26,17 +28,17 @@ QT4_WRAP_UI( TEXT_MAPPER_FORMS_HEADERS ${TEXT_MAPPER_FORMS} )
 INCLUDE_DIRECTORIES( 
 	${CMAKE_CURRENT_BINARY_DIR} 
 	${OpenCV_INCLUDE_DIRS} 
-	C:/Program Files (x86)/Tesseract-OCR/Build/api
-	C:/Program Files (x86)/Tesseract-OCR/Build/ccstruct
-	C:/Program Files (x86)/Tesseract-OCR/Build/ccmain
-	C:/Program Files (x86)/Tesseract-OCR/Build/ccutil
-	C:/Program Files (x86)/Tesseract-OCR/Build/cube
-	C:/Program Files (x86)/Tesseract-OCR/Build/classify
-	C:/Program Files (x86)/Tesseract-OCR/Build/cutil
-	C:/Program Files (x86)/Tesseract-OCR/Build/dict
-	C:/Program Files (x86)/Tesseract-OCR/Build/image
-	C:/Program Files (x86)/Tesseract-OCR/Build/neural_networks\runtime
-	C:/Program Files (x86)/Tesseract-OCR/Build/textord)
+	"C:/Program Files (x86)/Tesseract-OCR/Build/api"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/ccstruct"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/ccmain"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/ccutil"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/cube"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/classify"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/cutil"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/dict"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/image"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/neural_networks/runtime"
+	"C:/Program Files (x86)/Tesseract-OCR/Build/textord")
 
 LINK_DIRECTORIES(
 	"C:/Program Files (x86)/Tesseract-OCR/Build/vs2010/Release.dll/")
