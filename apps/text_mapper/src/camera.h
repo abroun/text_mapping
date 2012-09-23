@@ -32,10 +32,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include <Eigen/Core>
+#include <vtkActor.h>
 #include <vtkCamera.h>
 #include <vtkCameraActor.h>
+#include <vtkPolyDataMapper.h>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
+#include <vector>
 
 //--------------------------------------------------------------------------------------------------
 //! Holds information about a camera, and enables us to render debug graphics representing the
@@ -45,13 +48,33 @@ class Camera
     public: Camera();
     public: virtual ~Camera();
 
-    public: void setCameraInWorldSpaceMatrix( const Eigen::Matrix4f& cameraInWorldSpaceMatrix );
-    public: void setCalibrationMatrix( const Eigen::Matrix3d& calibrationMtx, float halfImageHeight );
+    public: void setImageSize( float imageWidth, float imageHeight );
+    public: void setCameraInWorldSpaceMatrix( const Eigen::Matrix4d& cameraInWorldSpaceMatrix );
+    public: void setCalibrationMatrix( const Eigen::Matrix3d& calibrationMtx );
+    public: void setClipPlanes( float near, float far );
+
+    public: void addPickPoint( const Eigen::Vector2d& screenPos );
+
+    public: void updatePickLines();
+    public: void tweakLookAtPos( const Eigen::Vector3d& offset );
 
     public: void showInRenderer( vtkRenderer* pRenderer );
+    public: void setAsActiveCamera( vtkRenderer* pRenderer );
+    public: void setColor( uint8_t r, uint8_t g, uint8_t b );
+
+    private: float mImageWidth;
+    private: float mImageHeight;
+
+    private: Eigen::Vector3d mTotalOffset;
 
     private: vtkSmartPointer<vtkCamera> mpVtkCamera;
     private: vtkSmartPointer<vtkCameraActor> mpVtkCameraActor;
+
+    private: vtkSmartPointer<vtkPolyDataMapper> mpPickLinesMapper;
+    private: vtkSmartPointer<vtkActor> mpPickLinesActor;
+    private: std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > mPickPoints;
+
+    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
 #endif // CAMERA_H_

@@ -34,15 +34,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/algorithm/string.hpp>
 #include "text_mapping/point_cloud.h"
 
-//#ifndef isnan
-//inline bool isnan(double x)
-//{
-//    return x != x;
-//}
-//#endif
-
-
-
 //--------------------------------------------------------------------------------------------------
 // PointCloud
 //--------------------------------------------------------------------------------------------------
@@ -72,7 +63,7 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 {
 	Ptr pResult;
 
-	FILE* pSpcFile = fopen( filename.c_str(), "r" );
+	FILE* pSpcFile = fopen( filename.c_str(), "rb" );
 	if ( NULL != pSpcFile )
 	{
 
@@ -191,6 +182,7 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 						float depthValue = depthBuffer[ pixelIdx ];
 						if ( !_isnan( depthValue ) )
 						{
+                            depthValue /= 8.0f;
 							
 							// We've found a valid point
 							pPointCloud->mPointMap[ pixelIdx ] = pPointCloud->mPointWorldPositions.size();
