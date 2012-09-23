@@ -42,6 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "text_mapping/utilities.h"
 #include "frame_dialog.h"
 #include "tm_main_window.h"
+#include "text_detection.h"
 
 //--------------------------------------------------------------------------------------------------
 // TmMainWindow
@@ -228,6 +229,8 @@ void TmMainWindow::refreshImageDisplays( const FrameData& frameData )
 TmMainWindow::LetterList TmMainWindow::detectTextInImage( cv::Mat image )
 {
     // TODO: Magic text detection stuff
+
+	std::cout << detect_text(image) << endl;
 
     // TODO: Create a list of letters to send back
     LetterList letterList;
