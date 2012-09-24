@@ -43,59 +43,111 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <baseapi.h>
 #include <resultiterator.h> 
 
-void drawMSER(cv::Mat &image, CvSeq *seq, int level = 0) 
+struct CompStruct
 {
-	   cv::Vec3b color_vec;
-	   int color_val = 50 + level * 205 / 5;
-	   if (((CvContour *)seq)->color >= 0)
-	      color_vec = cv::Vec3b(0,0, color_val);
-	   else
-	      color_vec = cv::Vec3b(color_val,0,0);
-	
-	   for (int j = 0; j < seq->total; ++j) {
-	      CvPoint *pos = CV_GET_SEQ_ELEM(CvPoint, seq, j);
-	      image.at<cv::Vec3b>(pos->y, pos->x) = color_vec;
-	   }
-	
-	   // Walk all the children of this node.
-	   CvSeq *it = seq->v_next;
-	   while (it) {
-	      drawMSER(image, it, level + 1);
-	      it = it->h_next;
-	   }
-	}
+	CvRect boundingBox;
+	std::string textString;
+};
 
 int detect_text(cv::Mat inputImage)
-{
-	cv::cvtColor(inputImage,inputImage,cv::COLOR_RGB2BGR);
-
-	cv::Mat GrayImage = inputImage.clone();
-	cv::Mat draw_image = inputImage.clone();
-
-	cv::cvtColor(GrayImage,GrayImage,cv::COLOR_RGB2GRAY);
-
-	CvMSERParams MSERparams = cvMSERParams(5,40,5000);
-	CvSeq* MSERegions;
-	CvMemStorage* MSER_Storage = cvCreateMemStorage();
-
-	cvExtractMSER(&GrayImage.operator IplImage(),NULL, &MSERegions,MSER_Storage,MSERparams);
-
-	for (size_t i = 0; i < MSERegions->total; ++i) 
-	{
-	      CvSeq *seq = *CV_GET_SEQ_ELEM(CvSeq *, MSERegions, i);
-	      // No parent, so it is a root node.
-	      if (seq->v_prev == NULL)
-	         drawMSER(draw_image, seq);
-	}
-
+{   cv::cvtColor(inputImage,inputImage,cv::COLOR_RGB2BGR);
+	
+	cv::Mat outputImage = inputImage.clone();
 	tesseract::TessBaseAPI tess;
 	tess.Init("C:\\Program Files (x86)\\Tesseract-OCR\\tessdata", "eng", tesseract::OEM_DEFAULT);
-	tess.SetImage((uchar*)inputImage.data, inputImage.size().width, inputImage.size().height, inputImage.channels(),inputImage.step1());
-	tess.Recognize(0);
-	std::cout << tess.GetUTF8Text() << std::endl;
+	
+	CvFont font;
+	cvInitFont( &font, CV_FONT_HERSHEY_COMPLEX_SMALL, .6, .6, 0, 1, 6);
 
-	cv::resize(draw_image,draw_image,cv::Size(1024,768));
-	cv::imshow("out",draw_image);
+	std::vector<CompStruct> good;
+	std::vector<CompStruct> bad;
+	CompStruct storeComp;
+	//list.push_back(cv::Rect(x,y,dx,dy));
+	storeComp.boundingBox = cv::Rect(1208,581,163,56);
+	good.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(1192,645,189,46);
+	good.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(1103,1402,174,21);
+	good.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(1035,1532,301,26);
+	good.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(1381,1489,65,36);
+	good.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(888,293,103,110);
+	good.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(917,394,42,38);
+	good.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(1044,1444,278,22);
+	good.push_back(storeComp);
+
+	storeComp.boundingBox = cv::Rect(852,568,165,285);
+	bad.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(912,428,47,33);
+	bad.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(1229,396,150,43);
+	bad.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(1086,392,403,186);
+	bad.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(1110,1467,217,24);
+	bad.push_back(storeComp);
+	
+
+
+	for(int i = 0; i < good.size(); i++)
+	{
+
+		cv::Mat storeImage = cv::Mat::zeros(good.at(i).boundingBox.height,good.at(i).boundingBox.width, inputImage.type());
+
+		for(int ypos = 0; ypos < good.at(i).boundingBox.height; ypos++)
+		{
+			for(int xpos = 0; xpos < good.at(i).boundingBox.width; xpos++)
+			{
+				storeImage.at<cv::Vec3b>(ypos,xpos) = inputImage.at<cv::Vec3b>(good.at(i).boundingBox.y+ypos,good.at(i).boundingBox.x+xpos);
+			}
+		}
+
+		tess.Clear();
+		tess.SetImage((uchar*)storeImage.data, storeImage.size().width, storeImage.size().height, storeImage.channels(),storeImage.step1());
+		tess.Recognize(0);
+		good.at(i).textString = tess.GetUTF8Text();
+	}
+
+	for(int i = 0; i < bad.size(); i++)
+	{
+
+		cv::Mat storeImage = cv::Mat::zeros(bad.at(i).boundingBox.height,bad.at(i).boundingBox.width, inputImage.type());
+
+		for(int ypos = 0; ypos < bad.at(i).boundingBox.height; ypos++)
+		{
+			for(int xpos = 0; xpos < bad.at(i).boundingBox.width; xpos++)
+			{
+				storeImage.at<cv::Vec3b>(ypos,xpos) = inputImage.at<cv::Vec3b>(bad.at(i).boundingBox.y+ypos,bad.at(i).boundingBox.x+xpos);
+			}
+		}
+
+		tess.Clear();
+		tess.SetImage((uchar*)storeImage.data, storeImage.size().width, storeImage.size().height, storeImage.channels(),storeImage.step1());
+		tess.Recognize(0);
+		bad.at(i).textString = tess.GetUTF8Text();
+	}
+
+
+	for(int i = 0; i < good.size(); i++)
+	{
+		std::cout << good.at(i).textString;// << std::endl;
+		cv::rectangle(outputImage,good.at(i).boundingBox,cv::Scalar(0,255,255),2);
+		cv::putText(outputImage,good.at(i).textString,cv::Point(good.at(i).boundingBox.x,good.at(i).boundingBox.y),cv::FONT_HERSHEY_PLAIN,1.0,cv::Scalar(255,0,255));
+	}
+
+	for(int i = 0; i < bad.size(); i++)
+	{
+		std::cout << bad.at(i).textString;// << std::endl;
+		cv::rectangle(outputImage,bad.at(i).boundingBox,cv::Scalar(0,0,255),2);
+	}
+
+	
+	cv::resize(outputImage,outputImage,cv::Size(1024,768));
+	cv::imshow("out",outputImage);
 	cv::waitKey();
 	cv::destroyAllWindows();
 
