@@ -114,6 +114,13 @@ void Camera::addPickPoint( const Eigen::Vector2d& screenPos )
 }
 
 //--------------------------------------------------------------------------------------------------
+void Camera::clearPickPoints()
+{
+	mPickPoints.clear();
+	updatePickLines();
+}
+
+//--------------------------------------------------------------------------------------------------
 void Camera::getLineForPickPoint( const Eigen::Vector2d& screenPos, Eigen::Vector3d* pLineStartOut, Eigen::Vector3d* pLineDirOut )
 {
 	Eigen::Vector2d normalisedScreenPos( 

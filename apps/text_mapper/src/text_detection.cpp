@@ -131,13 +131,15 @@ int detect_text(cv::Mat inputImage)
 		bad.at(i).textString = tess.GetUTF8Text();
 	}
 
-
+	std::cout << "Accepted text! " << std::endl;
 	for(int i = 0; i < good.size(); i++)
 	{
 		std::cout << good.at(i).textString;// << std::endl;
 		cv::rectangle(outputImage,good.at(i).boundingBox,cv::Scalar(0,255,255),2);
 		cv::putText(outputImage,good.at(i).textString,cv::Point(good.at(i).boundingBox.x,good.at(i).boundingBox.y),cv::FONT_HERSHEY_PLAIN,1.0,cv::Scalar(255,0,255));
 	}
+
+	std::cout << "Unaccepted text! " << std::endl;
 
 	for(int i = 0; i < bad.size(); i++)
 	{

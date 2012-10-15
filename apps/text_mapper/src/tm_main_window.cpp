@@ -248,8 +248,8 @@ void TmMainWindow::onBtnDetectTextClicked()
         vtkSmartPointer<vtkCellPicker> pPicker = vtkSmartPointer<vtkCellPicker>::New();
 
         Letter2DVector letters2D;
-        letters2D.push_back( Letter2D( 'C', 1091.0, 382.0, 1220.0, 391.0, 1076.0, 535.0, 1180.0, 548.0 ) );
-		letters2D.push_back( Letter2D( 'a', 1192.0, 457.0, 1298.0, 457.0, 1188.0, 550.0, 1180.0, 548.0 ) );
+        //letters2D.push_back( Letter2D( 'C', 1091.0, 382.0, 1220.0, 391.0, 1076.0, 535.0, 1180.0, 548.0 ) );
+		//letters2D.push_back( Letter2D( 'a', 1192.0, 457.0, 1298.0, 457.0, 1188.0, 550.0, 1180.0, 548.0 ) );
 
         for ( uint32_t letterIdx = 0; letterIdx < letters2D.size(); letterIdx++ )
         {
@@ -380,7 +380,19 @@ void TmMainWindow::onBtnDownClicked()
 //--------------------------------------------------------------------------------------------------
 void TmMainWindow::onCheckShowModelClicked()
 {
-    mpModelActor->SetVisibility( this->checkShowModel->isChecked() ? 1 : 0 );
+	if ( this->checkShowModel->isChecked() )
+	{
+		mHighResCamera.addPickPoint( Eigen::Vector2d( 1057.0, 124.0 ) );
+		mHighResCamera.addPickPoint( Eigen::Vector2d( 1523.0, 176.0 ) );
+		mHighResCamera.addPickPoint( Eigen::Vector2d( 1025.0, 1556.0 ) );
+		mHighResCamera.addPickPoint( Eigen::Vector2d( 1496.0, 1562.0 ) );
+		mpModelActor->SetVisibility( 1 );
+	}
+	else
+	{
+		mHighResCamera.clearPickPoints();
+		mpModelActor->SetVisibility( 0 );
+	}
     this->qvtkWidget->update();
 }
 
@@ -551,12 +563,12 @@ void TmMainWindow::loadCameras()
     mKinectDepthCamera.setColor( 0, 255, 0 );
     mKinectColorCamera.showInRenderer( mpRenderer );
     mHighResCamera.showInRenderer( mpRenderer );
-    mHighResCamera.setColor( 0, 0, 255 );
+    mHighResCamera.setColor( 255, 0, 255 );
 
-    mHighResCamera.addPickPoint( Eigen::Vector2d( 1057.0, 124.0 ) );
-    mHighResCamera.addPickPoint( Eigen::Vector2d( 1523.0, 176.0 ) );
-    mHighResCamera.addPickPoint( Eigen::Vector2d( 1025.0, 1556.0 ) );
-    mHighResCamera.addPickPoint( Eigen::Vector2d( 1496.0, 1562.0 ) );
+    //mHighResCamera.addPickPoint( Eigen::Vector2d( 1057.0, 124.0 ) );
+    //mHighResCamera.addPickPoint( Eigen::Vector2d( 1523.0, 176.0 ) );
+    //mHighResCamera.addPickPoint( Eigen::Vector2d( 1025.0, 1556.0 ) );
+    //mHighResCamera.addPickPoint( Eigen::Vector2d( 1496.0, 1562.0 ) );
     //mKinectDepthCamera.addPickPoint( Eigen::Vector2d( 480.0, 360.0 ) );
 
     qvtkWidget->update();
