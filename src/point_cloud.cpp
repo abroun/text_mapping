@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include <cmath>
 #include <boost/algorithm/string.hpp>
+#include <boost/math/special_functions/fpclassify.hpp>
 #include "text_mapping/point_cloud.h"
 
 //--------------------------------------------------------------------------------------------------
@@ -180,7 +181,7 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 						uint32_t pixelIdx = y*width + x;
 
 						float depthValue = depthBuffer[ pixelIdx ];
-						if ( !_isnan( depthValue ) )
+						if ( !boost::math::isnan( depthValue ) )
 						{
                             depthValue /= 8.0f;
 							

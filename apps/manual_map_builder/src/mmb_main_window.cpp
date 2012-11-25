@@ -50,10 +50,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mmb_main_window.h"
 
 //--------------------------------------------------------------------------------------------------
+static const float DEFAULT_LETTER_WIDTH = 0.02f;
+static const float DEFAULT_LETTER_HEIGHT = 0.03f;
+
+//--------------------------------------------------------------------------------------------------
 // MmbMainWindow
 //--------------------------------------------------------------------------------------------------
 MmbMainWindow::MmbMainWindow()
-    : mDoubleClickStartTime( std::clock() )
+    : mDoubleClickStartTime( std::clock() ),
+      mLastWidth( DEFAULT_LETTER_WIDTH ),
+      mLastHeight( DEFAULT_LETTER_HEIGHT )
 {
     setupUi( this );
     mpLetterListModel = QSharedPointer<QStringListModel>( new QStringListModel() );
@@ -130,12 +136,18 @@ MmbMainWindow::MmbMainWindow()
              SLOT( onCurrentLetterChanged( const QModelIndex&, const QModelIndex& ) ) );
     
     connect( this->btnDeleteLetter, SIGNAL( clicked() ), this, SLOT( onBtnDeleteLetterClicked() ) );
+    connect( this->btnLetterLeft, SIGNAL( clicked() ), this, SLOT( onBtnLetterLeftClicked() ) );
+    connect( this->btnLetterRight, SIGNAL( clicked() ), this, SLOT( onBtnLetterRightClicked() ) );
+    connect( this->btnLetterUp, SIGNAL( clicked() ), this, SLOT( onBtnLetterUpClicked() ) );
+    connect( this->btnLetterDown, SIGNAL( clicked() ), this, SLOT( onBtnLetterDownClicked() ) );
     connect( this->lineEditCharacter, SIGNAL( textEdited( const QString& ) ),
              this, SLOT( onCharacterTextEdited( const QString& ) ) );
     connect( this->spinWidth, SIGNAL( valueChanged( double ) ), 
              this, SLOT( onWidthOrHeightValueChanged( double ) ) );
     connect( this->spinHeight, SIGNAL( valueChanged( double ) ), 
              this, SLOT( onWidthOrHeightValueChanged( double ) ) );
+    connect( this->checkHideTextMap, SIGNAL( clicked() ),
+            this, SLOT( onCheckHideTextMapClicked() ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -158,6 +170,7 @@ void MmbMainWindow::onNew()
     }
     
     refreshLetterList();
+    mpTextMapActor->SetVisibility( !this->checkHideTextMap->isChecked() );
     
     // Update the 3D display
     qvtkWidget->update();
@@ -183,6 +196,8 @@ void MmbMainWindow::onOpen()
             mpTextMapSource->SetTextMapPtr( mpModelTextMap );
             mTextMapFilename = newTextMapFilename;
             
+            mpTextMapActor->SetVisibility( !this->checkHideTextMap->isChecked() );
+
             const std::string& modelFilename = mpModelTextMap->getModelFilename();
             if ( modelFilename == TextMap::NO_MODEL_FILENAME )
             {
@@ -244,6 +259,7 @@ void MmbMainWindow::onSetModel()
     QString filename = QFileDialog::getOpenFileName( this,
          tr( "Open Object Model" ), "../data", tr("Object Files (*.obj)") );
 
+    mpTextMapActor->SetVisibility( !this->checkHideTextMap->isChecked() );
     loadObjModel( filename );
 }
 
@@ -303,6 +319,30 @@ void MmbMainWindow::onBtnDeleteLetterClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onBtnLetterLeftClicked()
+{
+    shiftLetter( -1, 0 );
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onBtnLetterRightClicked()
+{
+    shiftLetter( 1, 0 );
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onBtnLetterUpClicked()
+{
+    shiftLetter( 0, -1 );
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onBtnLetterDownClicked()
+{
+    shiftLetter( 0, 1 );
+}
+
+//--------------------------------------------------------------------------------------------------
 void MmbMainWindow::onCharacterTextEdited( const QString& characterText )
 {
     // This will only be called when the text is edited by a human (i.e. not programmatically)
@@ -333,9 +373,19 @@ void MmbMainWindow::onWidthOrHeightValueChanged( double value )
          letter.mWidth = this->spinWidth->value();
          letter.mHeight = this->spinHeight->value();
          
+         mLastWidth = letter.mWidth;
+         mLastHeight = letter.mHeight;
+
          mpTextMapSource->Modified();
          qvtkWidget->update();
     }
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::onCheckHideTextMapClicked( bool bChecked )
+{
+    mpTextMapActor->SetVisibility( !this->checkHideTextMap->isChecked() );
+    qvtkWidget->update();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -402,8 +452,8 @@ void MmbMainWindow::onInteractorEvent( vtkObject* pCaller, unsigned long eid,
                     letter.mMtx.block<3,1>( 0, 1 ) = axisY;
                     letter.mMtx.block<3,1>( 0, 2 ) = letterNormal;
                     letter.mMtx.block<3,1>( 0, 3 ) = letterPos;
-                    letter.mWidth = 0.02f;
-                    letter.mHeight = 0.03f;
+                    letter.mWidth = pWin->mLastWidth;
+                    letter.mHeight = pWin->mLastHeight;
                     letter.mCharacter = 'A';
                     pWin->mpModelTextMap->addLetter( letter );
                     
@@ -420,6 +470,23 @@ void MmbMainWindow::onInteractorEvent( vtkObject* pCaller, unsigned long eid,
 
             break;
         }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void MmbMainWindow::shiftLetter( int32_t horizontalSteps, int32_t verticalSteps )
+{
+    if ( mCurLetterIdx < mpModelTextMap->getNumLetters() )
+    {
+         Letter& letter = mpModelTextMap->getLetter( mCurLetterIdx );
+
+         float hShift = 0.01*letter.mWidth;
+         float vShift = 0.01*letter.mHeight;
+
+         letter.mMtx.block<3,1>( 0, 3 ) += hShift*horizontalSteps*letter.mMtx.block<3,1>( 0, 0 );
+         letter.mMtx.block<3,1>( 0, 3 ) -= vShift*verticalSteps*letter.mMtx.block<3,1>( 0, 1 );
+         mpTextMapSource->Modified();
+         qvtkWidget->update();
     }
 }
 

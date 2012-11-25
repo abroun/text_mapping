@@ -54,11 +54,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vtkJPEGReader.h>
 #include <vtkTexture.h>
 
+#include "text_mapping/letter.h"
 #include "ui_tm_main_window.h"
 #include "image_view_dialog.h"
 #include "camera.h"
 #include "frame_data.h"
-#include "text_mapping/letter.h"
 #include "text_mapping/vtk/vtk_point_cloud_source.h"
 #include "text_mapping/text_map.h"
 #include "text_mapping/vtk/vtk_text_map_source.h"

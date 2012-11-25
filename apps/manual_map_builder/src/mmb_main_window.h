@@ -67,13 +67,19 @@ class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
     public slots: void onSaveAs();
     public slots: void onSetModel();
     public slots: void onBtnDeleteLetterClicked();
+    public slots: void onBtnLetterLeftClicked();
+    public slots: void onBtnLetterRightClicked();
+    public slots: void onBtnLetterUpClicked();
+    public slots: void onBtnLetterDownClicked();
     public slots: void onCharacterTextEdited( const QString& characterText );
     public slots: void onCurrentLetterChanged( const QModelIndex& current, const QModelIndex& previous );  
     public slots: void onWidthOrHeightValueChanged( double value );
+    public slots: void onCheckHideTextMapClicked( bool bChecked = false );
     
     public: static void onInteractorEvent( vtkObject* pCaller, 
         unsigned long eid, void* pClientdata, void* pCalldata );
     
+    private: void shiftLetter( int32_t horizontalSteps, int32_t verticalSteps );
     private: void loadObjModel( QString filename );
     private: void loadTextureForModel( QString filename );
     private: void refreshLetterList();
@@ -103,6 +109,9 @@ class MmbMainWindow : public QMainWindow, private Ui::mmb_main_window
     private: vtkSmartPointer<vtkCallbackCommand> mpOnEventCallback;
     private: std::clock_t mDoubleClickStartTime;
     
+    private: float mLastWidth;
+    private: float mLastHeight;
+
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 

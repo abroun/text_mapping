@@ -38,10 +38,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "opencv2/ml/ml.hpp"
 #include "opencv2/features2d/features2d.hpp"
 
+#ifdef WIN32
 #include <Windows.h>
 
 #include <baseapi.h>
 #include <resultiterator.h> 
+#endif
 
 struct CompStruct
 {
@@ -50,8 +52,10 @@ struct CompStruct
 };
 
 int detect_text(cv::Mat inputImage)
-{   cv::cvtColor(inputImage,inputImage,cv::COLOR_RGB2BGR);
-	
+{   
+    cv::cvtColor(inputImage,inputImage,cv::COLOR_RGB2BGR);
+
+#ifdef WIN32	
 	cv::Mat outputImage = inputImage.clone();
 	tesseract::TessBaseAPI tess;
 	tess.Init("C:\\Program Files (x86)\\Tesseract-OCR\\tessdata", "eng", tesseract::OEM_DEFAULT);
@@ -153,5 +157,6 @@ int detect_text(cv::Mat inputImage)
 	cv::waitKey();
 	cv::destroyAllWindows();
 
+#endif
 	return 0;
 }

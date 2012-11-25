@@ -47,6 +47,8 @@ LINK_DIRECTORIES(
 ADD_EXECUTABLE( text_mapper ${TEXT_MAPPER_SOURCES} 
     ${TEXT_MAPPER_HEADERS_MOC} 
     ${TEXT_MAPPER_FORMS_HEADERS} )
+    
+IF( WIN32 )
 TARGET_LINK_LIBRARIES( text_mapper ${QT_LIBRARIES} QVTK ${OpenCV_LIBS} TextMapping ${BOOST_LIBRARIES} 
 	ccmain.lib
 	ccstruct.lib
@@ -64,3 +66,6 @@ TARGET_LINK_LIBRARIES( text_mapper ${QT_LIBRARIES} QVTK ${OpenCV_LIBS} TextMappi
 	viewer.lib
 	wordrec.lib
 	)
+ELSE( WIN32 )
+    TARGET_LINK_LIBRARIES( text_mapper ${QT_LIBRARIES} QVTK ${OpenCV_LIBS} TextMapping ${BOOST_LIBRARIES} )
+ENDIF( WIN32 )
