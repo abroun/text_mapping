@@ -1,0 +1,44 @@
+%YAML:1.0
+kinectDepthCameraPos: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ 0.0, 0.0, 0.0 ]
+kinectDepthCameraRotXYZDeg: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ 0.0, 0.0, 0.0 ]
+kinectDepthFocalLengthMM: 575
+kinectDepthImageWidth: 640
+kinectDepthImageHeight: 480
+
+kinectRGBCameraPos: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ 0.05, 0.0, 0.0 ]
+kinectRGBCameraRotXYZDeg: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ 0.0, -4.0, 0.0 ]
+kinectRGBFocalLengthMM: 575
+kinectRGBImageWidth: 640
+kinectRGBImageHeight: 480
+
+highResCameraPos: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ -0.025, 0.1, -0.05 ]
+highResCameraRotXYZDeg: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ 2.0, 2.0, 0.0 ]
+highResFocalLengthMM: 1000
+highResImageWidth: 2272
+highResImageHeight: 1704
+
+

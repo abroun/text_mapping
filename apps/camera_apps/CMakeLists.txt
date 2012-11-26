@@ -10,3 +10,6 @@ TARGET_LINK_LIBRARIES( camera_calibration ${OpenCV_LIBS} )
 ADD_EXECUTABLE( stereo_calibration src/stereo_calibration.cpp )
 TARGET_LINK_LIBRARIES( stereo_calibration ${OpenCV_LIBS} )
 
+ADD_EXECUTABLE( chessboard_generator src/chessboard_generator.cpp )
+TARGET_LINK_LIBRARIES( chessboard_generator ${OpenCV_LIBS} TextMapping )
+
