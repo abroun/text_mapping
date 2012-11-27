@@ -41,15 +41,38 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <iostream>
 #include <opencv2/core/core.hpp>
+#include "opencv2/highgui/highgui.hpp"
 #include "text_mapping/utilities.h"
 
 //--------------------------------------------------------------------------------------------------
-const cv::Vec3d TEST_POSITIONS[] =
+struct PoseData
 {
-    cv::Vec3d( 0.0, 0.0, 1.0 )
+    cv::Vec3d position;
+    cv::Vec3d rotXYZ;       // Used to specify orientation assuming that normal starts as +ve z-axis
+};
+
+//--------------------------------------------------------------------------------------------------
+const PoseData TEST_POSITIONS[] =
+{
+    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) },
+    { cv::Vec3d( 0.1, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) }
 };
 
 const int32_t NUM_TEST_POSITIONS = sizeof( TEST_POSITIONS )/sizeof( TEST_POSITIONS[ 0 ] );
+
+enum ePixelColour
+{
+	ePC_None = -1,
+	ePC_Black = 0,
+	ePC_White
+};
+
+// TODO: Move these to the config file
+const double CHESSBOARD_SQUARE_SIDE_LENGTH = 0.02;
+const double CHESSBOARD_BORDER_WIDTH = 0.04;
+const int32_t CHESSBOARD_WIDTH = 9;
+const int32_t CHESSBOARD_HEIGHT = 7;
+const bool CHESSBOARD_TOP_LEFT_CORNER_IS_BLACK = true;
 
 //--------------------------------------------------------------------------------------------------
 void showUsage( const char* programName )
@@ -59,16 +82,15 @@ void showUsage( const char* programName )
 }
 
 //--------------------------------------------------------------------------------------------------
-cv::Mat createCameraCalibrationMatrix( int32_t focalLengthMM, int32_t imageWidth, int32_t imageHeight )
+cv::Mat createCameraCalibrationMatrix( double focalLengthPixel, int32_t imageWidth, int32_t imageHeight )
 {
     cv::Mat calibMtx = cv::Mat::eye( 3, 3, CV_64FC1 );
 
-    double focalLength = (double)focalLengthMM/1000.0;
     double principleX = (double)imageWidth/2.0;
     double principleY = (double)imageHeight/2.0;
 
-    calibMtx.at<double>( 0, 0 ) = focalLength;
-    calibMtx.at<double>( 1, 1 ) = focalLength;
+    calibMtx.at<double>( 0, 0 ) = -focalLengthPixel;
+    calibMtx.at<double>( 1, 1 ) = -focalLengthPixel;
     calibMtx.at<double>( 0, 2 ) = principleX;
     calibMtx.at<double>( 1, 2 ) = principleY;
 
@@ -123,7 +145,7 @@ cv::Mat createRotationMatrixZ( double angle )
 //--------------------------------------------------------------------------------------------------
 cv::Mat createCameraWorldMatrix( const cv::Mat& cameraPos, const cv::Mat& cameraRotXYZDeg )
 {
-    cv::Mat worldMtx = cv::Mat::zeros( 3, 4, CV_64FC1 );
+    cv::Mat worldMtx = cv::Mat::eye( 4, 4, CV_64FC1 );
 
     double angleX = Utilities::degToRad( cameraRotXYZDeg.at<double>( 0, 0 ) );
     double angleY = Utilities::degToRad( cameraRotXYZDeg.at<double>( 1, 0 ) );
@@ -131,17 +153,193 @@ cv::Mat createCameraWorldMatrix( const cv::Mat& cameraPos, const cv::Mat& camera
     cv::Mat rotMtx = createRotationMatrixZ( angleZ )
         *createRotationMatrixY( angleY )*createRotationMatrixX( angleX );
 
-    cv::Mat col0 = worldMtx.col( 0 );
-    cv::Mat col1 = worldMtx.col( 1 );
-    cv::Mat col2 = worldMtx.col( 2 );
-    cv::Mat col3 = worldMtx.col( 3 );
+    cv::Mat rotTarget( worldMtx, cv::Rect( 0, 0, 3, 3 ) );
+    cv::Mat posTarget( worldMtx, cv::Rect( 3, 0, 1, 3 ) );
 
-    rotMtx.col( 0 ).copyTo( col0 );
-    rotMtx.col( 1 ).copyTo( col1 );
-    rotMtx.col( 2 ).copyTo( col2 );
-    cameraPos.copyTo( col3 );
+    rotMtx.copyTo( rotTarget );
+    cameraPos.copyTo( posTarget );
 
     return worldMtx;
+}
+
+//--------------------------------------------------------------------------------------------------
+cv::Mat createChessboardPoseMatrix( const PoseData& poseData )
+{
+    cv::Mat poseMtx = cv::Mat::eye( 4, 4, CV_64FC1 );
+
+    double angleX = poseData.rotXYZ[ 0 ];
+    double angleY = poseData.rotXYZ[ 1 ];
+    double angleZ = poseData.rotXYZ[ 2 ];
+    cv::Mat rotMtx = createRotationMatrixZ( angleZ )
+        *createRotationMatrixY( angleY )*createRotationMatrixX( angleX );
+
+    cv::Mat rotTarget( poseMtx, cv::Rect( 0, 0, 3, 3 ) );
+    cv::Mat posTarget( poseMtx, cv::Rect( 3, 0, 1, 3 ) );
+
+    rotMtx.copyTo( rotTarget );
+    cv::Mat( poseData.position ).copyTo( posTarget );
+
+    return poseMtx;
+}
+
+//--------------------------------------------------------------------------------------------------
+ePixelColour getChessboardPixelColour( double u, double v )
+{
+	ePixelColour pixelColour = ePC_None;
+
+	if ( u >= 0.0 && u <= 1.0 && v >= 0.0 && v <= 1.0 )
+	{
+		// First work out the colour along the top row
+		double totalWidth = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_WIDTH*CHESSBOARD_SQUARE_SIDE_LENGTH;
+		double borderProportionU = CHESSBOARD_BORDER_WIDTH/totalWidth;
+
+		if ( u <= borderProportionU
+			|| u >= 1.0 - borderProportionU )
+		{
+			// In the border on the u coordinate
+			pixelColour = ePC_White;
+		}
+		else
+		{
+			int32_t squareIdxU = ((u - borderProportionU)/(1.0 - 2.0*borderProportionU)) * CHESSBOARD_WIDTH;
+			ePixelColour topRowColour;
+			if ( CHESSBOARD_TOP_LEFT_CORNER_IS_BLACK )
+			{
+				topRowColour = ( squareIdxU%2 == 0 ? ePC_Black : ePC_White );
+			}
+			else
+			{
+				topRowColour = ( squareIdxU%2 == 0 ? ePC_White : ePC_Black );
+			}
+
+			// Now find the colour in the column
+			double totalHeight = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_HEIGHT*CHESSBOARD_SQUARE_SIDE_LENGTH;
+			double borderProportionV = CHESSBOARD_BORDER_WIDTH/totalHeight;
+			if ( v <= borderProportionV
+				|| v >= 1.0 - borderProportionV )
+			{
+				// In the border on the v coordinate
+				pixelColour = ePC_White;
+			}
+			else
+			{
+				int32_t squareIdxV = ((v - borderProportionV)/(1.0 - 2.0*borderProportionV)) * CHESSBOARD_HEIGHT;
+				if ( ePC_Black == topRowColour )
+				{
+					pixelColour = ( squareIdxV%2 == 0 ? ePC_Black : ePC_White );
+				}
+				else
+				{
+					pixelColour = ( squareIdxV%2 == 0 ? ePC_White : ePC_Black );
+				}
+			}
+		}
+	}
+
+	return pixelColour;
+}
+
+//--------------------------------------------------------------------------------------------------
+cv::Mat getChessboardPointWorldPos( double u, double v, const cv::Mat& chessboardPoseMtx )
+{
+    double totalWidth = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_WIDTH*CHESSBOARD_SQUARE_SIDE_LENGTH;
+    double totalHeight = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_HEIGHT*CHESSBOARD_SQUARE_SIDE_LENGTH;
+
+	return chessboardPoseMtx.col( 3 )
+		+ (u - 0.5)*totalWidth*chessboardPoseMtx.col( 0 )
+		- (v - 0.5)*totalHeight*chessboardPoseMtx.col( 1 );
+}
+
+//--------------------------------------------------------------------------------------------------
+cv::Mat projectWorldPosToImage( const cv::Mat& worldPos, const cv::Mat& worldInCameraSpaceMtx,
+		const cv::Mat& cameraCalibMtx )
+{
+	cv::Mat imagePlanePos = worldInCameraSpaceMtx.rowRange( 0, 3 )*worldPos;
+	imagePlanePos /= imagePlanePos.at<double>( 2 );
+
+	// TODO: Implement radial distortion here
+
+	cv::Mat screenPos = cameraCalibMtx.rowRange( 0, 2 )*imagePlanePos;
+	return screenPos;
+}
+
+//--------------------------------------------------------------------------------------------------
+cv::Mat generateRGBImageOfChessboard( const cv::Mat& cameraWorldMtx, const cv::Mat& cameraCalibMtx,
+		int32_t imageWidth, int32_t imageHeight, const cv::Mat& chessboardPoseMtx )
+{
+	cv::Mat image = cv::Mat::zeros( imageHeight, imageWidth, CV_8UC3 );
+
+	// We project the corners of the chessboard into the image to work out the rough step size. This
+	// is rather brain-dead, but allows me to easily incorporate the simulation of radial distortion
+	// at some point.
+	// TODO: Put in the effort to translate the rendering to OpenGL using a shader for distortion.
+	// (The challenge here is keeping the code and build process cross platform...)
+	cv::Mat worldInCameraSpaceMtx = cameraWorldMtx.inv();
+
+
+	cv::Mat topLeftScreenPos = projectWorldPosToImage(
+	    getChessboardPointWorldPos( 0.0, 0.0, chessboardPoseMtx ),
+	    worldInCameraSpaceMtx, cameraCalibMtx );
+
+	cv::Mat topRightScreenPos = projectWorldPosToImage(
+	        getChessboardPointWorldPos( 1.0, 0.0, chessboardPoseMtx ),
+	        worldInCameraSpaceMtx, cameraCalibMtx );
+
+	cv::Mat bottomLeftScreenPos = projectWorldPosToImage(
+            getChessboardPointWorldPos( 0.0, 1.0, chessboardPoseMtx ),
+            worldInCameraSpaceMtx, cameraCalibMtx );
+
+	cv::Mat bottomRightScreenPos = projectWorldPosToImage(
+            getChessboardPointWorldPos( 1.0, 1.0, chessboardPoseMtx ),
+            worldInCameraSpaceMtx, cameraCalibMtx );
+
+	// Work out the max distance in pixels vertically and horizontally
+	double maxHorizontalDistance = std::max(
+	    cv::norm( topRightScreenPos - topLeftScreenPos ),
+	    cv::norm( bottomRightScreenPos - bottomLeftScreenPos ) );
+	double maxVerticalDistance = std::max(
+        cv::norm( bottomLeftScreenPos - topLeftScreenPos ),
+        cv::norm( bottomRightScreenPos - topRightScreenPos ) );
+
+	double stepU = (1.0/maxHorizontalDistance)/1.2;
+	double stepV = (1.0/maxVerticalDistance)/1.2;
+
+	for ( double u = 0.0; u <= 1.0; u += stepU )
+	{
+	    for ( double v = 0.0; v <= 1.0; v += stepV )
+	    {
+	        ePixelColour pixelColour = getChessboardPixelColour( u, v );
+	        if ( ePC_None != pixelColour )
+	        {
+	            cv::Mat screenPos = projectWorldPosToImage(
+	                getChessboardPointWorldPos( u, v, chessboardPoseMtx ),
+	                worldInCameraSpaceMtx, cameraCalibMtx );
+
+	            int32_t x = (int32_t)screenPos.at<double>( 0 );
+	            int32_t y = (int32_t)screenPos.at<double>( 1 );
+	            if ( x >= 0 && x < imageWidth
+	                && y >= 0 && y < imageHeight )
+	            {
+	                cv::Vec3b& pixelData = image.at<cv::Vec3b>( y, x );
+                    if ( ePC_White == pixelColour )
+                    {
+                        pixelData[ 0 ] = 255;
+                        pixelData[ 1 ] = 255;
+                        pixelData[ 2 ] = 255;
+                    }
+                    else
+                    {
+                        pixelData[ 0 ] = 0;
+                        pixelData[ 1 ] = 0;
+                        pixelData[ 2 ] = 0;
+                    }
+	            }
+	        }
+	    }
+	}
+
+
+	return image;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -169,53 +367,53 @@ int main( int argc, char** argv )
 
     cv::Mat kinectDepthCameraPos;
     cv::Mat kinectDepthCameraRotXYZDeg;
-    int32_t kinectDepthFocalLengthMM;
+    double kinectDepthFocalLengthPixel;
     int32_t kinectDepthImageWidth;
     int32_t kinectDepthImageHeight;
 
     cv::Mat kinectRGBCameraPos;
     cv::Mat kinectRGBCameraRotXYZDeg;
-    int32_t kinectRGBFocalLengthMM;
+    double kinectRGBFocalLengthPixel;
     int32_t kinectRGBImageWidth;
     int32_t kinectRGBImageHeight;
 
     cv::Mat highResCameraPos;
     cv::Mat highResCameraRotXYZDeg;
-    int32_t highResFocalLengthMM;
+    double highResFocalLengthPixel;
     int32_t highResImageWidth;
     int32_t highResImageHeight;
 
     configFileStorage[ "kinectDepthCameraPos" ] >> kinectDepthCameraPos;
     configFileStorage[ "kinectDepthCameraRotXYZDeg" ] >> kinectDepthCameraRotXYZDeg;
-    configFileStorage[ "kinectDepthFocalLengthMM" ] >> kinectDepthFocalLengthMM;
+    configFileStorage[ "kinectDepthFocalLengthPixel" ] >> kinectDepthFocalLengthPixel;
     configFileStorage[ "kinectDepthImageWidth" ] >> kinectDepthImageWidth;
     configFileStorage[ "kinectDepthImageHeight" ] >> kinectDepthImageHeight;
 
     configFileStorage[ "kinectRGBCameraPos" ] >> kinectRGBCameraPos;
     configFileStorage[ "kinectRGBCameraRotXYZDeg" ] >> kinectRGBCameraRotXYZDeg;
-    configFileStorage[ "kinectRGBFocalLengthMM" ] >> kinectRGBFocalLengthMM;
+    configFileStorage[ "kinectRGBFocalLengthPixel" ] >> kinectRGBFocalLengthPixel;
     configFileStorage[ "kinectRGBImageWidth" ] >> kinectRGBImageWidth;
     configFileStorage[ "kinectRGBImageHeight" ] >> kinectRGBImageHeight;
 
     configFileStorage[ "highResCameraPos" ] >> highResCameraPos;
     configFileStorage[ "highResCameraRotXYZDeg" ] >> highResCameraRotXYZDeg;
-    configFileStorage[ "highResFocalLengthMM" ] >> highResFocalLengthMM;
+    configFileStorage[ "highResFocalLengthPixel" ] >> highResFocalLengthPixel;
     configFileStorage[ "highResImageWidth" ] >> highResImageWidth;
     configFileStorage[ "highResImageHeight" ] >> highResImageHeight;
 
     // Construct camera matrices
     cv::Mat kinectDepthCalibMtx = createCameraCalibrationMatrix(
-        kinectDepthFocalLengthMM, kinectDepthImageWidth, kinectDepthImageHeight );
+        kinectDepthFocalLengthPixel, kinectDepthImageWidth, kinectDepthImageHeight );
     cv::Mat kinectDepthWorldMtx = createCameraWorldMatrix(
         kinectDepthCameraPos, kinectDepthCameraRotXYZDeg );
 
     cv::Mat kinectRGBCalibMtx = createCameraCalibrationMatrix(
-        kinectRGBFocalLengthMM, kinectRGBImageWidth, kinectRGBImageHeight );
+        kinectRGBFocalLengthPixel, kinectRGBImageWidth, kinectRGBImageHeight );
     cv::Mat kinectRGBWorldMtx = createCameraWorldMatrix(
         kinectRGBCameraPos, kinectRGBCameraRotXYZDeg );
 
     cv::Mat highResCalibMtx = createCameraCalibrationMatrix(
-        highResFocalLengthMM, highResImageWidth, highResImageHeight );
+        highResFocalLengthPixel, highResImageWidth, highResImageHeight );
     cv::Mat highResWorldMtx = createCameraWorldMatrix(
         highResCameraPos, highResCameraRotXYZDeg );
 
@@ -226,7 +424,17 @@ int main( int argc, char** argv )
     // Loop over all test positions and orientations for the chessboard
     for ( int32_t testPosIdx = 0; testPosIdx < NUM_TEST_POSITIONS; testPosIdx++ )
     {
-        std::cout << cv::Mat( TEST_POSITIONS[ testPosIdx ] ) << std::endl;
+        cv::Mat chessboardPoseMtx = createChessboardPoseMatrix( TEST_POSITIONS[ testPosIdx ] );
+
+        cv::Mat rgbImage = generateRGBImageOfChessboard( kinectDepthWorldMtx, kinectDepthCalibMtx,
+            kinectDepthImageWidth, kinectDepthImageHeight, chessboardPoseMtx );
+
+        cv::imwrite( "chessboard.png", rgbImage );
+
+        cv::Mat highResRgbImage = generateRGBImageOfChessboard( highResWorldMtx, highResCalibMtx,
+            highResImageWidth, highResImageHeight, chessboardPoseMtx );
+
+        cv::imwrite( "highres_chessboard.png", highResRgbImage );
 
         // Generate a point cloud from the Kinect
 

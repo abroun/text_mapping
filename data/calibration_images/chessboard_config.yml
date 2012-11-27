@@ -9,7 +9,7 @@ kinectDepthCameraRotXYZDeg: !!opencv-matrix
    cols: 1
    dt: d
    data: [ 0.0, 0.0, 0.0 ]
-kinectDepthFocalLengthMM: 575
+kinectDepthFocalLengthPixel: 575
 kinectDepthImageWidth: 640
 kinectDepthImageHeight: 480
 
@@ -23,7 +23,7 @@ kinectRGBCameraRotXYZDeg: !!opencv-matrix
    cols: 1
    dt: d
    data: [ 0.0, -4.0, 0.0 ]
-kinectRGBFocalLengthMM: 575
+kinectRGBFocalLengthPixel: 575
 kinectRGBImageWidth: 640
 kinectRGBImageHeight: 480
 
@@ -37,7 +37,7 @@ highResCameraRotXYZDeg: !!opencv-matrix
    cols: 1
    dt: d
    data: [ 2.0, 2.0, 0.0 ]
-highResFocalLengthMM: 1000
+highResFocalLengthPixel: 6000
 highResImageWidth: 2272
 highResImageHeight: 1704
 
