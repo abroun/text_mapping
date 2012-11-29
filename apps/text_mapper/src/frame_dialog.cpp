@@ -153,7 +153,7 @@ void FrameDialog::accept()
     cv::cvtColor( mFrameData.mKinectColorImage, mFrameData.mKinectColorImage, CV_BGR2RGB );
 
     // Try to load in the point cloud
-    mFrameData.mpKinectDepthPointCloud = PointCloud::loadTextMapFromSpcFile( mFrameData.mKinectDepthPointCloudFilename );
+    mFrameData.mpKinectDepthPointCloud = PointCloud::loadPointCloudFromSpcFile( mFrameData.mKinectDepthPointCloudFilename );
     if ( NULL == mFrameData.mpKinectDepthPointCloud )
     {
     	QMessageBox::critical( this, "Error", "Unable to load Kinect point cloud" );

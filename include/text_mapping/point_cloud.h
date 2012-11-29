@@ -53,18 +53,23 @@ class PointCloud
     //! Constructor for the PointCloud
     //! @param width The width of the depth camera image plane in pixels
     //! @param height The height of the depth camera image plane in pixels
-    //! @param focalLengthMM The focal length of the depth camera in millimetres
-	public: PointCloud( uint32_t width, uint32_t height, float focalLengthMM );
+    //! @param focalLengthPixels The focal length of the depth camera in pixels
+	public: PointCloud( uint32_t width, uint32_t height, float focalLengthPixels );
 
     //! The destructor
     public: virtual ~PointCloud();
 
     //! Loads a PointCloud from a Simple Point Cloud (SPC) file.
     //! @param filename The name of the file to read the PointCloud from
-    public: static PointCloud::Ptr loadTextMapFromSpcFile( const std::string& filename );
+    public: static PointCloud::Ptr loadPointCloudFromSpcFile( const std::string& filename );
 
-    //! Gets the focal length (in mm) of the depth camera used to capture the point cloud
-    public: float getFocalLengthMM() const { return mFocalLengthMM; }
+    //! Saves a PointCloud to a Simple Point Cloud (SPC) file.
+    //! @param filename The name of the file to save the PointCloud to.
+    //! @param bBinary If true, the binary format is used. Otherwise the ascii format is used.
+    public: void saveToSpcFile( const std::string& filename, bool bBinary );
+
+    //! Gets the focal length of the depth camera used to capture the point cloud
+    public: float getFocalLengthInPixels() const { return mFocalLengthPixels; }
 
     //! Gets the color image associated with the point cloud
     public: const cv::Mat& getImage() const { return mImage; }
@@ -106,7 +111,7 @@ class PointCloud
 
     public: float pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir, float close=0.005f );
 
-    private: float mFocalLengthMM;
+    private: float mFocalLengthPixels;
     private: cv::Mat mImage;
     private: std::vector<int32_t> mPointMap;	//! A 2D map containing point indices
     private: std::vector<Eigen::Vector3f> mPointWorldPositions;

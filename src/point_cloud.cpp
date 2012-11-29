@@ -39,15 +39,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // PointCloud
 //--------------------------------------------------------------------------------------------------
 PointCloud::PointCloud()
-	: mFocalLengthMM( 1000.0 ),
+	: mFocalLengthPixels( 1000.0 ),
 	  mImage( 1, 1, CV_8UC4 )
 {
 	mPointMap.resize( mImage.rows*mImage.cols, INVALID_POINT_IDX );
 }
 
 //--------------------------------------------------------------------------------------------------
-PointCloud::PointCloud( uint32_t width, uint32_t height, float focalLengthMM )
-	: mFocalLengthMM( focalLengthMM ),
+PointCloud::PointCloud( uint32_t width, uint32_t height, float focalLengthPixels )
+	: mFocalLengthPixels( focalLengthPixels ),
 	  mImage( height, width, CV_8UC4 )
 {
 	mPointMap.resize( mImage.rows*mImage.cols, INVALID_POINT_IDX );
@@ -60,7 +60,7 @@ PointCloud::~PointCloud()
 }
 
 //--------------------------------------------------------------------------------------------------
-PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename )
+PointCloud::Ptr PointCloud::loadPointCloudFromSpcFile( const std::string& filename )
 {
 	Ptr pResult;
 
@@ -80,7 +80,7 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 
 		uint32_t width = 0;
 		uint32_t height = 0;
-		float focalLengthMM = 0.0f;
+		float focalLengthPixels = 0.0f;
 
 		bool bFinished = false;
 
@@ -105,9 +105,9 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 					readResult = fscanf( pSpcFile, " %u ", &height );
 					bGotHeight = true;
 				}
-				else if ( boost::iequals( tokenBuffer, "FOCAL_LENGTH_MM" ) )
+				else if ( boost::iequals( tokenBuffer, "FOCAL_LENGTH_PIXELS" ) )
 				{
-					readResult = fscanf( pSpcFile, " %f ", &focalLengthMM );
+					readResult = fscanf( pSpcFile, " %f ", &focalLengthPixels );
 					bGotFocalLength = true;
 				}
 			}
@@ -116,7 +116,7 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 		if ( bGotWidth && bGotHeight && bGotFocalLength )
 		{
 			// We got enough info to construct the point cloud
-			Ptr pPointCloud( new PointCloud( width, height, focalLengthMM ) );
+			Ptr pPointCloud( new PointCloud( width, height, focalLengthPixels ) );
 
 			float imageCentreX = (float)(width/2) - 0.5f;
 			float imageCentreY = (float)(height/2) - 0.5f;
@@ -189,8 +189,8 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 							pPointCloud->mPointMap[ pixelIdx ] = pPointCloud->mPointWorldPositions.size();
 
 							pPointCloud->mPointWorldPositions.push_back( Eigen::Vector3f(
-								depthValue*((float)x - imageCentreX)/focalLengthMM,
-								depthValue*((float)y - imageCentreY)/focalLengthMM,
+								depthValue*((float)x - imageCentreX)/focalLengthPixels,
+								depthValue*((float)y - imageCentreY)/focalLengthPixels,
 								depthValue ) );
 						}
 					}
@@ -210,6 +210,96 @@ PointCloud::Ptr PointCloud::loadTextMapFromSpcFile( const std::string& filename 
 	}
 
 	return pResult;
+}
+
+//--------------------------------------------------------------------------------------------------
+void PointCloud::saveToSpcFile( const std::string& filename, bool bBinary )
+{
+    FILE* pSpcFile = fopen( filename.c_str(), "wb" );
+
+    if ( NULL != pSpcFile )
+    {
+        uint32_t width = mImage.cols;
+        uint32_t height = mImage.rows;
+
+        fprintf( pSpcFile, "WIDTH %u\n", width );
+        fprintf( pSpcFile, "HEIGHT %u\n", height );
+        fprintf( pSpcFile, "FOCAL_LENGTH_PIXELS %f\n", mFocalLengthPixels );
+        fprintf( pSpcFile, "BINARY %i\n", (int32_t)bBinary );
+
+        // Write out depth data
+        fprintf( pSpcFile, "DEPTH_DATA\n" );
+        if ( bBinary )
+        {
+            std::vector<float> depthBuffer;
+            depthBuffer.resize( width*height );
+            float* pCurDepth = &depthBuffer[ 0 ];
+
+            for ( uint32_t v = 0; v < height; v++ )
+            {
+                for ( uint32_t u = 0; u < width; u++ )
+                {
+                    int32_t pointIdx = mPointMap[ v*width + u ];
+                    if ( INVALID_POINT_IDX != pointIdx )
+                    {
+                        *pCurDepth = mPointWorldPositions[ pointIdx ][ 2 ];
+                    }
+                    else
+                    {
+                        *pCurDepth = std::numeric_limits<float>::quiet_NaN();
+                    }
+
+                    pCurDepth++;
+                }
+            }
+
+            fwrite( &depthBuffer[ 0 ], sizeof( float ), width*height, pSpcFile );
+        }
+        else
+        {
+            for ( uint32_t v = 0; v < height; v++ )
+            {
+                for ( uint32_t u = 0; u < width; u++ )
+                {
+                    int32_t pointIdx = mPointMap[ v*width + u ];
+                    if ( INVALID_POINT_IDX != pointIdx )
+                    {
+                        fprintf( pSpcFile, "%f\n", mPointWorldPositions[ pointIdx ][ 2 ] );
+                    }
+                    else
+                    {
+                        fprintf( pSpcFile, "nan\n" );
+                    }
+                }
+            }
+        }
+
+        // Write out rgba data
+        fprintf( pSpcFile, "RGBA_DATA\n" );
+        if ( bBinary )
+        {
+            fwrite( mImage.data, sizeof( uint8_t ), width*height*4, pSpcFile );
+        }
+        else
+        {
+            for ( uint32_t v = 0; v < height; v++ )
+            {
+                for ( uint32_t u = 0; u < width; u++ )
+                {
+                    cv::Vec4b& pixelData = mImage.at<cv::Vec4b>( v, u );
+
+                    fprintf( pSpcFile, "%i %i %i %i\n",
+                        pixelData[ 0 ], pixelData[ 1 ], pixelData[ 2 ], pixelData[ 3 ] );
+                }
+            }
+        }
+
+        fclose( pSpcFile );
+    }
+    else
+    {
+        throw std::runtime_error( "Unable to open file" );
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -241,8 +331,8 @@ Eigen::Vector2f PointCloud::getPointImagePos( int32_t pointIdx ) const
 	const Eigen::Vector3f pos = mPointWorldPositions[ pointIdx ];
 
 	return Eigen::Vector2f(
-		imageCentreX + mFocalLengthMM*pos[ 0 ]/pos[ 2 ],
-		imageCentreY + mFocalLengthMM*pos[ 1 ]/pos[ 2 ] );
+		imageCentreX + mFocalLengthPixels*pos[ 0 ]/pos[ 2 ],
+		imageCentreY + mFocalLengthPixels*pos[ 1 ]/pos[ 2 ] );
 }
 
 //--------------------------------------------------------------------------------------------------
