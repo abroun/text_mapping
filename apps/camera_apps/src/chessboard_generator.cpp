@@ -40,8 +40,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <math.h>
 #include <string>
 #include <iostream>
+#include <sstream>
 #include <opencv2/core/core.hpp>
 #include "opencv2/highgui/highgui.hpp"
+#include "text_mapping/point_cloud.h"
 #include "text_mapping/utilities.h"
 
 //--------------------------------------------------------------------------------------------------
@@ -67,6 +69,18 @@ enum ePixelColour
 	ePC_White
 };
 
+// Represents a point in an RGB or depth image
+struct PointData
+{
+    int32_t mPixelX;
+    int32_t mPixelY;
+    double mWorldX;
+    double mWorldY;
+    double mWorldZ;
+
+    ePixelColour mPixelColour;
+};
+
 // TODO: Move these to the config file
 const double CHESSBOARD_SQUARE_SIDE_LENGTH = 0.02;
 const double CHESSBOARD_BORDER_WIDTH = 0.04;
@@ -74,11 +88,22 @@ const int32_t CHESSBOARD_WIDTH = 9;
 const int32_t CHESSBOARD_HEIGHT = 7;
 const bool CHESSBOARD_TOP_LEFT_CORNER_IS_BLACK = true;
 
+const double CHESSBOARD_TOTAL_WIDTH = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_WIDTH*CHESSBOARD_SQUARE_SIDE_LENGTH;
+const double CHESSBOARD_TOTAL_HEIGHT = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_HEIGHT*CHESSBOARD_SQUARE_SIDE_LENGTH;
+
 //--------------------------------------------------------------------------------------------------
 void showUsage( const char* programName )
 {
     printf( "%s configFilename\n", programName );
     printf( "\tconfigFilename - The name of the configuration file for the camera rig\n" );
+}
+
+//--------------------------------------------------------------------------------------------------
+std::string createOutputFilename( const char* rootName, uint32_t number, const char* extension )
+{
+    std::ostringstream buf;
+    buf << rootName << "_" << number << extension;
+    return buf.str();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -190,8 +215,7 @@ ePixelColour getChessboardPixelColour( double u, double v )
 	if ( u >= 0.0 && u <= 1.0 && v >= 0.0 && v <= 1.0 )
 	{
 		// First work out the colour along the top row
-		double totalWidth = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_WIDTH*CHESSBOARD_SQUARE_SIDE_LENGTH;
-		double borderProportionU = CHESSBOARD_BORDER_WIDTH/totalWidth;
+		double borderProportionU = CHESSBOARD_BORDER_WIDTH/CHESSBOARD_TOTAL_WIDTH;
 
 		if ( u <= borderProportionU
 			|| u >= 1.0 - borderProportionU )
@@ -213,8 +237,7 @@ ePixelColour getChessboardPixelColour( double u, double v )
 			}
 
 			// Now find the colour in the column
-			double totalHeight = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_HEIGHT*CHESSBOARD_SQUARE_SIDE_LENGTH;
-			double borderProportionV = CHESSBOARD_BORDER_WIDTH/totalHeight;
+			double borderProportionV = CHESSBOARD_BORDER_WIDTH/CHESSBOARD_TOTAL_HEIGHT;
 			if ( v <= borderProportionV
 				|| v >= 1.0 - borderProportionV )
 			{
@@ -242,12 +265,9 @@ ePixelColour getChessboardPixelColour( double u, double v )
 //--------------------------------------------------------------------------------------------------
 cv::Mat getChessboardPointWorldPos( double u, double v, const cv::Mat& chessboardPoseMtx )
 {
-    double totalWidth = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_WIDTH*CHESSBOARD_SQUARE_SIDE_LENGTH;
-    double totalHeight = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_HEIGHT*CHESSBOARD_SQUARE_SIDE_LENGTH;
-
 	return chessboardPoseMtx.col( 3 )
-		+ (u - 0.5)*totalWidth*chessboardPoseMtx.col( 0 )
-		- (v - 0.5)*totalHeight*chessboardPoseMtx.col( 1 );
+		+ (u - 0.5)*CHESSBOARD_TOTAL_WIDTH*chessboardPoseMtx.col( 0 )
+		- (v - 0.5)*CHESSBOARD_TOTAL_HEIGHT*chessboardPoseMtx.col( 1 );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -264,82 +284,141 @@ cv::Mat projectWorldPosToImage( const cv::Mat& worldPos, const cv::Mat& worldInC
 }
 
 //--------------------------------------------------------------------------------------------------
+std::vector<PointData> generateImagePoints( const cv::Mat& cameraWorldMtx, const cv::Mat& cameraCalibMtx,
+        int32_t imageWidth, int32_t imageHeight, const cv::Mat& chessboardPoseMtx )
+{
+    std::vector<PointData> points;
+    points.reserve( imageWidth*imageHeight );
+
+    cv::Mat camAxisX( cameraWorldMtx, cv::Rect( 0, 0, 1, 3 ) );
+    cv::Mat camAxisY( cameraWorldMtx, cv::Rect( 1, 0, 1, 3 ) );
+    cv::Mat camAxisZ( cameraWorldMtx, cv::Rect( 2, 0, 1, 3 ) );
+    cv::Mat camPos( cameraWorldMtx, cv::Rect( 3, 0, 1, 3 ) );
+
+    cv::Mat chessboardAxisX( chessboardPoseMtx, cv::Rect( 0, 0, 1, 3 ) );
+    cv::Mat chessboardAxisY( chessboardPoseMtx, cv::Rect( 1, 0, 1, 3 ) );
+    cv::Mat chessboardAxisZ( chessboardPoseMtx, cv::Rect( 2, 0, 1, 3 ) );
+    cv::Mat chessboardPos( chessboardPoseMtx, cv::Rect( 3, 0, 1, 3 ) );
+
+    double chessboardPlaneDist = cv::Mat( chessboardPos.t()*chessboardAxisZ ).at<double>( 0 );
+
+    // Used to calculate plane intersection
+    double intersectionConstant = chessboardPlaneDist - cv::Mat(camPos.t()*chessboardAxisZ).at<double>( 0 );
+
+    // Generate the image points using very simple ray tracing
+    for ( int32_t y = 0; y < imageHeight; y++ )
+    {
+        for ( int32_t x = 0; x < imageWidth; x++ )
+        {
+            double imagePlaneX = (x - cameraCalibMtx.at<double>( 0, 2 )) / cameraCalibMtx.at<double>( 0, 0 );
+            double imagePlaneY = (y - cameraCalibMtx.at<double>( 1, 2 )) / cameraCalibMtx.at<double>( 1, 1 );
+            cv::Mat rayDir = camAxisZ + imagePlaneX*camAxisX + imagePlaneY*camAxisY;
+
+            double cosOfAngleToChessboard = cv::Mat(rayDir.t()*chessboardAxisZ).at<double>( 0 );
+            if ( 0.0 != cosOfAngleToChessboard )
+            {
+                double distanceToBoard = intersectionConstant/cosOfAngleToChessboard;
+
+                if ( distanceToBoard > 0.0 )
+                {
+                    cv::Mat intersectionPos = camPos + rayDir*distanceToBoard;
+                    cv::Mat fromCentreVec = intersectionPos - chessboardPos;
+
+                    double chessX = cv::Mat(chessboardAxisX.t()*fromCentreVec).at<double>( 0 );
+                    double chessY = cv::Mat(chessboardAxisY.t()*fromCentreVec).at<double>( 0 );
+
+                    double u = chessX/CHESSBOARD_TOTAL_WIDTH + 0.5;
+                    double v = chessY/CHESSBOARD_TOTAL_HEIGHT + 0.5;
+                    ePixelColour pixelColour = getChessboardPixelColour( u, v );
+                    if ( ePC_None != pixelColour )
+                    {
+                        PointData pointData;
+                        pointData.mPixelX = x;
+                        pointData.mPixelY = y;
+                        pointData.mWorldX = intersectionPos.at<double>( 0 );
+                        pointData.mWorldY = intersectionPos.at<double>( 1 );
+                        pointData.mWorldZ = intersectionPos.at<double>( 2 );
+                        pointData.mPixelColour = pixelColour;
+
+                        points.push_back( pointData );
+                    }
+                }
+            }
+        }
+    }
+
+    return points;
+}
+
+//--------------------------------------------------------------------------------------------------
 cv::Mat generateRGBImageOfChessboard( const cv::Mat& cameraWorldMtx, const cv::Mat& cameraCalibMtx,
 		int32_t imageWidth, int32_t imageHeight, const cv::Mat& chessboardPoseMtx )
 {
 	cv::Mat image = cv::Mat::zeros( imageHeight, imageWidth, CV_8UC3 );
 
-	// We project the corners of the chessboard into the image to work out the rough step size. This
-	// is rather brain-dead, but allows me to easily incorporate the simulation of radial distortion
-	// at some point.
-	// TODO: Put in the effort to translate the rendering to OpenGL using a shader for distortion.
-	// (The challenge here is keeping the code and build process cross platform...)
-	cv::Mat worldInCameraSpaceMtx = cameraWorldMtx.inv();
+	std::vector<PointData> points = generateImagePoints(
+	    cameraWorldMtx, cameraCalibMtx, imageWidth, imageHeight, chessboardPoseMtx );
 
-
-	cv::Mat topLeftScreenPos = projectWorldPosToImage(
-	    getChessboardPointWorldPos( 0.0, 0.0, chessboardPoseMtx ),
-	    worldInCameraSpaceMtx, cameraCalibMtx );
-
-	cv::Mat topRightScreenPos = projectWorldPosToImage(
-	        getChessboardPointWorldPos( 1.0, 0.0, chessboardPoseMtx ),
-	        worldInCameraSpaceMtx, cameraCalibMtx );
-
-	cv::Mat bottomLeftScreenPos = projectWorldPosToImage(
-            getChessboardPointWorldPos( 0.0, 1.0, chessboardPoseMtx ),
-            worldInCameraSpaceMtx, cameraCalibMtx );
-
-	cv::Mat bottomRightScreenPos = projectWorldPosToImage(
-            getChessboardPointWorldPos( 1.0, 1.0, chessboardPoseMtx ),
-            worldInCameraSpaceMtx, cameraCalibMtx );
-
-	// Work out the max distance in pixels vertically and horizontally
-	double maxHorizontalDistance = std::max(
-	    cv::norm( topRightScreenPos - topLeftScreenPos ),
-	    cv::norm( bottomRightScreenPos - bottomLeftScreenPos ) );
-	double maxVerticalDistance = std::max(
-        cv::norm( bottomLeftScreenPos - topLeftScreenPos ),
-        cv::norm( bottomRightScreenPos - topRightScreenPos ) );
-
-	double stepU = (1.0/maxHorizontalDistance)/1.2;
-	double stepV = (1.0/maxVerticalDistance)/1.2;
-
-	for ( double u = 0.0; u <= 1.0; u += stepU )
+	for ( uint32_t pointIdx = 0; pointIdx < points.size(); pointIdx++ )
 	{
-	    for ( double v = 0.0; v <= 1.0; v += stepV )
-	    {
-	        ePixelColour pixelColour = getChessboardPixelColour( u, v );
-	        if ( ePC_None != pixelColour )
-	        {
-	            cv::Mat screenPos = projectWorldPosToImage(
-	                getChessboardPointWorldPos( u, v, chessboardPoseMtx ),
-	                worldInCameraSpaceMtx, cameraCalibMtx );
-
-	            int32_t x = (int32_t)screenPos.at<double>( 0 );
-	            int32_t y = (int32_t)screenPos.at<double>( 1 );
-	            if ( x >= 0 && x < imageWidth
-	                && y >= 0 && y < imageHeight )
-	            {
-	                cv::Vec3b& pixelData = image.at<cv::Vec3b>( y, x );
-                    if ( ePC_White == pixelColour )
-                    {
-                        pixelData[ 0 ] = 255;
-                        pixelData[ 1 ] = 255;
-                        pixelData[ 2 ] = 255;
-                    }
-                    else
-                    {
-                        pixelData[ 0 ] = 0;
-                        pixelData[ 1 ] = 0;
-                        pixelData[ 2 ] = 0;
-                    }
-	            }
-	        }
-	    }
+	    const PointData& point = points[ pointIdx ];
+	    cv::Vec3b& pixelData = image.at<cv::Vec3b>( point.mPixelY, point.mPixelX );
+	    if ( ePC_Black == point.mPixelColour )
+        {
+            pixelData[ 0 ] = 0;
+            pixelData[ 1 ] = 0;
+            pixelData[ 2 ] = 0;
+        }
+        else if ( ePC_White == point.mPixelColour )
+        {
+            pixelData[ 0 ] = 255;
+            pixelData[ 1 ] = 255;
+            pixelData[ 2 ] = 255;
+        }
 	}
 
-
 	return image;
+}
+
+//--------------------------------------------------------------------------------------------------
+PointCloud::Ptr generatePointCloudOfChessboard( const cv::Mat& cameraWorldMtx, const cv::Mat& cameraCalibMtx,
+        int32_t imageWidth, int32_t imageHeight, const cv::Mat& chessboardPoseMtx )
+{
+    double focalLengthPixels = cameraCalibMtx.at<double>( 0, 0 );
+    PointCloud::Ptr pCloud( new PointCloud( imageWidth, imageHeight, focalLengthPixels ) );
+
+    std::vector<PointData> points = generateImagePoints(
+        cameraWorldMtx, cameraCalibMtx, imageWidth, imageHeight, chessboardPoseMtx );
+
+    for ( uint32_t pointIdx = 0; pointIdx < points.size(); pointIdx++ )
+    {
+        const PointData& point = points[ pointIdx ];
+
+        uint8_t r, g, b, a;
+        if ( ePC_Black == point.mPixelColour )
+        {
+            r = 0;
+            g = 0;
+            b = 0;
+            a = 255;
+        }
+        else if ( ePC_White == point.mPixelColour )
+        {
+            r = 255;
+            g = 255;
+            b = 255;
+            a = 255;
+        }
+        else
+        {
+            // Unrecognised colour
+            continue;
+        }
+
+        pCloud->addPoint( Eigen::Vector3f( point.mWorldX, point.mWorldY, point.mWorldZ ), r, g, b, a );
+    }
+
+    return pCloud;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -417,30 +496,28 @@ int main( int argc, char** argv )
     cv::Mat highResWorldMtx = createCameraWorldMatrix(
         highResCameraPos, highResCameraRotXYZDeg );
 
-    //std::cout << kinectDepthCalibMtx << std::endl;
-    //std::cout << kinectDepthWorldMtx << std::endl;
-    //std::cout << highResWorldMtx << std::endl;
-
     // Loop over all test positions and orientations for the chessboard
     for ( int32_t testPosIdx = 0; testPosIdx < NUM_TEST_POSITIONS; testPosIdx++ )
     {
         cv::Mat chessboardPoseMtx = createChessboardPoseMatrix( TEST_POSITIONS[ testPosIdx ] );
 
+        // Generate a point cloud from the Kinect
+        PointCloud::Ptr pCloud = generatePointCloudOfChessboard( kinectDepthWorldMtx, kinectDepthCalibMtx,
+            kinectDepthImageWidth, kinectDepthImageHeight, chessboardPoseMtx );
+
+        pCloud->saveToSpcFile( createOutputFilename( "chessboard", testPosIdx + 1, ".spc" ), true );
+
+        // Generate an image from the Kinect RGB camera
         cv::Mat rgbImage = generateRGBImageOfChessboard( kinectDepthWorldMtx, kinectDepthCalibMtx,
             kinectDepthImageWidth, kinectDepthImageHeight, chessboardPoseMtx );
 
-        cv::imwrite( "chessboard.png", rgbImage );
+        cv::imwrite( createOutputFilename( "chessboard", testPosIdx + 1, ".png" ), rgbImage );
 
+        // Generate an image from the high resolution camera
         cv::Mat highResRgbImage = generateRGBImageOfChessboard( highResWorldMtx, highResCalibMtx,
             highResImageWidth, highResImageHeight, chessboardPoseMtx );
 
-        cv::imwrite( "highres_chessboard.png", highResRgbImage );
-
-        // Generate a point cloud from the Kinect
-
-        // Generate an image from the Kinect RGB camera
-
-        // Generate an image from the high resolution camera
+        cv::imwrite( createOutputFilename( "chessboard_highres", testPosIdx + 1, ".png" ), highResRgbImage );
     }
 
     return 0;

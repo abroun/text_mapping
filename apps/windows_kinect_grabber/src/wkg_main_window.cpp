@@ -745,11 +745,11 @@ void WkgMainWindow::saveDepthDataToSpcFile( const std::string& filename,
     {
         uint32_t width = mImageWidth;
         uint32_t height = mImageHeight;
-        uint32_t focalLengthMM = 2*NUI_CAMERA_DEPTH_NOMINAL_FOCAL_LENGTH_IN_PIXELS; // Doubled because we use a 640x480 resolution
+        uint32_t focalLengthPixels = 2*NUI_CAMERA_DEPTH_NOMINAL_FOCAL_LENGTH_IN_PIXELS; // Doubled because we use a 640x480 resolution
 
         fprintf( pSpcFile, "WIDTH %u\n", width );
         fprintf( pSpcFile, "HEIGHT %u\n", height );
-        fprintf( pSpcFile, "FOCAL_LENGTH_MM %u\n", focalLengthMM );
+        fprintf( pSpcFile, "FOCAL_LENGTH_PIXELS %u\n", focalLengthPixels );
         fprintf( pSpcFile, "BINARY %i\n", (int32_t)bBinary );
 
         // Write out depth data

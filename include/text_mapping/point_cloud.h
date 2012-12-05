@@ -104,6 +104,17 @@ class PointCloud
 	public: void getPointColor( int32_t pointIdx,
 		uint8_t* pRedOut, uint8_t* pGreenOut, uint8_t* pBlueOut, uint8_t* pAlphaOut ) const;
 
+	//! Adds a new point to the point cloud at a given world position. If the new point would
+	//! project onto the same screen position as an existing point then it will replace it. If the
+	//! new point does not actually project into the image then it won't be added.
+	//! @param worldPos The position of the new point
+	//! @param r The red component of the points colour
+	//! @param g The blue component of the points colour
+	//! @param b The green component of the points colour
+	//! @param a The alpha component of the points colour
+	//! @return The index of the new point. If the point wasn't added then we return INVALID_POINT_IDX
+	public: int32_t addPoint( const Eigen::Vector3f& worldPos, uint8_t r, uint8_t g, uint8_t b, uint8_t a );
+
 	//! Returns the 3D extents of the PointCloud
 	//! @param[out] pFirstCornerOut Variable to hold the first bounding box corner
 	//! @param[out] pSecondCornerOut Variable to hold the second bounding box corner

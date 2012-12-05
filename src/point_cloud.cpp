@@ -35,21 +35,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/math/special_functions/fpclassify.hpp>
 #include "text_mapping/point_cloud.h"
 
+const float DEPTH_SCALE = 8.0;  // TODO: Check to see if this can be removed...
+
 //--------------------------------------------------------------------------------------------------
 // PointCloud
 //--------------------------------------------------------------------------------------------------
 PointCloud::PointCloud()
-	: mFocalLengthPixels( 1000.0 ),
-	  mImage( 1, 1, CV_8UC4 )
+	: mFocalLengthPixels( 1000.0 )
 {
+    mImage = cv::Mat::zeros( 1, 1, CV_8UC4 );
 	mPointMap.resize( mImage.rows*mImage.cols, INVALID_POINT_IDX );
 }
 
 //--------------------------------------------------------------------------------------------------
 PointCloud::PointCloud( uint32_t width, uint32_t height, float focalLengthPixels )
-	: mFocalLengthPixels( focalLengthPixels ),
-	  mImage( height, width, CV_8UC4 )
+	: mFocalLengthPixels( focalLengthPixels )
 {
+    mImage = cv::Mat::zeros( height, width, CV_8UC4 );
 	mPointMap.resize( mImage.rows*mImage.cols, INVALID_POINT_IDX );
 }
 
@@ -183,7 +185,7 @@ PointCloud::Ptr PointCloud::loadPointCloudFromSpcFile( const std::string& filena
 						float depthValue = depthBuffer[ pixelIdx ];
 						if ( !boost::math::isnan( depthValue ) )
 						{
-                            depthValue /= 8.0f;
+                            depthValue /= DEPTH_SCALE;
 							
 							// We've found a valid point
 							pPointCloud->mPointMap[ pixelIdx ] = pPointCloud->mPointWorldPositions.size();
@@ -242,7 +244,7 @@ void PointCloud::saveToSpcFile( const std::string& filename, bool bBinary )
                     int32_t pointIdx = mPointMap[ v*width + u ];
                     if ( INVALID_POINT_IDX != pointIdx )
                     {
-                        *pCurDepth = mPointWorldPositions[ pointIdx ][ 2 ];
+                        *pCurDepth = mPointWorldPositions[ pointIdx ][ 2 ] * DEPTH_SCALE;
                     }
                     else
                     {
@@ -264,7 +266,7 @@ void PointCloud::saveToSpcFile( const std::string& filename, bool bBinary )
                     int32_t pointIdx = mPointMap[ v*width + u ];
                     if ( INVALID_POINT_IDX != pointIdx )
                     {
-                        fprintf( pSpcFile, "%f\n", mPointWorldPositions[ pointIdx ][ 2 ] );
+                        fprintf( pSpcFile, "%f\n", mPointWorldPositions[ pointIdx ][ 2 ] * DEPTH_SCALE );
                     }
                     else
                     {
@@ -358,6 +360,48 @@ void PointCloud::getPointColor( int32_t pointIdx,
 		*pBlueOut = 0;
 		*pAlphaOut = 0;
 	}
+}
+
+//--------------------------------------------------------------------------------------------------
+int32_t PointCloud::addPoint( const Eigen::Vector3f& worldPos, uint8_t r, uint8_t g, uint8_t b, uint8_t a )
+{
+    int32_t pointIdx = INVALID_POINT_IDX;
+
+    float imageCentreX = (float)(mImage.cols/2) - 0.5f;
+    float imageCentreY = (float)(mImage.rows/2) - 0.5f;
+
+    int32_t pixelX = imageCentreX + mFocalLengthPixels*worldPos[ 0 ]/worldPos[ 2 ];
+    int32_t pixelY = imageCentreY + mFocalLengthPixels*worldPos[ 1 ]/worldPos[ 2 ];
+
+    if ( pixelX >= 0 && pixelX <= mImage.cols
+        && pixelY >= 0 && pixelY <= mImage.rows )
+    {
+        int32_t existingPointIdx = mPointMap[ pixelY*mImage.cols + pixelX ];
+
+        if ( INVALID_POINT_IDX != existingPointIdx )
+        {
+            // Reuse the existing point
+            pointIdx = existingPointIdx;
+            mPointWorldPositions[ pointIdx ] = worldPos;
+        }
+        else
+        {
+            // Create a new point
+            pointIdx = mPointWorldPositions.size();
+            mPointWorldPositions.push_back( worldPos );
+            mPointMap[ pixelY*mImage.cols + pixelX ] = pointIdx;
+        }
+
+        // Set the pixel colour
+        uint8_t* pPixel = mImage.data + 4*( pixelY*mImage.cols + pixelX );
+
+        pPixel[ 2 ] = r;
+        pPixel[ 1 ] = g;
+        pPixel[ 0 ] = b;
+        pPixel[ 3 ] = a;
+    }
+
+    return pointIdx;
 }
 
 //--------------------------------------------------------------------------------------------------
