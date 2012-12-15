@@ -57,15 +57,26 @@ struct PoseData
 const PoseData TEST_POSITIONS[] =
 {
     { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) },
-    { cv::Vec3d( 0.10, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) },
-    { cv::Vec3d( -0.10, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
-    { cv::Vec3d( 0.10, 0.10, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
+
+    // Rotate around X
+    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) },
+    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
+
+    // Rotate around Y
+    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( Utilities::degToRad( -40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) },
+    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( Utilities::degToRad( 40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) },
+
+    // Rotate around Z
+    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( -40.0 ) ) },
+    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( 40.0 ) ) },
+
+    /*{ cv::Vec3d( 0.10, 0.10, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
     { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( Utilities::degToRad( -30.0 ), Utilities::degToRad( 180.0 ), 0.0 ) },
     { cv::Vec3d( 0.0, 0.0, 1.2 ), cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) },
     { cv::Vec3d( 0.10, 0.0, 1.2 ), cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) },
     { cv::Vec3d( -0.10, 0.0, 1.2 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
     { cv::Vec3d( 0.10, 0.10, 1.2 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
-    { cv::Vec3d( 0.0, 0.0, 1.2 ), cv::Vec3d( Utilities::degToRad( -30.0 ), Utilities::degToRad( 180.0 ), 0.0 ) },
+    { cv::Vec3d( 0.0, 0.0, 1.2 ), cv::Vec3d( Utilities::degToRad( -30.0 ), Utilities::degToRad( 180.0 ), 0.0 ) },*/
 };
 
 const int32_t NUM_TEST_POSITIONS = sizeof( TEST_POSITIONS )/sizeof( TEST_POSITIONS[ 0 ] );

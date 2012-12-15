@@ -5,9 +5,7 @@
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
-
-const std::string FILE_DIR = "E:/MOET Work/text_mapping/data/calibration_images/";
-const std::string FILE_ADDRESS = FILE_DIR + "calibrationFileAddress.txt";
+#include <boost/filesystem.hpp>
 
 std::vector<std::string> LoadConfig(std::string FileAddress, cv::Size* pBoardSizeOut, cv::Size* pBoardSizeMmOut,std::string* note)
 {
@@ -27,10 +25,12 @@ std::vector<std::string> LoadConfig(std::string FileAddress, cv::Size* pBoardSiz
 	std::string value;
 	std::vector<std::string> Output;
 
+	boost::filesystem::path configFilePath( FileAddress );
+	std::string parentPath = configFilePath.parent_path().string();
+
 	while (getline(LOADFILE, value))
 	{
-		
-		Output.push_back(value.c_str());
+		Output.push_back( parentPath + "/" + value );
 	}
 
 
@@ -38,8 +38,24 @@ std::vector<std::string> LoadConfig(std::string FileAddress, cv::Size* pBoardSiz
 
 }
 
+//--------------------------------------------------------------------------------------------------
+void showUsage( const char* programName )
+{
+    printf( "%s configFilename\n", programName );
+    printf( "\tconfigFilename - The configuration file giving the calibration images and chessboard size\n" );
+}
+
+//--------------------------------------------------------------------------------------------------
 int main(int argc, char** argv)
 {
+    // Read in a configuration file
+    if ( argc < 2 )
+    {
+        fprintf( stderr, "No configuration file provided\n" );
+        showUsage( argv[ 0 ] );
+        return -1;
+    }
+
 	std::cout << "Starting Camera Calibration" << std::endl;
 
 	cv::Size boardSize; 
@@ -49,7 +65,8 @@ int main(int argc, char** argv)
 
 	std::string note;
 
-	std::vector<std::string> NameLocation = LoadConfig(FILE_ADDRESS,&boardSize,&boardSizeMm,&note);
+	std::string configFilename( argv[ 1 ] );
+	std::vector<std::string> NameLocation = LoadConfig(configFilename,&boardSize,&boardSizeMm,&note);
 
 	float squareWidth = ((float)boardSizeMm.width/1000.0f)/(boardSize.width-1);
 	float squareHeight = ((float)boardSizeMm.height/1000.0f)/(boardSize.height-1);
@@ -78,12 +95,12 @@ int main(int argc, char** argv)
 		for(int j=0; j<boardSize.width; j++)
 			objectCorners.push_back(cv::Point3f(i*squareHeight,j*squareWidth,0.0f));
 
-	for(int i = 0; i < NameLocation.size(); i++)
+	for(int i = 0; i < (int)NameLocation.size(); i++)
 	{
 		std::string ImageAddress = NameLocation.at(i);
 		std::cout << "Image Name " <<ImageAddress << std::endl;
 		cv::Mat image,colorimage1,colorimage2;
-		image =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_GRAYSCALE);
+		image =cv::imread(ImageAddress, CV_LOAD_IMAGE_GRAYSCALE);
 		//colorimage1 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
 		//colorimage2 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
 
@@ -99,16 +116,20 @@ int main(int argc, char** argv)
 
 		// number of corners on the chessboard
 		bool found = cv::findChessboardCorners(image,boardSize,imageCorners);
-
+		if ( !found )
+		{
+		    printf( "Warning: Unable to find corners in %s\n", ImageAddress.c_str() );
+		    continue;
+		}
 		//cv::drawChessboardCorners(colorimage1,boardSize,imageCorners,found);
 
 		//Get subpixel accuracy on the corners
-		cv::cornerSubPix(image,imageCorners,cv::Size(11,11),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,100,0.225));
+		cv::cornerSubPix(image,imageCorners,cv::Size(5,5),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,100,0.225));
 
 		//cv::drawChessboardCorners(colorimage2,boardSize,imageCorners,found);
 
 		//If we have a good board, add it to our data
-		if(imageCorners.size() == boardSize.area())
+		if(imageCorners.size() == (uint32_t)boardSize.area())
 		{
 			//Add Image and scene points from one view
 			imagePoints.push_back(imageCorners);
@@ -132,7 +153,7 @@ int main(int argc, char** argv)
 	std::vector<cv::Mat> rvecs,tvecs;
 	std::cout << cv::calibrateCamera(objectPoints,imagePoints,imageSize,cameraMatrix,distCoeffs,rvecs,tvecs,0)<< std::endl;
 
-	cv::FileStorage fs((FILE_DIR + note + "_cameraMatrix.yml").c_str(), cv::FileStorage::WRITE);
+	cv::FileStorage fs((note + "_cameraMatrix.yml").c_str(), cv::FileStorage::WRITE);
     fs << "cameraMatrix" << cameraMatrix;
 	fs << "distCoeffs" << distCoeffs;
 

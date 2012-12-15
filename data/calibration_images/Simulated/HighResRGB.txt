@@ -1,0 +1,8 @@
+8 6 140 100 HighResRGB
+HighResRGB/chessboard_highres_1.png
+HighResRGB/chessboard_highres_2.png
+HighResRGB/chessboard_highres_3.png
+HighResRGB/chessboard_highres_4.png
+HighResRGB/chessboard_highres_5.png
+HighResRGB/chessboard_highres_6.png
+HighResRGB/chessboard_highres_7.png

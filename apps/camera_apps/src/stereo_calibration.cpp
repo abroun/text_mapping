@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 
 	objectPoints.push_back(objectCorners);
 	
-	for(int i = 0; i < NameLocation.size(); i++)
+	for(int i = 0; i < (int)NameLocation.size(); i++)
 	{
 		std::string ImageAddress = NameLocation.at(i);
 		std::cout << "Image Name " <<ImageAddress << std::endl;
@@ -80,12 +80,12 @@ int main(int argc, char** argv)
 		// number of corners on the chessboard
 		bool found = cv::findChessboardCorners(image,boardSize,imageCorners);
 		cv::cornerSubPix(image,imageCorners,cv::Size(11,11),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,100,0.225));
-		if(imageCorners.size() == boardSize.area())
+		if(imageCorners.size() == (uint32_t)boardSize.area())
 		{
 			//Add Image and scene points from one view
 			if(image.cols > 641)
 			{
-				for(int j =0; j < imageCorners.size(); j++)
+				for(int j =0; j < (int)imageCorners.size(); j++)
 				{
 					imageCorners.at(j).x = imageCorners.at(j).x/3.55;
 					imageCorners.at(j).y = imageCorners.at(j).y/3.55;
