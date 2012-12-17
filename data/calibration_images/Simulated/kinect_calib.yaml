@@ -1,0 +1,22 @@
+%YAML:1.0
+DepthCameraCalibrationMtx: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 575., 0., 320., 0., 575., 240., 0., 0., 1. ]
+ColorCameraCalibrationMtx: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 575., 0., 320., 0., 575., 240., 0., 0., 1. ]
+DepthToColorCameraRotation: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 9.9756405029754847e-01, 0., -6.9756473204644232e-02, 0., 1.,
+       0., 6.9756473204644232e-02, 0., 9.9756405029754847e-01 ]
+DepthToColorCameraTranslation: !!opencv-matrix
+   rows: 3
+   cols: 1
+   dt: d
+   data: [ 5.0000000000000003e-02, 0., 0. ]

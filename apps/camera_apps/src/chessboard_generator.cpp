@@ -527,8 +527,8 @@ int main( int argc, char** argv )
         pCloud->saveToSpcFile( createOutputFilename( "chessboard", testPosIdx + 1, ".spc" ), true );
 
         // Generate an image from the Kinect RGB camera
-        cv::Mat rgbImage = generateRGBImageOfChessboard( kinectDepthWorldMtx, kinectDepthCalibMtx,
-            kinectDepthImageWidth, kinectDepthImageHeight, chessboardPoseMtx );
+        cv::Mat rgbImage = generateRGBImageOfChessboard( kinectRGBWorldMtx, kinectRGBCalibMtx,
+            kinectRGBImageWidth, kinectRGBImageHeight, chessboardPoseMtx );
 
         cv::imwrite( createOutputFilename( "chessboard", testPosIdx + 1, ".png" ), rgbImage );
 
@@ -538,6 +538,34 @@ int main( int argc, char** argv )
 
         cv::imwrite( createOutputFilename( "chessboard_highres", testPosIdx + 1, ".png" ), highResRgbImage );
     }
+
+    // Generate ideal calibration files
+
+    // First the kinect calibration
+    cv::FileStorage dataFile( "kinect_calib.yaml", cv::FileStorage::WRITE );
+
+    dataFile << "DepthCameraCalibrationMtx" << kinectDepthCalibMtx;
+    dataFile << "ColorCameraCalibrationMtx" << kinectRGBCalibMtx;
+
+    cv::Mat kinectRGBInKinectDepthSpace = (kinectDepthWorldMtx.inv())*kinectRGBWorldMtx;
+    dataFile << "DepthToColorCameraRotation" << cv::Mat( kinectRGBInKinectDepthSpace, cv::Rect( 0, 0, 3, 3 ) );
+    dataFile << "DepthToColorCameraTranslation" << cv::Mat( kinectRGBInKinectDepthSpace, cv::Rect( 3, 0, 1, 3 ) );
+
+    dataFile.release();
+
+    // Now the high resolution camera calibration
+    dataFile = cv::FileStorage( "high_res_calib.yaml", cv::FileStorage::WRITE );
+    dataFile << "cameraMatrix" << highResCalibMtx;
+    dataFile.release();
+
+    // Finally, the position of the high resolution colour camera in Kinect colour camera space
+    dataFile = cv::FileStorage( "colour_stereo_calib.yaml", cv::FileStorage::WRITE );
+
+    cv::Mat highResInKinectRGBSpace = (kinectRGBWorldMtx.inv())*highResWorldMtx;
+    dataFile << "R" << cv::Mat( highResInKinectRGBSpace, cv::Rect( 0, 0, 3, 3 ) );
+    dataFile << "T" << cv::Mat( highResInKinectRGBSpace, cv::Rect( 3, 0, 1, 3 ) );
+
+    dataFile.release();
 
     return 0;
 }

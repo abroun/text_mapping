@@ -1,0 +1,6 @@
+%YAML:1.0
+cameraMatrix: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 6000., 0., 1136., 0., 6000., 852., 0., 0., 1. ]

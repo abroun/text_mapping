@@ -470,9 +470,13 @@ void TmMainWindow::loadCameras()
 
     // TODO: Move away from hard coded cameras
     std::string dataDir = Utilities::getDataDir();
-    std::string kinectCalibrationFilename = dataDir + "/point_clouds/calibration_data/windows_kinect.yaml";
-    std::string highResCalibrationFilename = dataDir + "/calibration_images/canon_zoom4_cameraMatrix_2.yml";
-    std::string highResPoseFilename = dataDir + "/calibration_images/stereo_calibration.yml";
+    //std::string kinectCalibrationFilename = dataDir + "/point_clouds/calibration_data/windows_kinect.yaml";
+    //std::string highResCalibrationFilename = dataDir + "/calibration_images/canon_zoom4_cameraMatrix_2.yml";
+    //std::string highResPoseFilename = dataDir + "/calibration_images/stereo_calibration.yml";
+
+    std::string kinectCalibrationFilename = dataDir + "/calibration_images/Simulated/kinect_calib.yaml";
+    std::string highResCalibrationFilename = dataDir + "/calibration_images/Simulated/high_res_calib.yaml";
+    std::string highResPoseFilename = dataDir + "/calibration_images/Simulated/colour_stereo_calib.yaml";
 
     // Load in the Kinect calibration file
     cv::FileStorage fileStorage;
@@ -554,9 +558,9 @@ void TmMainWindow::loadCameras()
 
     mHighResCamera.tweakLookAtPos( HIGH_RES_CAMERA_OFFSET );
 
-    mKinectDepthCamera.setClipPlanes( 0.01, 2.0 );
-    mKinectColorCamera.setClipPlanes( 0.01, 2.0 );
-    mHighResCamera.setClipPlanes( 0.01, 2.0 );
+    mKinectDepthCamera.setClipPlanes( 0.2, 2.0 );
+    mKinectColorCamera.setClipPlanes( 0.2, 2.0 );
+    mHighResCamera.setClipPlanes( 0.2, 2.0 );
 
     // Display them in the VTK renderer
     mKinectDepthCamera.showInRenderer( mpRenderer );
