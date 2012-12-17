@@ -34,6 +34,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include "image_view_dialog.h"
+#include <QtGui/QGraphicsSceneMouseEvent>
+#include "tm_main_window.h"
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewPixmap::mousePressEvent( QGraphicsSceneMouseEvent *pEvent )
+{
+    if ( Qt::LeftButton & pEvent->buttons() )
+    {
+        QPointF pos = pEvent->buttonDownPos( Qt::LeftButton );
+
+        printf( "Clicked at %f %f\n", pos.x(), pos.y() );
+        mpParentDialog->pickFromImage( pos );
+    }
+}
 
 //--------------------------------------------------------------------------------------------------
 const int32_t DEFAULT_MAX_IMAGE_WIDTH = 800;
@@ -42,8 +56,9 @@ const int32_t DEFAULT_MAX_IMAGE_HEIGHT = 600;
 //--------------------------------------------------------------------------------------------------
 // ImageViewDialog
 //--------------------------------------------------------------------------------------------------
-ImageViewDialog::ImageViewDialog()
-    : mpPixmapItem( NULL )
+ImageViewDialog::ImageViewDialog( const TmMainWindow* pParentWindow )
+    : mpPixmapItem( NULL ),
+      mpParentWindow( pParentWindow )
 {
     setupUi( this );
 
@@ -96,10 +111,17 @@ void ImageViewDialog::setImage( const cv::Mat& image )
 
 	if ( NULL == mpPixmapItem )
 	{
-		mpPixmapItem = mpScene->addPixmap( pixmap );
+	    mpPixmapItem = new ImageViewPixmap( pixmap, this );
+		mpScene->addItem( mpPixmapItem );
 	}
 	else
 	{
 		mpPixmapItem->setPixmap( pixmap );
 	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewDialog::pickFromImage( const QPointF& pickPoint ) const
+{
+    mpParentWindow->pickFromImage( this, pickPoint );
 }

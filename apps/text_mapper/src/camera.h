@@ -49,8 +49,13 @@ class Camera
     public: virtual ~Camera();
 
     public: void setImageSize( float imageWidth, float imageHeight );
+
     public: void setCameraInWorldSpaceMatrix( const Eigen::Matrix4d& cameraInWorldSpaceMatrix );
-    public: void setCalibrationMatrix( const Eigen::Matrix3d& calibrationMtx );
+    public: const Eigen::Matrix4d& getCameraInWorldSpaceMatrix() const { return mCameraInWorldSpaceMatrix; }
+
+    public: void setCalibrationMatrix( const Eigen::Matrix3d& calibrationMatrix );
+    public: const Eigen::Matrix3d& getCalibrationMatrix() const { return mCalibrationMatrix; }
+
     public: void setClipPlanes( float near, float far );
 
     public: void addPickPoint( const Eigen::Vector2d& screenPos );
@@ -75,6 +80,9 @@ class Camera
     private: vtkSmartPointer<vtkPolyDataMapper> mpPickLinesMapper;
     private: vtkSmartPointer<vtkActor> mpPickLinesActor;
     private: std::vector<Eigen::Vector2d, Eigen::aligned_allocator<Eigen::Vector2d> > mPickPoints;
+
+    private: Eigen::Matrix4d mCameraInWorldSpaceMatrix;     // Cached
+    private: Eigen::Matrix3d mCalibrationMatrix;            // Cached
 
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };

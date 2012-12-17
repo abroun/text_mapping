@@ -79,6 +79,8 @@ void Camera::setCameraInWorldSpaceMatrix( const Eigen::Matrix4d& cameraInWorldSp
     mpVtkCamera->SetPosition( pos[ 0 ], pos[ 1 ], pos[ 2 ] );
     mpVtkCamera->SetFocalPoint( focalPoint[ 0 ], focalPoint[ 1 ], focalPoint[ 2 ] );
     mpVtkCamera->SetViewUp( -axisY[ 0 ], -axisY[ 1 ], -axisY[ 2 ] );
+
+    mCameraInWorldSpaceMatrix = cameraInWorldSpaceMatrix;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -94,6 +96,8 @@ void Camera::setCalibrationMatrix( const Eigen::Matrix3d& calibrationMtx )
 
     mpVtkCamera->SetViewAngle( 2.0*halfViewAngle );
     mpVtkCamera->SetClippingRange( calibrationMtx( 1, 1 )/1000.0, 2.0 );
+
+    mCalibrationMatrix = calibrationMtx;
 }
 
 //--------------------------------------------------------------------------------------------------

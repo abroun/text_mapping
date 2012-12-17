@@ -50,6 +50,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // TmMainWindow
 //--------------------------------------------------------------------------------------------------
 TmMainWindow::TmMainWindow()
+    : mHighResImageViewDialog( this ),
+      mKinectColorImageViewDialog( this ),
+      mKinectDepthColorImageViewDialog( this )
 {
     setupUi( this );
 
@@ -397,6 +400,32 @@ void TmMainWindow::onCheckShowModelClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint ) const
+{
+    if ( &mHighResImageViewDialog ==  pImageViewDialog )
+    {
+        const Eigen::Matrix4d& camWorldMtx = mHighResCamera.getCameraInWorldSpaceMatrix();
+        Eigen::Matrix4d invCamWorldMtx = camWorldMtx.inverse();
+        const Eigen::Matrix3d& camCalibMtx = mHighResCamera.getCalibrationMatrix();
+
+        Eigen::MatrixXd P = camCalibMtx*invCamWorldMtx.block<3,4>( 0, 0 );
+
+        //const Eigen::Vector3d& pickStart = camWorldMtx.block<3,1>( 0, 3 );
+
+        //const Eigen::Vector3d& camX = camWorldMtx.block<3,1>( 0, 0 );
+        //const Eigen::Vector3d& camY = camWorldMtx.block<3,1>( 0, 1 );
+        //const Eigen::Vector3d& camZ = camWorldMtx.block<3,1>( 0, 2 );
+
+        Eigen::Vector4d camCentre = camWorldMtx.block<4,1>( 0, 3 );
+        std::cout << P*camCentre << std::endl;
+
+        //std::cout << P*pickStart << std::endl;
+
+        // TODO: Calculate pick direction
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::refreshFrameList()
 {
     // Create a list of strings and thumbnails representing the frames
@@ -525,7 +554,7 @@ void TmMainWindow::loadCameras()
         Eigen::Map<Eigen::Vector3d>( (double*)depthToColorCameraTranslationVector.data, 3, 1 );
 
     // HACK: Flipping about the y-axis. This should be done back in the kinect grabber
-    kinectColorCameraInWorldSpaceMatrix.block<1,4>( 0, 0 ) = -kinectColorCameraInWorldSpaceMatrix.block<1,4>( 0, 0 );
+    //kinectColorCameraInWorldSpaceMatrix.block<1,4>( 0, 0 ) = -kinectColorCameraInWorldSpaceMatrix.block<1,4>( 0, 0 );
 
     mKinectColorCamera.setCameraInWorldSpaceMatrix( kinectColorCameraInWorldSpaceMatrix );
     mKinectColorCamera.setCalibrationMatrix(

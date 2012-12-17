@@ -43,19 +43,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <opencv2/core/core.hpp>
 #include "ui_image_view_dialog.h"
 
+class TmMainWindow;
+class ImageViewDialog;
+
+//--------------------------------------------------------------------------------------------------
+class ImageViewPixmap : public QGraphicsPixmapItem
+{
+    public: ImageViewPixmap( const QPixmap &pixmap, const ImageViewDialog* pParentDialog )
+        : QGraphicsPixmapItem( pixmap ), mpParentDialog( pParentDialog ) {}
+
+    public: virtual void mousePressEvent( QGraphicsSceneMouseEvent *pEvent );
+
+    private: const ImageViewDialog* mpParentDialog;
+};
+
 //--------------------------------------------------------------------------------------------------
 class ImageViewDialog : public QDialog, private Ui::image_view_dialog
 {
     Q_OBJECT
 
-    public: ImageViewDialog();
+    public: ImageViewDialog( const TmMainWindow* pParentWindow );
     public: virtual ~ImageViewDialog();
 	
 	public: void setImage( const cv::Mat& image );
+	public: void pickFromImage( const QPointF& pickPoint ) const;
 	
 	private: QGraphicsScene* mpScene;
     private: QGraphicsPixmapItem* mpPixmapItem;
     private: cv::Mat mImage;
+    private: const TmMainWindow* mpParentWindow;
 };
 
 #endif // IMAGE_VIEW_DIALOG_H_

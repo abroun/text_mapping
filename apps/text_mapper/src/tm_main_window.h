@@ -83,6 +83,8 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public slots: void onBtnDownClicked();
     public slots: void onCheckShowModelClicked();
 
+    public: void pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint ) const;
+
     private: void refreshFrameList();
     private: void refreshImageDisplays( const FrameData& frameData );
 
