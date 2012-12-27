@@ -120,7 +120,7 @@ class PointCloud
 	//! @param[out] pSecondCornerOut Variable to hold the second bounding box corner
 	public: void getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const;
 
-    public: float pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir, float close=0.005f );
+    public: float pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir, float close=0.005f ) const;
 
     private: float mFocalLengthPixels;
     private: cv::Mat mImage;

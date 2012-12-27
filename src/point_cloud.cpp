@@ -434,7 +434,7 @@ void PointCloud::getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector
 }
 
 //--------------------------------------------------------------------------------------------------
-float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir, float close )
+float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir, float close ) const
 {
     bool bPointFound = false;
     float closestDistance = FLT_MAX;

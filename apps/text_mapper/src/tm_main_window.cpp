@@ -45,6 +45,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "frame_dialog.h"
 #include "tm_main_window.h"
 #include "text_detection.h"
+#include <opencv2/core/eigen.hpp>
 
 //--------------------------------------------------------------------------------------------------
 // TmMainWindow
@@ -409,6 +410,7 @@ void TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
         const Eigen::Matrix3d& camCalibMtx = mHighResCamera.getCalibrationMatrix();
 
         Eigen::MatrixXd P = camCalibMtx*invCamWorldMtx.block<3,4>( 0, 0 );
+        Eigen::MatrixXd Pinv =  P.transpose()*(P*P.transpose()).inverse();
 
         //const Eigen::Vector3d& pickStart = camWorldMtx.block<3,1>( 0, 3 );
 
@@ -417,11 +419,19 @@ void TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
         //const Eigen::Vector3d& camZ = camWorldMtx.block<3,1>( 0, 2 );
 
         Eigen::Vector4d camCentre = camWorldMtx.block<4,1>( 0, 3 );
-        std::cout << P*camCentre << std::endl;
+
+
+        Eigen::Vector3d homogImagePos( pickPoint.x(), pickPoint.y(), 1.0 );
+        Eigen::Vector4d worldPos = Pinv*homogImagePos;
+
+        Eigen::Vector4d pickDir = worldPos - camCentre;
 
         //std::cout << P*pickStart << std::endl;
 
         // TODO: Calculate pick direction
+
+        mpPointCloudSource->GetPointCloudPtr()->pickSurface(
+			camCentre.block<3,1>( 0, 0 ).cast<float>(), pickDir.block<3,1>( 0, 0 ).cast<float>() );
     }
 }
 
@@ -543,30 +553,40 @@ void TmMainWindow::loadCameras()
 
     // Depth
     mKinectDepthCamera.setCameraInWorldSpaceMatrix( Eigen::Matrix4d::Identity() );
-    mKinectDepthCamera.setCalibrationMatrix(
-        Eigen::Map<Eigen::Matrix3d>( (double*)depthCameraCalibrationMatrix.data, 3, 3 ) );
+
+    Eigen::Matrix3d eigen3x3;
+    cv2eigen( depthCameraCalibrationMatrix, eigen3x3 );
+
+    mKinectDepthCamera.setCalibrationMatrix( eigen3x3 );
 
     // Color
     Eigen::Matrix4d kinectColorCameraInWorldSpaceMatrix = Eigen::Matrix4d::Identity();
-    kinectColorCameraInWorldSpaceMatrix.block<3,3>( 0, 0 ) = 
-        Eigen::Map<Eigen::Matrix3d>( (double*)depthToColorCameraRotationMatrix.data, 3, 3 );
+
+    cv2eigen( depthToColorCameraRotationMatrix, eigen3x3 );
+
+    kinectColorCameraInWorldSpaceMatrix.block<3,3>( 0, 0 ) = eigen3x3;
     kinectColorCameraInWorldSpaceMatrix.block<3,1>( 0, 3 ) = 
         Eigen::Map<Eigen::Vector3d>( (double*)depthToColorCameraTranslationVector.data, 3, 1 );
 
     // HACK: Flipping about the y-axis. This should be done back in the kinect grabber
     //kinectColorCameraInWorldSpaceMatrix.block<1,4>( 0, 0 ) = -kinectColorCameraInWorldSpaceMatrix.block<1,4>( 0, 0 );
 
+    std::cout << depthToColorCameraRotationMatrix << std::endl;
+    std::cout << kinectColorCameraInWorldSpaceMatrix << std::endl;
+
     mKinectColorCamera.setCameraInWorldSpaceMatrix( kinectColorCameraInWorldSpaceMatrix );
-    mKinectColorCamera.setCalibrationMatrix(
-        Eigen::Map<Eigen::Matrix3d>( (double*)colorCameraCalibrationMatrix.data, 3, 3 ) );
+
+    cv2eigen( colorCameraCalibrationMatrix, eigen3x3 );
+    mKinectColorCamera.setCalibrationMatrix( eigen3x3 );
 
     // High Resolution
     Eigen::Matrix4d highResCameraInColorCameraSpaceMatrix = Eigen::Matrix4d::Identity();
-    highResCameraInColorCameraSpaceMatrix.block<3,3>( 0, 0 ) = 
-        Eigen::Map<Eigen::Matrix3d>( (double*)colorToHighResCameraRotationMatrix.data, 3, 3 );
+
+    cv2eigen( colorToHighResCameraRotationMatrix, eigen3x3 );
+    highResCameraInColorCameraSpaceMatrix.block<3,3>( 0, 0 ) = eigen3x3;
     highResCameraInColorCameraSpaceMatrix.block<3,1>( 0, 3 ) = 
         Eigen::Map<Eigen::Vector3d>( (double*)colorToHighResCameraTranslationVector.data, 3, 1 );
-    highResCameraInColorCameraSpaceMatrix( 1, 3 ) = -highResCameraInColorCameraSpaceMatrix( 1, 3 );
+    //highResCameraInColorCameraSpaceMatrix( 1, 3 ) = -highResCameraInColorCameraSpaceMatrix( 1, 3 );
 
     // HACK: Flipping about the x-axis.
     //highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 ) = -highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 );
@@ -577,15 +597,16 @@ void TmMainWindow::loadCameras()
     // HACK: Flipping about the x-axis.
     //highResCameraInWorldSpaceMatrix.block<1,4>( 1, 0 ) = -highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 );
 
-    const Eigen::Vector3d HIGH_RES_CAMERA_OFFSET( -0.04, 0.02, 0.0 );
-    const float HIGH_RES_CAMERA_FOV_SCALE = 1.0/0.9;
+    //const Eigen::Vector3d HIGH_RES_CAMERA_OFFSET( -0.04, 0.02, 0.0 );
+    //const float HIGH_RES_CAMERA_FOV_SCALE = 1.0/0.9;
 
     mHighResCamera.setCameraInWorldSpaceMatrix( highResCameraInWorldSpaceMatrix );
-    mHighResCamera.setCalibrationMatrix(
-        Eigen::Map<Eigen::Matrix3d>( (double*)highResCameraCalibrationMatrix.data, 3, 3 )*HIGH_RES_CAMERA_FOV_SCALE );
-    mHighResCamera.setClipPlanes( 0.55, 2.0 );
 
-    mHighResCamera.tweakLookAtPos( HIGH_RES_CAMERA_OFFSET );
+    cv2eigen( highResCameraCalibrationMatrix, eigen3x3 );
+    mHighResCamera.setCalibrationMatrix( eigen3x3 );
+    //mHighResCamera.setClipPlanes( 0.55, 2.0 );
+
+    //mHighResCamera.tweakLookAtPos( HIGH_RES_CAMERA_OFFSET );
 
     mKinectDepthCamera.setClipPlanes( 0.2, 2.0 );
     mKinectColorCamera.setClipPlanes( 0.2, 2.0 );

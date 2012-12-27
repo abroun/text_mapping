@@ -133,8 +133,8 @@ cv::Mat createCameraCalibrationMatrix( double focalLengthPixel, int32_t imageWid
     double principleX = (double)imageWidth/2.0;
     double principleY = (double)imageHeight/2.0;
 
-    calibMtx.at<double>( 0, 0 ) = -focalLengthPixel;
-    calibMtx.at<double>( 1, 1 ) = -focalLengthPixel;
+    calibMtx.at<double>( 0, 0 ) = focalLengthPixel;
+    calibMtx.at<double>( 1, 1 ) = focalLengthPixel;
     calibMtx.at<double>( 0, 2 ) = principleX;
     calibMtx.at<double>( 1, 2 ) = principleY;
 
@@ -290,19 +290,6 @@ cv::Mat getChessboardPointWorldPos( double u, double v, const cv::Mat& chessboar
 }
 
 //--------------------------------------------------------------------------------------------------
-cv::Mat projectWorldPosToImage( const cv::Mat& worldPos, const cv::Mat& worldInCameraSpaceMtx,
-		const cv::Mat& cameraCalibMtx )
-{
-	cv::Mat imagePlanePos = worldInCameraSpaceMtx.rowRange( 0, 3 )*worldPos;
-	imagePlanePos /= imagePlanePos.at<double>( 2 );
-
-	// TODO: Implement radial distortion here
-
-	cv::Mat screenPos = cameraCalibMtx.rowRange( 0, 2 )*imagePlanePos;
-	return screenPos;
-}
-
-//--------------------------------------------------------------------------------------------------
 std::vector<PointData> generateImagePoints( const cv::Mat& cameraWorldMtx, const cv::Mat& cameraCalibMtx,
         int32_t imageWidth, int32_t imageHeight, const cv::Mat& chessboardPoseMtx )
 {
@@ -329,8 +316,8 @@ std::vector<PointData> generateImagePoints( const cv::Mat& cameraWorldMtx, const
     {
         for ( int32_t x = 0; x < imageWidth; x++ )
         {
-            double imagePlaneX = (x - cameraCalibMtx.at<double>( 0, 2 )) / cameraCalibMtx.at<double>( 0, 0 );
-            double imagePlaneY = (y - cameraCalibMtx.at<double>( 1, 2 )) / cameraCalibMtx.at<double>( 1, 1 );
+            double imagePlaneX = -(x - cameraCalibMtx.at<double>( 0, 2 )) / cameraCalibMtx.at<double>( 0, 0 );
+            double imagePlaneY = -(y - cameraCalibMtx.at<double>( 1, 2 )) / cameraCalibMtx.at<double>( 1, 1 );
             cv::Mat rayDir = camAxisZ + imagePlaneX*camAxisX + imagePlaneY*camAxisY;
 
             double cosOfAngleToChessboard = cv::Mat(rayDir.t()*chessboardAxisZ).at<double>( 0 );
@@ -516,7 +503,7 @@ int main( int argc, char** argv )
         highResCameraPos, highResCameraRotXYZDeg );
 
     // Loop over all test positions and orientations for the chessboard
-    for ( int32_t testPosIdx = 0; testPosIdx < NUM_TEST_POSITIONS; testPosIdx++ )
+    for ( int32_t testPosIdx = 0; testPosIdx < 1; testPosIdx++ ) //NUM_TEST_POSITIONS; testPosIdx++ )
     {
         cv::Mat chessboardPoseMtx = createChessboardPoseMatrix( TEST_POSITIONS[ testPosIdx ] );
 
