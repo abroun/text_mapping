@@ -41,6 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <vector>
 #include <opencv2/core/core.hpp>
 #include "opencv2/highgui/highgui.hpp"
 #include "text_mapping/point_cloud.h"
@@ -49,37 +50,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //--------------------------------------------------------------------------------------------------
 struct PoseData
 {
+    PoseData( const cv::Vec3d& position, const cv::Vec3d& rotXYZ )
+        : position( position ), rotXYZ( rotXYZ ) {}
+
     cv::Vec3d position;
     cv::Vec3d rotXYZ;       // Used to specify orientation assuming that normal starts as +ve z-axis
 };
 
 //--------------------------------------------------------------------------------------------------
-const PoseData TEST_POSITIONS[] =
-{
-    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) },
-
-    // Rotate around X
-    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) },
-    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
-
-    // Rotate around Y
-    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( Utilities::degToRad( -40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) },
-    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( Utilities::degToRad( 40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) },
-
-    // Rotate around Z
-    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( -40.0 ) ) },
-    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( 40.0 ) ) },
-
-    /*{ cv::Vec3d( 0.10, 0.10, 1.0 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
-    { cv::Vec3d( 0.0, 0.0, 1.0 ), cv::Vec3d( Utilities::degToRad( -30.0 ), Utilities::degToRad( 180.0 ), 0.0 ) },
-    { cv::Vec3d( 0.0, 0.0, 1.2 ), cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) },
-    { cv::Vec3d( 0.10, 0.0, 1.2 ), cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) },
-    { cv::Vec3d( -0.10, 0.0, 1.2 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
-    { cv::Vec3d( 0.10, 0.10, 1.2 ), cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) },
-    { cv::Vec3d( 0.0, 0.0, 1.2 ), cv::Vec3d( Utilities::degToRad( -30.0 ), Utilities::degToRad( 180.0 ), 0.0 ) },*/
-};
-
-const int32_t NUM_TEST_POSITIONS = sizeof( TEST_POSITIONS )/sizeof( TEST_POSITIONS[ 0 ] );
+std::vector<PoseData> gHighResCalibrationPositions;
+std::vector<PoseData> gRelativeCalibrationPositions;
 
 enum ePixelColour
 {
@@ -110,11 +90,88 @@ const bool CHESSBOARD_TOP_LEFT_CORNER_IS_BLACK = true;
 const double CHESSBOARD_TOTAL_WIDTH = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_WIDTH*CHESSBOARD_SQUARE_SIDE_LENGTH;
 const double CHESSBOARD_TOTAL_HEIGHT = 2.0*CHESSBOARD_BORDER_WIDTH + CHESSBOARD_HEIGHT*CHESSBOARD_SQUARE_SIDE_LENGTH;
 
+bool gbDrawCircles = true;
+
+const double CIRCLEBOARD_SQUARE_SIDE_LENGTH = 0.02;
+const double CIRCLEBOARD_BORDER_WIDTH = 0.04;
+const int32_t CIRCLEBOARD_WIDTH = 8;
+const int32_t CIRCLEBOARD_HEIGHT = 6;
+
+const double CIRCLEBOARD_TOTAL_WIDTH = 2.0*CIRCLEBOARD_BORDER_WIDTH + (CIRCLEBOARD_WIDTH-1)*CIRCLEBOARD_SQUARE_SIDE_LENGTH;
+const double CIRCLEBOARD_TOTAL_HEIGHT = 2.0*CIRCLEBOARD_BORDER_WIDTH + (CIRCLEBOARD_HEIGHT-1)*CIRCLEBOARD_SQUARE_SIDE_LENGTH;
+const double CIRCLEBOARD_CIRCLE_RADIUS = 0.005;
+
 //--------------------------------------------------------------------------------------------------
 void showUsage( const char* programName )
 {
     printf( "%s configFilename\n", programName );
     printf( "\tconfigFilename - The name of the configuration file for the camera rig\n" );
+}
+
+//--------------------------------------------------------------------------------------------------
+void initialiseTestPositions()
+{
+    // Set up positions so that the high resolution camera can be calibrated
+    gHighResCalibrationPositions.clear();
+
+    gHighResCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) ) );
+
+    // Rotate around X
+    gHighResCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+            cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) ) );
+    gHighResCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) ) );
+
+    // Rotate around Y
+    gHighResCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        cv::Vec3d( Utilities::degToRad( -40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
+    gHighResCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        cv::Vec3d( Utilities::degToRad( 40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
+
+    // Rotate around Z
+    gHighResCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( -40.0 ) ) ) );
+    gHighResCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( 40.0 ) ) ) );
+
+    // Set up positions so that the relative camera poses can be found
+    gRelativeCalibrationPositions.clear();
+
+    gRelativeCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) ) );
+
+    // Rotate around X
+    gRelativeCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+            cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) ) );
+    gRelativeCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) ) );
+
+    // Rotate around Y
+    gRelativeCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        cv::Vec3d( Utilities::degToRad( -40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
+    gRelativeCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        cv::Vec3d( Utilities::degToRad( 40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
+
+    // Rotate around Z
+    gRelativeCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( -40.0 ) ) ) );
+    gRelativeCalibrationPositions.push_back(
+        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( 40.0 ) ) ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -282,6 +339,47 @@ ePixelColour getChessboardPixelColour( double u, double v )
 }
 
 //--------------------------------------------------------------------------------------------------
+ePixelColour getCircleboardPixelColour( double u, double v )
+{
+    ePixelColour pixelColour = ePC_None;
+
+    if ( u >= 0.0 && u <= CIRCLEBOARD_TOTAL_WIDTH
+        && v >= 0.0 && v <= CIRCLEBOARD_TOTAL_HEIGHT )
+    {
+        // Default to white
+        pixelColour = ePC_White;
+
+        // Loop through each of the points on the board, checking to see if the point is
+        // close enough to one of them
+        double pointV = CIRCLEBOARD_BORDER_WIDTH;
+
+        for ( int32_t y = 0; y < CIRCLEBOARD_HEIGHT; y++ )
+        {
+            double pointU = CIRCLEBOARD_BORDER_WIDTH;
+            for ( int32_t x = 0; x < CIRCLEBOARD_WIDTH; x++ )
+            {
+                double du = u - pointU;
+                double dv = v - pointV;
+
+                if ( du*du + dv*dv <= CIRCLEBOARD_CIRCLE_RADIUS*CIRCLEBOARD_CIRCLE_RADIUS )
+                {
+                    pixelColour = ePC_Black;
+                    goto PointFound;
+                }
+
+                pointU += CIRCLEBOARD_SQUARE_SIDE_LENGTH;
+            }
+
+            pointV += CIRCLEBOARD_SQUARE_SIDE_LENGTH;
+        }
+    }
+
+PointFound:
+
+    return pixelColour;
+}
+
+//--------------------------------------------------------------------------------------------------
 cv::Mat getChessboardPointWorldPos( double u, double v, const cv::Mat& chessboardPoseMtx )
 {
 	return chessboardPoseMtx.col( 3 )
@@ -333,9 +431,21 @@ std::vector<PointData> generateImagePoints( const cv::Mat& cameraWorldMtx, const
                     double chessX = cv::Mat(chessboardAxisX.t()*fromCentreVec).at<double>( 0 );
                     double chessY = cv::Mat(chessboardAxisY.t()*fromCentreVec).at<double>( 0 );
 
-                    double u = chessX/CHESSBOARD_TOTAL_WIDTH + 0.5;
-                    double v = chessY/CHESSBOARD_TOTAL_HEIGHT + 0.5;
-                    ePixelColour pixelColour = getChessboardPixelColour( u, v );
+                    ePixelColour pixelColour = ePC_None;
+
+                    if ( gbDrawCircles )
+                    {
+                        double boardU = chessX + 0.5*CHESSBOARD_TOTAL_WIDTH;
+                        double boardV = chessY + 0.5*CHESSBOARD_TOTAL_HEIGHT;
+                        pixelColour = getCircleboardPixelColour( boardU, boardV );
+                    }
+                    else
+                    {
+                        double u = chessX/CHESSBOARD_TOTAL_WIDTH + 0.5;
+                        double v = chessY/CHESSBOARD_TOTAL_HEIGHT + 0.5;
+                        pixelColour = getChessboardPixelColour( u, v );
+                    }
+
                     if ( ePC_None != pixelColour )
                     {
                         PointData pointData;
@@ -438,6 +548,8 @@ int main( int argc, char** argv )
         return -1;
     }
 
+    initialiseTestPositions();
+
     //std::string configFilename = Utilities::getDataDir() + std::string( "/" ) + std::string( argv[ 1 ] );
     std::string configFilename( argv[ 1 ] );
 
@@ -502,28 +614,40 @@ int main( int argc, char** argv )
     cv::Mat highResWorldMtx = createCameraWorldMatrix(
         highResCameraPos, highResCameraRotXYZDeg );
 
-    // Loop over all test positions and orientations for the chessboard
-    for ( int32_t testPosIdx = 0; testPosIdx < 1; testPosIdx++ ) //NUM_TEST_POSITIONS; testPosIdx++ )
+    // First generate calibration images for the high resolution camera
+    for ( uint32_t testPosIdx = 0; testPosIdx < gHighResCalibrationPositions.size(); testPosIdx++ )
     {
-        cv::Mat chessboardPoseMtx = createChessboardPoseMatrix( TEST_POSITIONS[ testPosIdx ] );
-
-        // Generate a point cloud from the Kinect
-        PointCloud::Ptr pCloud = generatePointCloudOfChessboard( kinectDepthWorldMtx, kinectDepthCalibMtx,
-            kinectDepthImageWidth, kinectDepthImageHeight, chessboardPoseMtx );
-
-        pCloud->saveToSpcFile( createOutputFilename( "chessboard", testPosIdx + 1, ".spc" ), true );
-
-        // Generate an image from the Kinect RGB camera
-        cv::Mat rgbImage = generateRGBImageOfChessboard( kinectRGBWorldMtx, kinectRGBCalibMtx,
-            kinectRGBImageWidth, kinectRGBImageHeight, chessboardPoseMtx );
-
-        cv::imwrite( createOutputFilename( "chessboard", testPosIdx + 1, ".png" ), rgbImage );
+        cv::Mat chessboardPoseMtx = createChessboardPoseMatrix( gHighResCalibrationPositions[ testPosIdx ] );
 
         // Generate an image from the high resolution camera
         cv::Mat highResRgbImage = generateRGBImageOfChessboard( highResWorldMtx, highResCalibMtx,
             highResImageWidth, highResImageHeight, chessboardPoseMtx );
 
         cv::imwrite( createOutputFilename( "chessboard_highres", testPosIdx + 1, ".png" ), highResRgbImage );
+    }
+
+    // Now generate images to identify the relative poses of the cameras
+    for ( uint32_t testPosIdx = 0; testPosIdx < gRelativeCalibrationPositions.size(); testPosIdx++ )
+    {
+        cv::Mat chessboardPoseMtx = createChessboardPoseMatrix( gRelativeCalibrationPositions[ testPosIdx ] );
+
+        // Generate a point cloud from the Kinect
+        PointCloud::Ptr pCloud = generatePointCloudOfChessboard( kinectDepthWorldMtx, kinectDepthCalibMtx,
+            kinectDepthImageWidth, kinectDepthImageHeight, chessboardPoseMtx );
+
+        pCloud->saveToSpcFile( createOutputFilename( "relative_chessboard", testPosIdx + 1, ".spc" ), true );
+
+        // Generate an image from the Kinect RGB camera
+        cv::Mat rgbImage = generateRGBImageOfChessboard( kinectRGBWorldMtx, kinectRGBCalibMtx,
+            kinectRGBImageWidth, kinectRGBImageHeight, chessboardPoseMtx );
+
+        cv::imwrite( createOutputFilename( "relative_chessboard", testPosIdx + 1, ".png" ), rgbImage );
+
+        // Generate an image from the high resolution camera
+        cv::Mat highResRgbImage = generateRGBImageOfChessboard( highResWorldMtx, highResCalibMtx,
+            highResImageWidth, highResImageHeight, chessboardPoseMtx );
+
+        cv::imwrite( createOutputFilename( "relative_chessboard_highres", testPosIdx + 1, ".png" ), highResRgbImage );
     }
 
     // Generate ideal calibration files

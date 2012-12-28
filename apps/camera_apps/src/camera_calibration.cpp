@@ -116,6 +116,13 @@ int main(int argc, char** argv)
 
 		// number of corners on the chessboard
 		bool found = cv::findChessboardCorners(image,boardSize,imageCorners);
+
+		if ( !found )
+		{
+		    printf( "Looking for circles...\n" );
+		    found = cv::findCirclesGrid(image,boardSize,imageCorners);
+		}
+
 		if ( !found )
 		{
 		    printf( "Warning: Unable to find corners in %s\n", ImageAddress.c_str() );
@@ -124,7 +131,7 @@ int main(int argc, char** argv)
 		//cv::drawChessboardCorners(colorimage1,boardSize,imageCorners,found);
 
 		//Get subpixel accuracy on the corners
-		cv::cornerSubPix(image,imageCorners,cv::Size(5,5),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,100,0.225));
+		//cv::cornerSubPix(image,imageCorners,cv::Size(5,5),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,100,0.225));
 
 		//cv::drawChessboardCorners(colorimage2,boardSize,imageCorners,found);
 
@@ -151,7 +158,13 @@ int main(int argc, char** argv)
 	}
 
 	std::vector<cv::Mat> rvecs,tvecs;
-	std::cout << cv::calibrateCamera(objectPoints,imagePoints,imageSize,cameraMatrix,distCoeffs,rvecs,tvecs,0)<< std::endl;
+
+	distCoeffs = cv::Mat::zeros( 8, 1, CV_64F );
+
+	std::cout << cv::calibrateCamera(
+	    objectPoints,imagePoints,imageSize,cameraMatrix,distCoeffs,rvecs,tvecs,
+	        CV_CALIB_ZERO_TANGENT_DIST | CV_CALIB_FIX_K1 | CV_CALIB_FIX_K2 | CV_CALIB_FIX_K3
+	        | CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5 | CV_CALIB_FIX_K6 )<< std::endl;
 
 	cv::FileStorage fs((note + "_cameraMatrix.yml").c_str(), cv::FileStorage::WRITE);
     fs << "cameraMatrix" << cameraMatrix;

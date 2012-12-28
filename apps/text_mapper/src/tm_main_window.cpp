@@ -747,7 +747,8 @@ void TmMainWindow::loadCameras()
     //std::string highResPoseFilename = dataDir + "/calibration_images/stereo_calibration.yml";
 
     std::string kinectCalibrationFilename = dataDir + "/calibration_images/Simulated/kinect_calib.yaml";
-    std::string highResCalibrationFilename = dataDir + "/calibration_images/Simulated/high_res_calib.yaml";
+    //std::string highResCalibrationFilename = dataDir + "/calibration_images/Simulated/high_res_calib.yaml";
+    std::string highResCalibrationFilename = dataDir + "/calibration_images/Simulated/HighResRGB_cameraMatrix.yml";
     std::string highResPoseFilename = dataDir + "/calibration_images/Simulated/colour_stereo_calib.yaml";
 
     // Load in the Kinect calibration file
@@ -774,6 +775,9 @@ void TmMainWindow::loadCameras()
     cv::Mat highResCameraCalibrationMatrix;
     fileStorage[ "cameraMatrix" ] >> highResCameraCalibrationMatrix;
     fileStorage.release();
+
+    std::cout << "High Res Mtx..." << std::endl;
+    std::cout << highResCameraCalibrationMatrix << std::endl;
 
     fileStorage.open( highResPoseFilename, cv::FileStorage::READ );
     cv::Mat colorToHighResCameraRotationMatrix;
