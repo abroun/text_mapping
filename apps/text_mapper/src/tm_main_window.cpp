@@ -75,6 +75,8 @@ TmMainWindow::TmMainWindow()
     qvtkWidget->GetRenderWindow()->AddRenderer( mpRenderer );
 
     mpRenderer->SetBackground( 0.0, 0.0, 0.0 );
+    mpRenderer->GetActiveCamera()->SetPosition( -2.0, 2.0, -2.0 );
+    mpRenderer->GetActiveCamera()->SetFocalPoint( 0.0, 0.0, 2.0 );
 
     vtkSmartPointer<vtkPoints> points =
         vtkSmartPointer<vtkPoints>::New();
