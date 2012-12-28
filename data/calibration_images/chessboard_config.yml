@@ -17,12 +17,12 @@ kinectRGBCameraPos: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ 0.65, 0.0, 0.0 ]
+   data: [ 0.05, 0.0, 0.0 ]
 kinectRGBCameraRotXYZDeg: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ 0.0, -20.0, 0.0 ]
+   data: [ 0.0, -4.0, 0.0 ]
 kinectRGBFocalLengthPixel: 575
 kinectRGBImageWidth: 640
 kinectRGBImageHeight: 480

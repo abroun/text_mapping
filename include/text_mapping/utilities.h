@@ -60,6 +60,14 @@ class Utilities
     public: static std::string createRelativeFilename( const std::string& baseFilename, 
         const std::string& otherFilename );
 
+    //! Given a filename relative to another filename. This routine returns the combined filename
+    //! TODO: This needs a lot of unit testing...
+    //! @param baseFilename The first filename. The relative filename is relative to this file
+    //! @param relativeFilename The relative filename
+    //! @return A combined filename
+    public: static std::string decodeRelativeFilename( const std::string& baseFilename,
+        const std::string& relativeFilename );
+
     //! Returns the directory for a data folder.
     //! If the environment variable TEXT_MAPPING_DATA_DIR is set, then this value will
     //! be returned. Otherwise it returns an absolute path to "../data" from the current

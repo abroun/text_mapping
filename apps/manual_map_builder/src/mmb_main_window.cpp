@@ -47,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vtkRenderWindow.h>
 #include <QtGui/qfiledialog.h>
 #include <Eigen/Geometry>
+#include "text_mapping/utilities.h"
 #include "mmb_main_window.h"
 
 //--------------------------------------------------------------------------------------------------
@@ -96,7 +97,9 @@ MmbMainWindow::MmbMainWindow()
     
     // Load in a texture containing letters for the text map actor
     mpLettersJpegReader = vtkSmartPointer<vtkJPEGReader>::New();
-    mpLettersJpegReader->SetFileName( "../data/font/letters.jpg" );
+
+    std::string fontFilename = Utilities::getDataDir() + "/font/letters.jpg";
+    mpLettersJpegReader->SetFileName( fontFilename.c_str() );
     mpLettersJpegReader->Update();
 
     mpLettersTexture = vtkSmartPointer<vtkTexture>::New();
@@ -179,8 +182,10 @@ void MmbMainWindow::onNew()
 //--------------------------------------------------------------------------------------------------
 void MmbMainWindow::onOpen()
 {
+    std::string textMapsDir = Utilities::getDataDir() + "/text_maps";
+
     QString filename = QFileDialog::getOpenFileName( this,
-         tr( "Open Text Map" ), "../data/text_maps", tr("Text Map Files (*.map)") );
+         tr( "Open Text Map" ), textMapsDir.c_str(), tr("Text Map Files (*.map)") );
 
     if ( !filename.isEmpty() )
     {
@@ -242,8 +247,9 @@ void MmbMainWindow::onSaveAs()
 {
     if ( NULL != mpModelTextMap )
     {
+        std::string textMapsDir = Utilities::getDataDir() + "/text_maps";
         QString filename = QFileDialog::getSaveFileName( this,
-            tr( "Save Text Map" ), "../data/text_maps", tr("Text Map Files (*.map)") );
+            tr( "Save Text Map" ), textMapsDir.c_str(), tr("Text Map Files (*.map)") );
         
         if ( !filename.isEmpty() )
         {
@@ -256,8 +262,9 @@ void MmbMainWindow::onSaveAs()
 //--------------------------------------------------------------------------------------------------
 void MmbMainWindow::onSetModel()
 {
+    std::string dataDir = Utilities::getDataDir();
     QString filename = QFileDialog::getOpenFileName( this,
-         tr( "Open Object Model" ), "../data", tr("Object Files (*.obj)") );
+         tr( "Open Object Model" ), dataDir.c_str(), tr("Object Files (*.obj)") );
 
     mpTextMapActor->SetVisibility( !this->checkHideTextMap->isChecked() );
     loadObjModel( filename );

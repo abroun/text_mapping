@@ -1,0 +1,6 @@
+%YAML:1.0
+Frames:
+   -
+      HighResImage: "../images/high_res/cracker_front_canon_z4.jpg"
+      KinectColorImage: "../images/kinect/cracker_front.jpg"
+      KinectDepthPointCloud: "../point_clouds/cracker_front.spc"

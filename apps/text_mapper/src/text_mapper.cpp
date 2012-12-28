@@ -42,6 +42,11 @@ int main( int argc, char** argv )
     QApplication app( argc, argv );
     TmMainWindow mainWindow;
 
+    if ( argc >= 2 )
+    {
+        mainWindow.loadProject( argv[ 1 ] );
+    }
+
     mainWindow.show();
     return app.exec();
 }

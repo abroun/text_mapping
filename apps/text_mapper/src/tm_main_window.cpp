@@ -38,6 +38,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vtkProperty.h>
 #include <vtkCellPicker.h>
 #include <vtkProp3DCollection.h>
+#include <vtkPoints.h>
+#include <vtkLine.h>
+#include <vtkPolyData.h>
+#include <vtkCellArray.h>
+#include <QtGui/QFileDialog>
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <Eigen/Geometry>
@@ -60,6 +65,11 @@ TmMainWindow::TmMainWindow()
     mpFrameListModel = QSharedPointer<QStringListModel>( new QStringListModel() );
     this->listViewFrames->setModel( &(*mpFrameListModel) );
 
+    // Store pointers for easy access to the image view dialogs
+    mpImageViewDialogs.push_back( &mHighResImageViewDialog );
+    mpImageViewDialogs.push_back( &mKinectColorImageViewDialog );
+    mpImageViewDialogs.push_back( &mKinectDepthColorImageViewDialog );
+
     // Set up a renderer and connect it to QT
     mpRenderer = vtkRenderer::New();
     qvtkWidget->GetRenderWindow()->AddRenderer( mpRenderer );
@@ -77,34 +87,38 @@ TmMainWindow::TmMainWindow()
 
     // Set up the pipeline to render a point cloud
     mpPointCloudSource = vtkSmartPointer<vtkPointCloudSource>::New();
-    mpCubeSource = vtkSmartPointer<vtkCubeSource>::New();
-    mpPointCloudGlyphs = vtkSmartPointer<vtkGlyph3D>::New();
     mpPointCloudMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
     mpPointCloudActor = vtkSmartPointer<vtkActor>::New();
 
-    mpCubeSource->SetXLength( 0.001 );
-    mpCubeSource->SetYLength( 0.001 );
-    mpCubeSource->SetZLength( 0.001 );
-    mpPointCloudGlyphs->SetSourceConnection( mpCubeSource->GetOutputPort() );
-    //mpPointCloudGlyphs->SetInput( mpPointCloudSource->GetOutput() );
-    //mpPointCloudGlyphs->SetInput( polydata );
-
-    //mpPointCloudMapper->SetInputConnection( mpPointCloudGlyphs->GetOutputPort() );
     mpPointCloudMapper->SetInputConnection( mpPointCloudSource->GetOutputPort() );
-    //mpPointCloudMapper->SetInput( polydata );
-    //mpPointCloudMapper->SetColorModeToDefault();
-	//	mpPointCloudMapper->SetScalarRange(-10.0, 10.0);
-	//	mpPointCloudMapper->SetScalarVisibility(1);
-
-
-    //mpPointCloudMapper->SetInputConnection( mpCubeSource->GetOutputPort() );
-
     mpPointCloudActor->SetMapper( mpPointCloudMapper );
-
-    //mpPointCloudActor->GetProperty()->SetRepresentationToPoints();
 
     mpRenderer->AddActor( mpPointCloudActor );
 
+    // Prepare to render pick point
+    mpPickCubeSource = vtkSmartPointer<vtkCubeSource>::New();
+    mpPickCubeMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mpPickCubeActor = vtkSmartPointer<vtkActor>::New();
+    mpPickLineMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mpPickLineActor = vtkSmartPointer<vtkActor>::New();
+
+    mpPickCubeSource->SetXLength( 0.0025 );
+    mpPickCubeSource->SetYLength( 0.0025 );
+    mpPickCubeSource->SetZLength( 0.0025 );
+
+    mpPickCubeMapper->SetInputConnection( mpPickCubeSource->GetOutputPort() );
+    mpPickCubeActor->SetMapper( mpPickCubeMapper );
+    mpPickCubeActor->GetProperty()->SetColor( 1.0, 0.0, 0.0 );
+    mpPickCubeActor->SetVisibility( 0 );
+
+    mpPickLineActor->SetMapper( mpPickLineMapper );
+    mpPickLineActor->GetProperty()->SetLineWidth( 2 );
+    mpPickLineActor->GetProperty()->SetColor( 1.0, 0.0, 0.0 );
+
+    mpRenderer->AddActor( mpPickCubeActor );
+    mpRenderer->AddActor( mpPickLineActor );
+
+    // Load in object model
     std::string dataDir = Utilities::getDataDir();
     QString modelFilename = QString( dataDir.c_str() ) + "/models/carrs_crackers.obj";
     loadObjModel( modelFilename );
@@ -135,6 +149,12 @@ TmMainWindow::TmMainWindow()
     mpRenderer->AddActor( mpTextMapActor );
 
     // Hook up signals
+    connect( this->action_New, SIGNAL( triggered() ), this, SLOT( onNew() ) );
+    connect( this->action_Open, SIGNAL( triggered() ), this, SLOT( onOpen() ) );
+    connect( this->action_Save, SIGNAL( triggered() ), this, SLOT( onSave() ) );
+    connect( this->action_Save_As, SIGNAL( triggered() ), this, SLOT( onSaveAs() ) );
+    connect( this->action_Quit, SIGNAL( triggered() ), this, SLOT( close() ) );
+
     connect( this->listViewFrames->selectionModel(), 
              SIGNAL( currentChanged( const QModelIndex&, const QModelIndex& ) ), 
              this, 
@@ -159,9 +179,73 @@ TmMainWindow::~TmMainWindow()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::onNew()
+{
+    // Clear the frame list
+    mFrames.clear();
+    refreshFrameList();
+    refreshImageDisplays( NULL );
+
+    // Update the 3D display
+    qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onOpen()
+{
+    std::string projectDir = Utilities::getDataDir() + "/text_mapper_projects";
+    std::string filename = QFileDialog::getOpenFileName( this,
+         tr( "Open Project" ), projectDir.c_str(), tr("Project Files (*.yaml)") ).toStdString();
+
+    if ( "" != filename )
+    {
+        loadProject( filename );
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onSave()
+{
+    if ( mProjectFilename == "" )
+    {
+        onSaveAs();
+    }
+    else
+    {
+        saveProject( mProjectFilename );
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onSaveAs()
+{
+    std::string projectDir = Utilities::getDataDir() + "/text_mapper_projects";
+
+    QFileDialog saveDialog( this );
+    saveDialog.setWindowTitle( tr( "Save Project" ) );
+    saveDialog.setNameFilter( tr("Project Files (*.yaml)") );
+    saveDialog.setDefaultSuffix( "yaml" );
+    saveDialog.setDirectory( projectDir.c_str() );
+    saveDialog.setAcceptMode( QFileDialog::AcceptSave );
+
+    if ( saveDialog.exec() )
+    {
+        saveProject( saveDialog.selectedFiles()[ 0 ].toStdString() );
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::onCurrentFrameChanged( const QModelIndex& current, const QModelIndex& previous )
 {
-    // TODO: Do stuff...
+    if ( current.isValid() )
+    {
+        int32_t currentFrameIdx = current.row();
+        if ( currentFrameIdx >= 0 && currentFrameIdx < (int32_t)mFrames.size() )
+        {
+            mFrames[ currentFrameIdx ].tryToLoadImages( false );
+            refreshImageDisplays( &mFrames[ currentFrameIdx ] );
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -170,7 +254,7 @@ void TmMainWindow::onBtnAddFrameClicked()
     FrameData newFrameData;
     if ( FrameDialog::createNewFrame( &newFrameData ) )
     {
-        refreshImageDisplays( newFrameData );
+        refreshImageDisplays( &newFrameData );
 
         mFrames.push_back( newFrameData );
         refreshFrameList();
@@ -195,7 +279,7 @@ void TmMainWindow::onBtnEditFrameClicked()
     {
         FrameDialog::editFrame( &mFrames[ curFrameIdx ] );
 
-        refreshImageDisplays( mFrames[ curFrameIdx ] );
+        refreshImageDisplays( &mFrames[ curFrameIdx ] );
         refreshFrameList();
     }
 }
@@ -208,6 +292,22 @@ void TmMainWindow::onBtnDeleteFrameClicked()
     {
         mFrames.erase( mFrames.begin() + curFrameIdx );
         refreshFrameList();
+
+        // Update the view to look at the current frame
+        if ( curFrameIdx >= (int32_t)mFrames.size() )
+        {
+            curFrameIdx = (int32_t)mFrames.size() - 1;
+        }
+
+        if ( curFrameIdx >= 0 )
+        {
+            this->listViewFrames->setCurrentIndex( mpFrameListModel->index( curFrameIdx ) );
+        }
+        else
+        {
+            // No frames left
+            refreshImageDisplays( NULL );
+        }
     }
 }
 
@@ -401,37 +501,164 @@ void TmMainWindow::onCheckShowModelClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::closeEvent( QCloseEvent* pEvent )
+{
+    for ( uint32_t dialogIdx = 0; dialogIdx < mpImageViewDialogs.size(); dialogIdx++ )
+    {
+        mpImageViewDialogs[ dialogIdx ]->close();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::loadProject( const std::string& projectFilename )
+{
+    // Read in the new project
+    cv::FileStorage fileStorage;
+    fileStorage.open( projectFilename, cv::FileStorage::READ );
+
+    std::vector<FrameData> newFrames;
+    cv::FileNode framesNode = fileStorage[ "Frames" ];
+
+    newFrames.reserve( framesNode.size() );
+    for ( uint32_t frameIdx = 0; frameIdx < framesNode.size(); frameIdx++ )
+    {
+        cv::FileNode frameNode = framesNode[ frameIdx ];
+        FrameData frameData;
+        frameNode[ "HighResImage" ] >> frameData.mHighResImageFilename;
+        frameData.mHighResImageFilename = Utilities::decodeRelativeFilename(
+            projectFilename, frameData.mHighResImageFilename );
+        frameNode[ "KinectColorImage" ] >> frameData.mKinectColorImageFilename;
+        frameData.mKinectColorImageFilename = Utilities::decodeRelativeFilename(
+            projectFilename, frameData.mKinectColorImageFilename );
+        frameNode[ "KinectDepthPointCloud" ] >> frameData.mKinectDepthPointCloudFilename;
+        frameData.mKinectDepthPointCloudFilename = Utilities::decodeRelativeFilename(
+            projectFilename, frameData.mKinectDepthPointCloudFilename );
+
+        newFrames.push_back( frameData );
+    }
+
+    mProjectFilename = projectFilename;
+
+    // Clear out the existing project
+    onNew();
+
+    mFrames = newFrames;
+    refreshFrameList();
+
+    // Select the first frame
+    this->listViewFrames->setCurrentIndex( mpFrameListModel->index( 0 ) );
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::saveProject( const std::string& projectFilename )
+{
+    // Write the data as a YAML file to memory
+    cv::FileStorage fileStorage( projectFilename, cv::FileStorage::WRITE );
+
+    fileStorage << "Frames" << "[";
+    for ( uint32_t frameIdx = 0; frameIdx < mFrames.size(); frameIdx++ )
+    {
+        fileStorage << "{";
+
+        const FrameData& frameData = mFrames[ frameIdx ];
+        fileStorage << "HighResImage"
+            << Utilities::createRelativeFilename( projectFilename, frameData.mHighResImageFilename );
+
+        fileStorage << "KinectColorImage"
+            << Utilities::createRelativeFilename( projectFilename, frameData.mKinectColorImageFilename );
+
+        fileStorage << "KinectDepthPointCloud"
+            << Utilities::createRelativeFilename( projectFilename, frameData.mKinectDepthPointCloudFilename );
+
+        fileStorage << "}";
+    }
+
+    fileStorage << "]";
+
+    mProjectFilename = projectFilename;
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint ) const
 {
     if ( &mHighResImageViewDialog ==  pImageViewDialog )
     {
         const Eigen::Matrix4d& camWorldMtx = mHighResCamera.getCameraInWorldSpaceMatrix();
-        Eigen::Matrix4d invCamWorldMtx = camWorldMtx.inverse();
         const Eigen::Matrix3d& camCalibMtx = mHighResCamera.getCalibrationMatrix();
 
+        // Fancy method...
+        /*Eigen::Matrix4d invCamWorldMtx = camWorldMtx.inverse();
         Eigen::MatrixXd P = camCalibMtx*invCamWorldMtx.block<3,4>( 0, 0 );
         Eigen::MatrixXd Pinv =  P.transpose()*(P*P.transpose()).inverse();
 
-        //const Eigen::Vector3d& pickStart = camWorldMtx.block<3,1>( 0, 3 );
-
-        //const Eigen::Vector3d& camX = camWorldMtx.block<3,1>( 0, 0 );
-        //const Eigen::Vector3d& camY = camWorldMtx.block<3,1>( 0, 1 );
-        //const Eigen::Vector3d& camZ = camWorldMtx.block<3,1>( 0, 2 );
-
         Eigen::Vector4d camCentre = camWorldMtx.block<4,1>( 0, 3 );
 
-
-        Eigen::Vector3d homogImagePos( pickPoint.x(), pickPoint.y(), 1.0 );
+        std::cout << "pick point " << pickPoint.x() << ", " << pickPoint.y() << std::endl;
+        Eigen::Vector3d homogImagePos( (pickPoint.x() - camCalibMtx( 0, 2 )),
+            (pickPoint.y() - camCalibMtx( 1, 2 )), 1.0 );
         Eigen::Vector4d worldPos = Pinv*homogImagePos;
 
-        Eigen::Vector4d pickDir = worldPos - camCentre;
+        Eigen::Vector4d pickDir = worldPos - camCentre;*/
 
-        //std::cout << P*pickStart << std::endl;
 
-        // TODO: Calculate pick direction
+        // Simpler method...
+        const Eigen::Vector3d& camCentre = camWorldMtx.block<3,1>( 0, 3 );
 
-        mpPointCloudSource->GetPointCloudPtr()->pickSurface(
-			camCentre.block<3,1>( 0, 0 ).cast<float>(), pickDir.block<3,1>( 0, 0 ).cast<float>() );
+        const Eigen::Vector3d& camAxisX = camWorldMtx.block<3,1>( 0, 0 );
+        const Eigen::Vector3d& camAxisY = camWorldMtx.block<3,1>( 0, 1 );
+        const Eigen::Vector3d& camAxisZ = camWorldMtx.block<3,1>( 0, 2 );
+
+
+        double imagePlaneX = -(pickPoint.x() - camCalibMtx( 0, 2 )) / camCalibMtx( 0, 0 );
+        double imagePlaneY = -(pickPoint.y() - camCalibMtx( 1, 2 )) / camCalibMtx( 1, 1 );
+        Eigen::Vector3d pickDir = camAxisZ + imagePlaneX*camAxisX + imagePlaneY*camAxisY;
+
+
+
+        Eigen::Vector3f pickedWorldPos;
+        float distanceToSurface = mpPointCloudSource->GetPointCloudPtr()->pickSurface(
+			camCentre.cast<float>(), pickDir.cast<float>(),
+			&pickedWorldPos );
+
+        // Place the pick point
+        if ( distanceToSurface >= 0.0 )
+        {
+            std::cout << "Pos " << pickedWorldPos << std::endl;
+            mpPickCubeActor->SetPosition( pickedWorldPos[ 0 ], pickedWorldPos[ 1 ], pickedWorldPos[ 2 ] );
+            mpPickCubeActor->SetVisibility( 1 );
+        }
+        else
+        {
+            mpPickCubeActor->SetVisibility( 0 );
+        }
+
+        // Place a line to show the pick
+        vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
+        vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
+
+        // Create the line
+        points->InsertNextPoint( camCentre[ 0 ], camCentre[ 1 ], camCentre[ 2 ] );
+
+        Eigen::Vector3d pickLineEnd = camCentre + 4.0*pickDir;
+        points->InsertNextPoint( pickLineEnd[ 0 ], pickLineEnd[ 1 ], pickLineEnd[ 2 ] );
+
+        vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+        line->GetPointIds()->SetId( 0, 0 );
+        line->GetPointIds()->SetId( 1, 1 );
+
+        // Store the line
+        lines->InsertNextCell( line );
+
+        // Create a polydata to store everything in
+        vtkSmartPointer<vtkPolyData> linesPolyData = vtkSmartPointer<vtkPolyData>::New();
+
+        // Add the points and lines to the dataset
+        linesPolyData->SetPoints( points );
+        linesPolyData->SetLines( lines );
+
+        mpPickLineMapper->SetInput( linesPolyData );
+
+        this->qvtkWidget->update();
     }
 }
 
@@ -450,30 +677,36 @@ void TmMainWindow::refreshFrameList()
 }
 
 //--------------------------------------------------------------------------------------------------
-void TmMainWindow::refreshImageDisplays( const FrameData& frameData )
+void TmMainWindow::refreshImageDisplays( const FrameData* pFrameData )
 {
-    mHighResImageViewDialog.setImage( frameData.mHighResImage );
-    mHighResImageViewDialog.setWindowTitle( "High Res Image" );
-    mHighResImageViewDialog.show();
-    mKinectColorImageViewDialog.setImage( frameData.mKinectColorImage );
-    mKinectColorImageViewDialog.setWindowTitle( "Kinect Color Image" );
-    mKinectColorImageViewDialog.show();
-    mKinectDepthColorImageViewDialog.setImage( frameData.mpKinectDepthPointCloud->getImage() );
-    mKinectDepthColorImageViewDialog.setWindowTitle( "Kinect Depth Camera Color Image" );
-    mKinectDepthColorImageViewDialog.show();
-
-    mpPointCloudSource->SetPointCloudPtr( frameData.mpKinectDepthPointCloud );
-    this->qvtkWidget->update();
-
-    int32_t idx0 = frameData.mpKinectDepthPointCloud->getPointIdxAtImagePos( 324, 200 );
-    int32_t idx1 = frameData.mpKinectDepthPointCloud->getPointIdxAtImagePos( 372, 198 );
-    if ( PointCloud::INVALID_POINT_IDX != idx0 && PointCloud::INVALID_POINT_IDX != idx1 )
+    if ( NULL == pFrameData )
     {
-    	Eigen::Vector3f p0 = frameData.mpKinectDepthPointCloud->getPointWorldPos( idx0 );
-    	Eigen::Vector3f p1 = frameData.mpKinectDepthPointCloud->getPointWorldPos( idx1 );
+        // Hide image view dialogs
+        for ( uint32_t dialogIdx = 0; dialogIdx < mpImageViewDialogs.size(); dialogIdx++ )
+        {
+            mpImageViewDialogs[ dialogIdx ]->hide();
+        }
 
-    	printf( "Distance between points is %f\n", (p1 - p0).norm() );
+        // Clear the frame display
+        mpPointCloudActor->SetVisibility( 0 );
     }
+    else
+    {
+        mHighResImageViewDialog.setImage( pFrameData->mHighResImage );
+        mHighResImageViewDialog.setWindowTitle( "High Res Image" );
+        mHighResImageViewDialog.show();
+        mKinectColorImageViewDialog.setImage( pFrameData->mKinectColorImage );
+        mKinectColorImageViewDialog.setWindowTitle( "Kinect Color Image" );
+        mKinectColorImageViewDialog.show();
+        mKinectDepthColorImageViewDialog.setImage( pFrameData->mpKinectDepthPointCloud->getImage() );
+        mKinectDepthColorImageViewDialog.setWindowTitle( "Kinect Depth Camera Color Image" );
+        mKinectDepthColorImageViewDialog.show();
+
+        mpPointCloudSource->SetPointCloudPtr( pFrameData->mpKinectDepthPointCloud );
+        mpPointCloudActor->SetVisibility( 1 );
+    }
+
+    this->qvtkWidget->update();
 }
 
 //--------------------------------------------------------------------------------------------------

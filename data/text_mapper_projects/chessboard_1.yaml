@@ -1,0 +1,6 @@
+%YAML:1.0
+Frames:
+   -
+      HighResImage: "../../build/chessboard_highres_1.png"
+      KinectColorImage: "../../build/chessboard_1.png"
+      KinectDepthPointCloud: "../../build/chessboard_1.spc"

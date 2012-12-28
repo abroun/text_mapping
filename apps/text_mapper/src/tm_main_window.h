@@ -71,6 +71,11 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public: TmMainWindow();
     public: virtual ~TmMainWindow();
 
+    public slots: void onNew();
+    public slots: void onOpen();
+    public slots: void onSave();
+    public slots: void onSaveAs();
+
     public slots: void onCurrentFrameChanged( const QModelIndex& current, const QModelIndex& previous );  
     public slots: void onBtnAddFrameClicked();
     public slots: void onBtnEditFrameClicked();
@@ -83,10 +88,14 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public slots: void onBtnDownClicked();
     public slots: void onCheckShowModelClicked();
 
+    public: virtual void closeEvent( QCloseEvent* pEvent );
+
+    public: void loadProject( const std::string& projectFilename );
+    public: void saveProject( const std::string& projectFilename );
     public: void pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint ) const;
 
     private: void refreshFrameList();
-    private: void refreshImageDisplays( const FrameData& frameData );
+    private: void refreshImageDisplays( const FrameData* pFrameData );
 
     private: typedef std::list<Letter, Eigen::aligned_allocator<Letter> > LetterList;
     private: LetterList detectTextInImage( cv::Mat image );
@@ -120,6 +129,15 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: ImageViewDialog mHighResImageViewDialog;
     private: ImageViewDialog mKinectColorImageViewDialog;
     private: ImageViewDialog mKinectDepthColorImageViewDialog;
+    private: std::vector<ImageViewDialog*> mpImageViewDialogs;
+
+    // Members to render pick point
+    private: vtkSmartPointer<vtkCubeSource> mpPickCubeSource;
+    private: vtkSmartPointer<vtkPolyDataMapper> mpPickCubeMapper;
+    private: vtkSmartPointer<vtkActor> mpPickCubeActor;
+
+    private: vtkSmartPointer<vtkPolyDataMapper> mpPickLineMapper;
+    private: vtkSmartPointer<vtkActor> mpPickLineActor;
 
     // Text map stuff
     private: vtkSmartPointer<vtkJPEGReader> mpLettersJpegReader;
@@ -134,6 +152,8 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: Camera mHighResCamera;
     private: Camera mKinectColorCamera;
     private: Camera mKinectDepthCamera;
+
+    private: std::string mProjectFilename;
 
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };

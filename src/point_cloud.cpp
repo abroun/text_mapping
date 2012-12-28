@@ -434,41 +434,48 @@ void PointCloud::getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector
 }
 
 //--------------------------------------------------------------------------------------------------
-float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir, float close ) const
+float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir,
+    Eigen::Vector3f* pPosOut, float close ) const
 {
+    float dirLength = lineDir.norm();
+
+    if ( dirLength <= 0.0 )
+    {
+        return -1.0;
+    }
+
+    Eigen::Vector3f normLineDir = lineDir / dirLength;
+
     bool bPointFound = false;
-    float closestDistance = FLT_MAX;
     float closestRayToPointSquared = FLT_MAX;
+    Eigen::Vector3f closestPos = Eigen::Vector3f::Zero();
 
 	printf( "Start Pos is %f %f %f\n", lineStart[ 0 ], lineStart[ 1 ], lineStart[ 2 ] );
-    printf( "Dir length is %f\n", lineDir.squaredNorm() );
+    printf( "Dir length is %f\n", normLineDir.squaredNorm() );
 
-     uint32_t pointIdx = 0;
+    uint32_t pointIdx = 0;
     for  ( ; pointIdx < mPointWorldPositions.size(); pointIdx++ )
     {
         const Eigen::Vector3f& pos = mPointWorldPositions[ pointIdx ];
 
         Eigen::Vector3f vectorToPos = pos - lineStart;
-        float distanceToClosestApproach = vectorToPos.dot( lineDir );
+        float distanceToClosestApproach = vectorToPos.dot( normLineDir );
 
         if ( distanceToClosestApproach > 0.0f )
         {
-            Eigen::Vector3f closestPoint = lineStart + distanceToClosestApproach*lineDir;
+            Eigen::Vector3f closestPoint = lineStart + distanceToClosestApproach*normLineDir;
 
             float rayToPointSquared = ( pos - closestPoint ).squaredNorm();
 
             if ( rayToPointSquared < closestRayToPointSquared )
             {
                 closestRayToPointSquared = rayToPointSquared;
-            }
 
-            if ( rayToPointSquared < close*close )
-            {
-                // The ray comes close enough for contact
-                if ( distanceToClosestApproach < closestDistance )
+                if ( rayToPointSquared < close*close )
                 {
+                    // The ray comes close enough for contact
                     bPointFound = true;
-                    closestDistance = distanceToClosestApproach;
+                    closestPos = pos;
                 }
             }
         }
@@ -484,6 +491,11 @@ float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Ve
     }
     else
     {
-        return closestDistance;
+        if ( NULL != pPosOut )
+        {
+            *pPosOut = closestPos;
+        }
+
+        return sqrtf( closestRayToPointSquared );
     }
 }

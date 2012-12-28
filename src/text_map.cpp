@@ -68,26 +68,7 @@ TextMap::Ptr TextMap::loadTextMapFromFile( const std::string& filename )
             
             if ( curLine != NO_MODEL_FILENAME )
             {                
-                boost::filesystem::path modelBasePath = 
-                    boost::filesystem::path( filename ).parent_path();
-                    
-                boost::filesystem::path::iterator basePathEndIter = modelBasePath.end();
-                
-                while ( curLine.find( "../" ) == 0 )
-                {
-                    curLine = curLine.substr( 3 );
-                    basePathEndIter--;
-                }
-                
-                boost::filesystem::path modelPath;
-                for ( boost::filesystem::path::iterator basePathIter = modelBasePath.begin();
-                    basePathIter != basePathEndIter; basePathIter++ )
-                {
-                    modelPath /= *basePathIter;
-                }
-                modelPath /= curLine;
-                
-                pTextMap->mModelFilename = modelPath.string();
+                pTextMap->mModelFilename = Utilities::decodeRelativeFilename( filename, curLine );
                 
                 printf( "Got a model filename of %s\n", pTextMap->mModelFilename.c_str() );
             }

@@ -136,28 +136,9 @@ void FrameDialog::accept()
     mFrameData.mKinectDepthPointCloudFilename = this->editKinectDepthPointCloudFilename->text().toStdString();
 
     // Try to load in the images
-    mFrameData.mHighResImage = cv::imread( mFrameData.mHighResImageFilename );
-    if ( NULL == mFrameData.mHighResImage.data )
+    if ( !mFrameData.tryToLoadImages( true ) )
     {
-        QMessageBox::critical( this, "Error", "Unable to load high resolution image" );
         return;
-    }
-    cv::cvtColor( mFrameData.mHighResImage, mFrameData.mHighResImage, CV_BGR2RGB );
-
-    mFrameData.mKinectColorImage = cv::imread( mFrameData.mKinectColorImageFilename );
-    if ( NULL == mFrameData.mKinectColorImage.data )
-    {
-        QMessageBox::critical( this, "Error", "Unable to load Kinect color image" );
-        return;
-    }
-    cv::cvtColor( mFrameData.mKinectColorImage, mFrameData.mKinectColorImage, CV_BGR2RGB );
-
-    // Try to load in the point cloud
-    mFrameData.mpKinectDepthPointCloud = PointCloud::loadPointCloudFromSpcFile( mFrameData.mKinectDepthPointCloudFilename );
-    if ( NULL == mFrameData.mpKinectDepthPointCloud )
-    {
-    	QMessageBox::critical( this, "Error", "Unable to load Kinect point cloud" );
-		return;
     }
 
     QDialog::accept();

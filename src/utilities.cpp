@@ -109,6 +109,39 @@ std::string Utilities::createRelativeFilename( const std::string& baseFilename,
 }
 
 //--------------------------------------------------------------------------------------------------
+std::string Utilities::decodeRelativeFilename( const std::string& baseFilename,
+                                               const std::string& relativeFilename )
+{
+    // Check that the relative filename is actually relative before preceding
+    boost::filesystem::path relativeFilenamePath( relativeFilename );
+    if ( relativeFilenamePath.is_absolute() )
+    {
+        return relativeFilename;
+    }
+
+    boost::filesystem::path basePath = boost::filesystem::path( baseFilename ).parent_path();
+
+    boost::filesystem::path::iterator basePathEndIter = basePath.end();
+
+    std::string otherFilename = relativeFilename;
+    while ( otherFilename.find( "../" ) == 0 )
+    {
+        otherFilename = otherFilename.substr( 3 );
+        basePathEndIter--;
+    }
+
+    boost::filesystem::path filePath;
+    for ( boost::filesystem::path::iterator basePathIter = basePath.begin();
+        basePathIter != basePathEndIter; basePathIter++ )
+    {
+        filePath /= *basePathIter;
+    }
+    filePath /= otherFilename;
+
+    return filePath.string();
+}
+
+//--------------------------------------------------------------------------------------------------
 std::string Utilities::getDataDir()
 {
     const char* pDirectoryName = std::getenv( "TEXT_MAPPING_DATA_DIR" );

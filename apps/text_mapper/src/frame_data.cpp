@@ -28,37 +28,63 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 //--------------------------------------------------------------------------------------------------
-// File: frame_data.h
+// File: frame_data.cpp
 // Desc: A simple struct for holding the properties and data of a frame
 //--------------------------------------------------------------------------------------------------
 
-#ifndef FRAME_DATA_H_
-#define FRAME_DATA_H_
+//--------------------------------------------------------------------------------------------------
+#include <QtGui/qmessagebox.h>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include "frame_data.h"
 
 //--------------------------------------------------------------------------------------------------
-#include <string>
-#include <opencv2/core/core.hpp>
-#include "text_mapping/point_cloud.h"
-
+// FrameData
 //--------------------------------------------------------------------------------------------------
-struct FrameData
+bool FrameData::tryToLoadImages( bool bShowErrorMsgBox )
 {
-    std::string mHighResImageFilename;
-	std::string mKinectColorImageFilename;
-	std::string mKinectDepthPointCloudFilename;
+    // Try to load in the images
+    mHighResImage = cv::imread( mHighResImageFilename );
+    if ( NULL == mHighResImage.data )
+    {
+        if ( bShowErrorMsgBox )
+        {
+            QMessageBox::critical( NULL, "Error", "Unable to load high resolution image" );
+        }
+        return false;
+    }
+    cv::cvtColor( mHighResImage, mHighResImage, CV_BGR2RGB );
 
-    cv::Mat mHighResImage;
-    cv::Mat mKinectColorImage;
-    PointCloud::Ptr mpKinectDepthPointCloud;
+    mKinectColorImage = cv::imread( mKinectColorImageFilename );
+    if ( NULL == mKinectColorImage.data )
+    {
+        if ( bShowErrorMsgBox )
+        {
+            QMessageBox::critical( NULL, "Error", "Unable to load Kinect color image" );
+        }
+        return false;
+    }
+    cv::cvtColor( mKinectColorImage, mKinectColorImage, CV_BGR2RGB );
 
-    //! Tries to load in the images referenced by the filenames.
-    //! @param bShowErrorMsgBox If set to true, the user will be shown a message box telling them
-    //!        about the missing image
-    //! @return true if all the images were loaded, and false otherwise
-    bool tryToLoadImages( bool bShowErrorMsgBox );
+    // Try to load in the point cloud
+    mpKinectDepthPointCloud = PointCloud::loadPointCloudFromSpcFile( mKinectDepthPointCloudFilename );
+    if ( NULL == mpKinectDepthPointCloud )
+    {
+        if ( bShowErrorMsgBox )
+        {
+            QMessageBox::critical( NULL, "Error", "Unable to load Kinect point cloud" );
+        }
+        return false;
+    }
 
-    //! Unloads images to save memory
-    void unloadImages();
-};
+    return true;
+}
 
-#endif // FRAME_DATA_H_
+//--------------------------------------------------------------------------------------------------
+void FrameData::unloadImages()
+{
+    mHighResImage = cv::Mat();
+    mKinectColorImage = cv::Mat();
+    mpKinectDepthPointCloud = PointCloud::Ptr();
+}
+
