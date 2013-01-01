@@ -6,36 +6,69 @@
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include <boost/filesystem.hpp>
+#include <stdexcept>
 
-std::vector<std::string> LoadConfig(std::string FileAddress, cv::Size* pBoardSizeOut, cv::Size* pBoardSizeMmOut,std::string* note)
+//--------------------------------------------------------------------------------------------------
+std::vector<std::string> LoadConfig(std::string fileAddress,
+    cv::Size* pBoardSizeOut, cv::Size* pBoardSizeMmOut,
+    std::string* pCameraNameOut, bool* pUseDotPatternOut )
 {
-	std::ifstream LOADFILE(FileAddress.c_str());
-	if (!LOADFILE.is_open())
-		std::cout <<"File Failed to Open\n";
-	else
-		std::cout <<"File opened!\n";
+    cv::FileStorage fileStorage( fileAddress, cv::FileStorage::READ );
 
-	std::string firstLine;
-	if ( getline(LOADFILE, firstLine) )
-	{
-		std::stringstream ss( firstLine );
-		ss >> pBoardSizeOut->width >> pBoardSizeOut->height >> pBoardSizeMmOut->width >> pBoardSizeMmOut->height >> *note;
-	}
+    if ( !fileStorage.isOpened() )
+    {
+        throw std::runtime_error( "Unable to open config file" );
+    }
 
-	std::string value;
-	std::vector<std::string> Output;
+    // Read out BoardSize
+    cv::FileNode boardSizeNode = fileStorage[ "BoardSize" ];
+    if ( boardSizeNode.size() != 2 || !boardSizeNode[ 0 ].isInt() || !boardSizeNode[ 1 ].isInt() )
+    {
+        throw std::runtime_error( "Unable to read BoardSize" );
+    }
+    pBoardSizeOut->width = (int)(boardSizeNode[ 0 ]);
+    pBoardSizeOut->height = (int)(boardSizeNode[ 1 ]);
 
-	boost::filesystem::path configFilePath( FileAddress );
-	std::string parentPath = configFilePath.parent_path().string();
+    // Read out BoardSizeMM
+    cv::FileNode boardSizeMMNode = fileStorage[ "BoardSizeMM" ];
+    if ( boardSizeMMNode.size() != 2 || !boardSizeMMNode[ 0 ].isInt() || !boardSizeMMNode[ 1 ].isInt() )
+    {
+        throw std::runtime_error( "Unable to read BoardSizeMM" );
+    }
+    pBoardSizeMmOut->width = (int)(boardSizeMMNode[ 0 ]);
+    pBoardSizeMmOut->height = (int)(boardSizeMMNode[ 1 ]);
 
-	while (getline(LOADFILE, value))
-	{
-		Output.push_back( parentPath + "/" + value );
-	}
+    // Read out CameraName
+    cv::FileNode cameraNameNode = fileStorage[ "CameraName" ];
+    if ( !cameraNameNode.isString() )
+    {
+        throw std::runtime_error( "Unable to read CameraName" );
+    }
+    *pCameraNameOut = (std::string)cameraNameNode;
 
+    // Read out UseDotPattern
+    *pUseDotPatternOut = false;
+    cv::FileNode useDotPatternNode = fileStorage[ "UseDotPattern" ];
+    if ( useDotPatternNode.isInt() )
+    {
+        *pUseDotPatternOut = ((int)useDotPatternNode != 0);
+    }
 
-	return Output;
+    // Read in the image file names
+    std::vector<std::string> imageFilenames;
 
+    boost::filesystem::path configFilePath( fileAddress );
+    std::string parentPath = configFilePath.parent_path().string();
+
+    cv::FileNode imageFilesNode = fileStorage[ "ImageFiles" ];
+    for ( uint32_t fileIdx = 0; fileIdx < imageFilesNode.size(); fileIdx++ )
+    {
+        imageFilenames.push_back( parentPath + "/" + (std::string)(imageFilesNode[ fileIdx ]) );
+    }
+
+    fileStorage.release();
+
+	return imageFilenames;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -63,10 +96,12 @@ int main(int argc, char** argv)
 
 	cv::Size imageSize;
 
-	std::string note;
+	std::string cameraName;
+	bool bUseDotPattern;
 
 	std::string configFilename( argv[ 1 ] );
-	std::vector<std::string> NameLocation = LoadConfig(configFilename,&boardSize,&boardSizeMm,&note);
+	std::vector<std::string> NameLocation = LoadConfig(
+	    configFilename,&boardSize,&boardSizeMm,&cameraName,&bUseDotPattern);
 
 	float squareWidth = ((float)boardSizeMm.width/1000.0f)/(boardSize.width-1);
 	float squareHeight = ((float)boardSizeMm.height/1000.0f)/(boardSize.height-1);
@@ -101,8 +136,8 @@ int main(int argc, char** argv)
 		std::cout << "Image Name " <<ImageAddress << std::endl;
 		cv::Mat image,colorimage1,colorimage2;
 		image =cv::imread(ImageAddress, CV_LOAD_IMAGE_GRAYSCALE);
-		//colorimage1 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
-		//colorimage2 =cv::imread(FILE_DIR + ImageAddress, CV_LOAD_IMAGE_COLOR);
+		//colorimage1 =cv::imread(ImageAddress, CV_LOAD_IMAGE_COLOR);
+		//colorimage2 =cv::imread(ImageAddress, CV_LOAD_IMAGE_COLOR);
 
 		imageSize.height = image.rows;
 		imageSize.width = image.cols;
@@ -115,9 +150,22 @@ int main(int argc, char** argv)
 		std::vector<cv::Point2f> imageCorners;
 
 		// number of corners on the chessboard
-		bool found = cv::findChessboardCorners(image,boardSize,imageCorners);
+		bool found = false;
+		if ( !bUseDotPattern )
+		{
+		    found = cv::findChessboardCorners(image,boardSize,imageCorners);
 
-		if ( !found )
+		    if ( found )
+		    {
+                //cv::drawChessboardCorners(colorimage1,boardSize,imageCorners,found);
+
+                //Get subpixel accuracy on the corners
+                //cv::cornerSubPix(image,imageCorners,cv::Size(5,5),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,100,0.225));
+
+                //cv::drawChessboardCorners(colorimage2,boardSize,imageCorners,found);
+		    }
+		}
+		else
 		{
 		    printf( "Looking for circles...\n" );
 		    found = cv::findCirclesGrid(image,boardSize,imageCorners);
@@ -128,12 +176,9 @@ int main(int argc, char** argv)
 		    printf( "Warning: Unable to find corners in %s\n", ImageAddress.c_str() );
 		    continue;
 		}
+
 		//cv::drawChessboardCorners(colorimage1,boardSize,imageCorners,found);
 
-		//Get subpixel accuracy on the corners
-		//cv::cornerSubPix(image,imageCorners,cv::Size(5,5),cv::Size(-1,-1),cv::TermCriteria(cv::TermCriteria::MAX_ITER + cv::TermCriteria::EPS,100,0.225));
-
-		//cv::drawChessboardCorners(colorimage2,boardSize,imageCorners,found);
 
 		//If we have a good board, add it to our data
 		if(imageCorners.size() == (uint32_t)boardSize.area())
@@ -166,7 +211,7 @@ int main(int argc, char** argv)
 	        CV_CALIB_ZERO_TANGENT_DIST | CV_CALIB_FIX_K1 | CV_CALIB_FIX_K2 | CV_CALIB_FIX_K3
 	        | CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5 | CV_CALIB_FIX_K6 )<< std::endl;
 
-	cv::FileStorage fs((note + "_cameraMatrix.yml").c_str(), cv::FileStorage::WRITE);
+	cv::FileStorage fs((cameraName + "_cameraMatrix.yml").c_str(), cv::FileStorage::WRITE);
     fs << "cameraMatrix" << cameraMatrix;
 	fs << "distCoeffs" << distCoeffs;
 

@@ -1,16 +1,21 @@
-22 10 400 173 Kinect
-K1.bmp
-K2.bmp
-K3.bmp
-K4.bmp
-K5.bmp
-K6.bmp
-K7.bmp
-K8.bmp
-K9.bmp
-K10.bmp
-K11.bmp
-K12.bmp
-K13.bmp
-K14.bmp
-K15.bmp
+%YAML:1.0
+BoardSize: [ 22, 10 ]
+BoardSizeMM: [ 400, 173 ]
+CameraName: Kinect
+UseDotPattern: 0
+ImageFiles:
+   - "Kinect/k1.bmp"
+   - "Kinect/k2.bmp"
+   - "Kinect/k3.bmp"
+   - "Kinect/k4.bmp"
+   - "Kinect/k5.bmp"
+   - "Kinect/k6.bmp"
+   - "Kinect/k7.bmp"
+   - "Kinect/k8.bmp"
+   - "Kinect/k9.bmp"
+   - "Kinect/k10.bmp"
+   - "Kinect/k11.bmp"
+   - "Kinect/k12.bmp"
+   - "Kinect/k13.bmp"
+   - "Kinect/k14.bmp"
+   - "Kinect/k15.bmp"

@@ -1,8 +1,14 @@
-8 6 140 100 KinectRGB
-KinectRGB/chessboard_1.png
-KinectRGB/chessboard_2.png
-KinectRGB/chessboard_3.png
-KinectRGB/chessboard_4.png
-KinectRGB/chessboard_5.png
-KinectRGB/chessboard_6.png
-KinectRGB/chessboard_7.png
+%YAML:1.0
+BoardSize: [ 8, 6 ]
+BoardSizeMM: [ 140, 100 ]
+CameraName: KinectRGB
+UseDotPattern: 0
+ImageFiles:
+   - "KinectRGB/chessboard_1.png"
+   - "KinectRGB/chessboard_2.png"
+   - "KinectRGB/chessboard_3.png"
+   - "KinectRGB/chessboard_4.png"
+   - "KinectRGB/chessboard_5.png"
+   - "KinectRGB/chessboard_6.png"
+   - "KinectRGB/chessboard_7.png"
+
