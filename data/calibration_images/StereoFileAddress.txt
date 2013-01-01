@@ -1,3 +1,11 @@
-9 6 131 83 1
-K25.jpg
-C25.jpg
+%YAML:1.0
+BoardSize: [ 9, 6 ]
+BoardSizeMM: [ 131, 83 ]
+FirstCameraName: KinectRGB
+SecondCameraName: HighResRGB
+FirstCameraCalibrationFile: "Kinect_cameraMatrix.yml"
+SecondCameraCalibrationFile: "canon_zoom4_cameraMatrix_2.yml"
+UseDotPattern: 0
+ImageFilePairs:
+    - First: "k25.jpg"
+      Second: "c25.jpg"

@@ -146,31 +146,31 @@ void initialiseTestPositions()
     gRelativeCalibrationPositions.clear();
 
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) ) );
 
     // Rotate around X
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.7 ),
             cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) ) );
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.9 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) ) );
 
     // Rotate around Y
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
         cv::Vec3d( Utilities::degToRad( -40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.7 ),
         cv::Vec3d( Utilities::degToRad( 40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
 
     // Rotate around Z
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( -40.0 ) ) ) );
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.0, 1.0 ),
+        PoseData( cv::Vec3d( 0.0, 0.07, 0.9 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( 40.0 ) ) ) );
 }
 
@@ -677,6 +677,10 @@ int main( int argc, char** argv )
     dataFile << "T" << cv::Mat( highResInKinectRGBSpace, cv::Rect( 3, 0, 1, 3 ) );
 
     dataFile.release();
+
+    //std::cout << kinectRGBWorldMtx << std::endl;
+    //std::cout << highResWorldMtx << std::endl;
+    //std::cout << highResInKinectRGBSpace << std::endl;
 
     return 0;
 }

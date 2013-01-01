@@ -5,13 +5,13 @@
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
-#include <boost/filesystem.hpp>
+#include "text_mapping/utilities.h"
 #include <stdexcept>
 
 //--------------------------------------------------------------------------------------------------
 std::vector<std::string> LoadConfig(std::string fileAddress,
     cv::Size* pBoardSizeOut, cv::Size* pBoardSizeMmOut,
-    std::string* pCameraNameOut, bool* pUseDotPatternOut )
+    std::string* pCameraNameOut, bool* pbUseDotPatternOut )
 {
     cv::FileStorage fileStorage( fileAddress, cv::FileStorage::READ );
 
@@ -47,23 +47,21 @@ std::vector<std::string> LoadConfig(std::string fileAddress,
     *pCameraNameOut = (std::string)cameraNameNode;
 
     // Read out UseDotPattern
-    *pUseDotPatternOut = false;
+    *pbUseDotPatternOut = false;
     cv::FileNode useDotPatternNode = fileStorage[ "UseDotPattern" ];
     if ( useDotPatternNode.isInt() )
     {
-        *pUseDotPatternOut = ((int)useDotPatternNode != 0);
+        *pbUseDotPatternOut = ((int)useDotPatternNode != 0);
     }
 
     // Read in the image file names
     std::vector<std::string> imageFilenames;
 
-    boost::filesystem::path configFilePath( fileAddress );
-    std::string parentPath = configFilePath.parent_path().string();
-
     cv::FileNode imageFilesNode = fileStorage[ "ImageFiles" ];
     for ( uint32_t fileIdx = 0; fileIdx < imageFilesNode.size(); fileIdx++ )
     {
-        imageFilenames.push_back( parentPath + "/" + (std::string)(imageFilesNode[ fileIdx ]) );
+        imageFilenames.push_back( Utilities::decodeRelativeFilename(
+            fileAddress, (std::string)(imageFilesNode[ fileIdx ]) ) );
     }
 
     fileStorage.release();
@@ -218,6 +216,6 @@ int main(int argc, char** argv)
 	std::cout << cameraMatrix << std::endl;
 
 	std::cout << "Finished Camera Calibration" << std::endl;
-	std::cin.ignore();
+
 	return 0;
 }

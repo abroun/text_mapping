@@ -1,0 +1,25 @@
+%YAML:1.0
+BoardSize: [ 8, 6 ]
+BoardSizeMM: [ 140, 100 ]
+FirstCameraName: KinectRGB
+SecondCameraName: HighResRGB
+FirstCameraCalibrationFile: "../KinectRGB_cameraMatrix.yml"
+SecondCameraCalibrationFile: "../HighResRGB_cameraMatrix.yml"
+UseDotPattern: 1
+ImageFilePairs:
+    - First: "relative_chessboard_1.png"
+      Second: "relative_chessboard_highres_1.png"
+    - First: "relative_chessboard_2.png"
+      Second: "relative_chessboard_highres_2.png"
+    - First: "relative_chessboard_3.png"
+      Second: "relative_chessboard_highres_3.png"
+    - First: "relative_chessboard_4.png"
+      Second: "relative_chessboard_highres_4.png"
+    - First: "relative_chessboard_5.png"
+      Second: "relative_chessboard_highres_5.png"
+    - First: "relative_chessboard_6.png"
+      Second: "relative_chessboard_highres_6.png"
+    - First: "relative_chessboard_7.png"
+      Second: "relative_chessboard_highres_7.png"
+
+      
