@@ -8,9 +8,6 @@
 #include "text_mapping/utilities.h"
 #include <stdexcept>
 
-const std::string FILE_DIR = "E:/MOET Work/text_mapping/data/calibration_images/";
-const std::string FILE_ADDRESS = FILE_DIR + "StereoFileAddress.txt";
-
 //--------------------------------------------------------------------------------------------------
 std::vector<std::pair<std::string, std::string> > LoadConfig(std::string fileAddress,
     cv::Size* pBoardSizeOut, cv::Size* pBoardSizeMmOut,
@@ -165,16 +162,24 @@ bool findImageCorners( std::string imageFilename, cv::Size boardSize, bool bUseD
 
         printf( "Found %lu of %i corners\n", pImageCornersOut->size(), boardSize.area() );
 
-        cv::drawChessboardCorners(image,boardSize,*pImageCornersOut,bCornersFound);
-        cv::imshow( "Corners", image );
-        cv::waitKey();
-        cv::destroyWindow("Corners");
+        //cv::drawChessboardCorners(image,boardSize,*pImageCornersOut,bCornersFound);
+        //cv::imshow( "Corners", image );
+        //cv::waitKey();
+        //cv::destroyWindow("Corners");
     }
 
     // Check that we've got the correct number of corners
     if( pImageCornersOut->size() != (uint32_t)boardSize.area() )
     {
         bCornersFound = false;
+    }
+    else
+    {
+        for ( uint32_t cornerIdx = 0; cornerIdx < pImageCornersOut->size(); cornerIdx++ )
+        {
+            (*pImageCornersOut)[ cornerIdx ].x = image.cols - (*pImageCornersOut)[ cornerIdx ].x;
+            (*pImageCornersOut)[ cornerIdx ].y = image.rows - (*pImageCornersOut)[ cornerIdx ].y;
+        }
     }
 
     return bCornersFound;
@@ -213,23 +218,7 @@ int main(int argc, char** argv)
 	    return -1;
 	}
 
-	// Work out the scale factor from the first camera images to the second camera images
-	cv::Mat firstImage = cv::imread( imageFilenamePairs[ 0 ].first );
-	cv::Mat secondImage = cv::imread( imageFilenamePairs[ 0 ].second );
 
-	if ( fabs( (float)firstImage.cols/(float)firstImage.rows
-	    - (float)secondImage.cols/(float)secondImage.rows ) > 0.0001 )
-	{
-	    fprintf( stderr, "Error: The camera images do not have the same aspect ratio\n" );
-	    return -1;
-	}
-
-	float scaleFromSecondToFirstCamera = (float)firstImage.cols/(float)secondImage.cols;
-
-	printf( "Scale from second to first image is %f\n", scaleFromSecondToFirstCamera );
-
-	float squareWidth = ((float)boardSizeMm.width/1000.0f)/(boardSize.width-1);
-	float squareHeight = ((float)boardSizeMm.height/1000.0f)/(boardSize.height-1);
 
 
 	//The points positions in pixels
@@ -259,13 +248,6 @@ int main(int argc, char** argv)
             continue;
         }
 
-	    // Scale the second image corners to match those in the first image
-	    for ( uint32_t cornerIdx = 0; cornerIdx < secondCameraCorners.size(); cornerIdx++ )
-	    {
-	        secondCameraCorners.at( cornerIdx ).x *= scaleFromSecondToFirstCamera;
-	        secondCameraCorners.at( cornerIdx ).y *= scaleFromSecondToFirstCamera;
-	    }
-
 	    firstCameraPoints.push_back( firstCameraCorners );
 	    secondCameraPoints.push_back( secondCameraCorners );
 	}
@@ -277,14 +259,17 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    float squareWidth = ((float)boardSizeMm.width/1000.0f)/(boardSize.width-1);
+    float squareHeight = ((float)boardSizeMm.height/1000.0f)/(boardSize.height-1);
     std::vector<cv::Point3f> objectCorners;
 
     //The points in the world coordinates
     std::vector<std::vector<cv::Point3f>> objectPoints;
 
-    for(int i=0; i<boardSize.height; i++)
+    for(int i=boardSize.height-1; i>=0; i--)
+    //for(int i=0; i<boardSize.height; i++)
         for(int j=0; j<boardSize.width; j++)
-            objectCorners.push_back(cv::Point3f(i*squareHeight,j*squareWidth,0.0f));
+            objectCorners.push_back(cv::Point3f(j*squareWidth,i*squareHeight,0.0f));
 
     for ( uint32_t pairIdx = 0; pairIdx < firstCameraPoints.size(); pairIdx++ )
     {
@@ -306,22 +291,12 @@ int main(int argc, char** argv)
 	secondCalibFile[ "distCoeffs" ] >> secondDistCoeffs;
 	cv::Mat R,T,E,F;
 
-	// Scale the second camera calibration matrix to match those of the first camera
-	// TODO: Investigate to see if this is needed for the distortion coefficients as well
-	secondCalibMatrix.at<double>(0,0) *= scaleFromSecondToFirstCamera;
-	secondCalibMatrix.at<double>(0,2) *= scaleFromSecondToFirstCamera;
-	secondCalibMatrix.at<double>(1,1) *= scaleFromSecondToFirstCamera;
-	secondCalibMatrix.at<double>(1,2) *= scaleFromSecondToFirstCamera;
-
 	std::cout << "Error  "
 	    << cv::stereoCalibrate(
-	        objectPoints, firstCameraPoints, secondCameraPoints,
-	        firstCalibMatrix, firstDistCoeffs,
+	        objectPoints, secondCameraPoints, firstCameraPoints,
 	        secondCalibMatrix, secondDistCoeffs,
-	        cv::Size(firstImage.cols,firstImage.rows), R, T, E, F ) << std::endl;
-
-	// TODO: Understand, and if needed, fix, the apparent need to reverse the z-axis...
-	//T.at<double>( 2 ) = -T.at<double>( 2 );
+	        firstCalibMatrix, firstDistCoeffs,
+	        cv::Size(0, 0), R, T, E, F ) << std::endl;
 
 	std::cout << "R\n\n\n" << R << "\n\n\n" << std::endl;
 

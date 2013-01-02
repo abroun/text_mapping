@@ -514,9 +514,12 @@ void TmMainWindow::closeEvent( QCloseEvent* pEvent )
 //--------------------------------------------------------------------------------------------------
 void TmMainWindow::loadProject( const std::string& projectFilename )
 {
+    // Convert project filename to an absolute filename
+    std::string absProjectFilename = Utilities::makeFilenameAbsoluteFromCWD( projectFilename );
+
     // Read in the new project
     cv::FileStorage fileStorage;
-    fileStorage.open( projectFilename, cv::FileStorage::READ );
+    fileStorage.open( absProjectFilename, cv::FileStorage::READ );
 
     std::vector<FrameData> newFrames;
     cv::FileNode framesNode = fileStorage[ "Frames" ];
@@ -528,18 +531,18 @@ void TmMainWindow::loadProject( const std::string& projectFilename )
         FrameData frameData;
         frameNode[ "HighResImage" ] >> frameData.mHighResImageFilename;
         frameData.mHighResImageFilename = Utilities::decodeRelativeFilename(
-            projectFilename, frameData.mHighResImageFilename );
+            absProjectFilename, frameData.mHighResImageFilename );
         frameNode[ "KinectColorImage" ] >> frameData.mKinectColorImageFilename;
         frameData.mKinectColorImageFilename = Utilities::decodeRelativeFilename(
-            projectFilename, frameData.mKinectColorImageFilename );
+            absProjectFilename, frameData.mKinectColorImageFilename );
         frameNode[ "KinectDepthPointCloud" ] >> frameData.mKinectDepthPointCloudFilename;
         frameData.mKinectDepthPointCloudFilename = Utilities::decodeRelativeFilename(
-            projectFilename, frameData.mKinectDepthPointCloudFilename );
+            absProjectFilename, frameData.mKinectDepthPointCloudFilename );
 
         newFrames.push_back( frameData );
     }
 
-    mProjectFilename = projectFilename;
+    mProjectFilename = absProjectFilename;
 
     // Clear out the existing project
     onNew();
@@ -554,8 +557,11 @@ void TmMainWindow::loadProject( const std::string& projectFilename )
 //--------------------------------------------------------------------------------------------------
 void TmMainWindow::saveProject( const std::string& projectFilename )
 {
+    // Convert project filename to an absolute filename
+    std::string absProjectFilename = Utilities::makeFilenameAbsoluteFromCWD( projectFilename );
+
     // Write the data as a YAML file to memory
-    cv::FileStorage fileStorage( projectFilename, cv::FileStorage::WRITE );
+    cv::FileStorage fileStorage( absProjectFilename, cv::FileStorage::WRITE );
 
     fileStorage << "Frames" << "[";
     for ( uint32_t frameIdx = 0; frameIdx < mFrames.size(); frameIdx++ )
@@ -564,20 +570,23 @@ void TmMainWindow::saveProject( const std::string& projectFilename )
 
         const FrameData& frameData = mFrames[ frameIdx ];
         fileStorage << "HighResImage"
-            << Utilities::createRelativeFilename( projectFilename, frameData.mHighResImageFilename );
+            << Utilities::createRelativeFilename( absProjectFilename,
+                Utilities::makeFilenameAbsoluteFromCWD( frameData.mHighResImageFilename ) );
 
         fileStorage << "KinectColorImage"
-            << Utilities::createRelativeFilename( projectFilename, frameData.mKinectColorImageFilename );
+            << Utilities::createRelativeFilename( absProjectFilename,
+                Utilities::makeFilenameAbsoluteFromCWD( frameData.mKinectColorImageFilename ) );
 
         fileStorage << "KinectDepthPointCloud"
-            << Utilities::createRelativeFilename( projectFilename, frameData.mKinectDepthPointCloudFilename );
+            << Utilities::createRelativeFilename( absProjectFilename,
+                Utilities::makeFilenameAbsoluteFromCWD( frameData.mKinectDepthPointCloudFilename ) );
 
         fileStorage << "}";
     }
 
     fileStorage << "]";
 
-    mProjectFilename = projectFilename;
+    mProjectFilename = absProjectFilename;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -751,8 +760,8 @@ void TmMainWindow::loadCameras()
     std::string kinectCalibrationFilename = dataDir + "/calibration_images/Simulated/kinect_calib.yaml";
     //std::string highResCalibrationFilename = dataDir + "/calibration_images/Simulated/high_res_calib.yaml";
     std::string highResCalibrationFilename = dataDir + "/calibration_images/Simulated/HighResRGB_cameraMatrix.yml";
-    std::string highResPoseFilename = dataDir + "/calibration_images/Simulated/colour_stereo_calib.yaml";
-    //std::string highResPoseFilename = dataDir + "/calibration_images/Simulated/KinectRGB_to_HighResRGB_calib.yml";
+    //std::string highResPoseFilename = dataDir + "/calibration_images/Simulated/colour_stereo_calib.yaml";
+    std::string highResPoseFilename = dataDir + "/calibration_images/Simulated/KinectRGB_to_HighResRGB_calib.yml";
 
     // Load in the Kinect calibration file
     cv::FileStorage fileStorage;

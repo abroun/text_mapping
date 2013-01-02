@@ -68,6 +68,13 @@ class Utilities
     public: static std::string decodeRelativeFilename( const std::string& baseFilename,
         const std::string& relativeFilename );
 
+    //! Makes sure that a filename is absolute
+    //! @param filename The filename to check, and if needed, to modify
+    //! @return If filename is absolute, then it will be returned unmodified. Otherwise
+    //!         it will be assumed that the path is relative to the current working directory
+    //!         and the corresponding absolute path will be returned.
+    public: static std::string makeFilenameAbsoluteFromCWD( const std::string& filename );
+
     //! Returns the directory for a data folder.
     //! If the environment variable TEXT_MAPPING_DATA_DIR is set, then this value will
     //! be returned. Otherwise it returns an absolute path to "../data" from the current

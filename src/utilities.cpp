@@ -142,6 +142,24 @@ std::string Utilities::decodeRelativeFilename( const std::string& baseFilename,
 }
 
 //--------------------------------------------------------------------------------------------------
+std::string Utilities::makeFilenameAbsoluteFromCWD( const std::string& filename )
+{
+    boost::filesystem::path filenamePath( filename );
+    std::string absFilename;
+    if ( filenamePath.is_absolute() )
+    {
+        absFilename = filename;
+    }
+    else
+    {
+        absFilename = boost::filesystem::absolute(
+            filenamePath, boost::filesystem::current_path() ).string();
+    }
+
+    return absFilename;
+}
+
+//--------------------------------------------------------------------------------------------------
 std::string Utilities::getDataDir()
 {
     const char* pDirectoryName = std::getenv( "TEXT_MAPPING_DATA_DIR" );

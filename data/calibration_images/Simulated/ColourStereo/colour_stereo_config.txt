@@ -4,6 +4,7 @@ BoardSizeMM: [ 140, 100 ]
 FirstCameraName: KinectRGB
 SecondCameraName: HighResRGB
 FirstCameraCalibrationFile: "../KinectRGB_cameraMatrix.yml"
+#SecondCameraCalibrationFile: "../high_res_calib.yaml"
 SecondCameraCalibrationFile: "../HighResRGB_cameraMatrix.yml"
 UseDotPattern: 1
 ImageFilePairs:
