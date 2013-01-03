@@ -309,16 +309,16 @@
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <item>
-        <widget class="QPushButton" name="btnAddKeyPointInstance">
+        <widget class="QPushButton" name="btnRemoveKeyPointModelInstance">
          <property name="text">
-          <string>Add Instance</string>
+          <string>Remove Model Instance</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="btnRemoveKeyPointInstance">
+        <widget class="QPushButton" name="btnRemoveKeyPointFrameInstance">
          <property name="text">
-          <string>Remove Instance</string>
+          <string>Remove Frame Instance</string>
          </property>
         </widget>
        </item>

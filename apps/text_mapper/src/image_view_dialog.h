@@ -49,12 +49,12 @@ class ImageViewDialog;
 //--------------------------------------------------------------------------------------------------
 class ImageViewPixmap : public QGraphicsPixmapItem
 {
-    public: ImageViewPixmap( const QPixmap &pixmap, const ImageViewDialog* pParentDialog )
+    public: ImageViewPixmap( const QPixmap &pixmap, ImageViewDialog* pParentDialog )
         : QGraphicsPixmapItem( pixmap ), mpParentDialog( pParentDialog ) {}
 
     public: virtual void mousePressEvent( QGraphicsSceneMouseEvent *pEvent );
 
-    private: const ImageViewDialog* mpParentDialog;
+    private: ImageViewDialog* mpParentDialog;
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -62,16 +62,17 @@ class ImageViewDialog : public QDialog, private Ui::image_view_dialog
 {
     Q_OBJECT
 
-    public: ImageViewDialog( const TmMainWindow* pParentWindow );
+    public: ImageViewDialog( TmMainWindow* pParentWindow );
     public: virtual ~ImageViewDialog();
 	
 	public: void setImage( const cv::Mat& image );
+	public: void addKeyPointInstanceAtImagePos( const QPointF& pickPoint );
 	public: void pickFromImage( const QPointF& pickPoint ) const;
 	
 	private: QGraphicsScene* mpScene;
     private: QGraphicsPixmapItem* mpPixmapItem;
     private: cv::Mat mImage;
-    private: const TmMainWindow* mpParentWindow;
+    private: TmMainWindow* mpParentWindow;
 };
 
 #endif // IMAGE_VIEW_DIALOG_H_

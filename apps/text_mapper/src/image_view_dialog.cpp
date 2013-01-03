@@ -42,10 +42,16 @@ void ImageViewPixmap::mousePressEvent( QGraphicsSceneMouseEvent *pEvent )
 {
     if ( Qt::LeftButton & pEvent->buttons() )
     {
-        QPointF pos = pEvent->buttonDownPos( Qt::LeftButton );
+        QPointF pos = pEvent->lastPos();
 
-        printf( "Clicked at %f %f\n", pos.x(), pos.y() );
-        mpParentDialog->pickFromImage( pos );
+        if ( pEvent->modifiers() & Qt::ControlModifier )
+        {
+            mpParentDialog->addKeyPointInstanceAtImagePos( pos );
+        }
+        else
+        {
+            mpParentDialog->pickFromImage( pos );
+        }
     }
 }
 
@@ -56,7 +62,7 @@ const int32_t DEFAULT_MAX_IMAGE_HEIGHT = 600;
 //--------------------------------------------------------------------------------------------------
 // ImageViewDialog
 //--------------------------------------------------------------------------------------------------
-ImageViewDialog::ImageViewDialog( const TmMainWindow* pParentWindow )
+ImageViewDialog::ImageViewDialog( TmMainWindow* pParentWindow )
     : mpPixmapItem( NULL ),
       mpParentWindow( pParentWindow )
 {
@@ -118,6 +124,12 @@ void ImageViewDialog::setImage( const cv::Mat& image )
 	{
 		mpPixmapItem->setPixmap( pixmap );
 	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewDialog::addKeyPointInstanceAtImagePos( const QPointF& pickPoint )
+{
+    mpParentWindow->addKeyPointInstanceAtImagePos( this, pickPoint );
 }
 
 //--------------------------------------------------------------------------------------------------

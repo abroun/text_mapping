@@ -204,10 +204,12 @@ TmMainWindow::TmMainWindow()
 
     connect( this->checkShowModel, SIGNAL( clicked() ), this, SLOT( onCheckShowModelClicked() ) );
 
-    connect( this->btnAddKeyPoint, SIGNAL( clicked() ), this, SLOT( onBtnAddKeyPointClicked() ) );
-    connect( this->btnRemoveKeyPoint, SIGNAL( clicked() ), this, SLOT( onBtnRemoveKeyPointClicked() ) );
     connect( this->listWidgetKeyPoints, SIGNAL( currentRowChanged( int ) ),
              this, SLOT( onCurrentKeyPointRowChanged( int ) ) );
+    connect( this->btnAddKeyPoint, SIGNAL( clicked() ), this, SLOT( onBtnAddKeyPointClicked() ) );
+    connect( this->btnRemoveKeyPoint, SIGNAL( clicked() ), this, SLOT( onBtnRemoveKeyPointClicked() ) );
+    connect( this->btnRemoveKeyPointModelInstance, SIGNAL( clicked() ), this, SLOT( onBtnRemoveKeyPointModelInstanceClicked() ) );
+    connect( this->btnRemoveKeyPointFrameInstance, SIGNAL( clicked() ), this, SLOT( onBtnRemoveKeyPointFrameInstanceClicked() ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -331,6 +333,32 @@ void TmMainWindow::onBtnDeleteFrameClicked()
     {
         mFrames.erase( mFrames.begin() + curFrameIdx );
         refreshFrameList();
+
+        // Update key point list to handle the frame being deleted
+        for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+        {
+            KeyPoint& keyPoint = mKeyPoints[ keyPointIdx ];
+
+            std::vector<int32_t> instanceIndices = keyPoint.getKeyPointFrameInstanceIndices();
+            std::sort( instanceIndices.begin(), instanceIndices.end() );
+
+            for ( int32_t i = 0; i < (int32_t)instanceIndices.size(); i++ )
+            {
+                if ( i == curFrameIdx )
+                {
+                    // Remove the key point frame instance for the deleted frame
+                    keyPoint.removeKeyPointFrameInstance( i );
+                }
+                else if ( i > curFrameIdx )
+                {
+                    // Move the key point frame instance down one
+                    const KeyPointInstance* pFrameInstance = keyPoint.getKeyPointFrameInstance( i );
+                    keyPoint.addKeyPointFrameInstance( i - 1, pFrameInstance->mPos );
+
+                    keyPoint.removeKeyPointFrameInstance( i );
+                }
+            }
+        }
 
         // Update the view to look at the current frame
         if ( curFrameIdx >= (int32_t)mFrames.size() )
@@ -540,6 +568,12 @@ void TmMainWindow::onCheckShowModelClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::onCurrentKeyPointRowChanged( int currentRow )
+{
+    refreshKeyPointInstances();
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::onBtnAddKeyPointClicked()
 {
     mKeyPoints.push_back( KeyPoint() );
@@ -559,9 +593,29 @@ void TmMainWindow::onBtnRemoveKeyPointClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
-void TmMainWindow::onCurrentKeyPointRowChanged( int currentRow )
+void TmMainWindow::onBtnRemoveKeyPointModelInstanceClicked()
 {
-    refreshKeyPointInstances();
+    int32_t curKeyPointIdx = this->listWidgetKeyPoints->currentRow();
+    if ( curKeyPointIdx >= 0 && curKeyPointIdx < (int32_t)mKeyPoints.size() )
+    {
+        mKeyPoints[ curKeyPointIdx ].removeKeyPointModelInstance();
+        refreshKeyPointInstances();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnRemoveKeyPointFrameInstanceClicked()
+{
+    int32_t curKeyPointIdx = this->listWidgetKeyPoints->currentRow();
+    if ( curKeyPointIdx >= 0 && curKeyPointIdx < (int32_t)mKeyPoints.size() )
+    {
+        int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+        if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
+        {
+            mKeyPoints[ curKeyPointIdx ].removeKeyPointFrameInstance( curFrameIdx );
+            refreshKeyPointInstances();
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -772,59 +826,107 @@ void TmMainWindow::saveProject( const std::string& projectFilename )
 }
 
 //--------------------------------------------------------------------------------------------------
-void TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint ) const
+void TmMainWindow::addKeyPointInstanceAtImagePos( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint )
 {
-    if ( &mHighResImageViewDialog ==  pImageViewDialog )
+    // Check to see if we have a key point and a frame selected
+    int32_t curKeyPointIdx = this->listWidgetKeyPoints->currentRow();
+    if ( curKeyPointIdx >= 0 && curKeyPointIdx < (int32_t)mKeyPoints.size() )
     {
-        const Eigen::Matrix4d& camWorldMtx = mHighResCamera.getCameraInWorldSpaceMatrix();
-        const Eigen::Matrix3d& camCalibMtx = mHighResCamera.getCalibrationMatrix();
-
-        // Fancy method...
-        /*Eigen::Matrix4d invCamWorldMtx = camWorldMtx.inverse();
-        Eigen::MatrixXd P = camCalibMtx*invCamWorldMtx.block<3,4>( 0, 0 );
-        Eigen::MatrixXd Pinv =  P.transpose()*(P*P.transpose()).inverse();
-
-        Eigen::Vector4d camCentre = camWorldMtx.block<4,1>( 0, 3 );
-
-        std::cout << "pick point " << pickPoint.x() << ", " << pickPoint.y() << std::endl;
-        Eigen::Vector3d homogImagePos( (pickPoint.x() - camCalibMtx( 0, 2 )),
-            (pickPoint.y() - camCalibMtx( 1, 2 )), 1.0 );
-        Eigen::Vector4d worldPos = Pinv*homogImagePos;
-
-        Eigen::Vector4d pickDir = worldPos - camCentre;*/
-
-
-        // Simpler method...
-        const Eigen::Vector3d& camCentre = camWorldMtx.block<3,1>( 0, 3 );
-
-        const Eigen::Vector3d& camAxisX = camWorldMtx.block<3,1>( 0, 0 );
-        const Eigen::Vector3d& camAxisY = camWorldMtx.block<3,1>( 0, 1 );
-        const Eigen::Vector3d& camAxisZ = camWorldMtx.block<3,1>( 0, 2 );
-
-
-        double imagePlaneX = -(pickPoint.x() - camCalibMtx( 0, 2 )) / camCalibMtx( 0, 0 );
-        double imagePlaneY = -(pickPoint.y() - camCalibMtx( 1, 2 )) / camCalibMtx( 1, 1 );
-        Eigen::Vector3d pickDir = camAxisZ + imagePlaneX*camAxisX + imagePlaneY*camAxisY;
-
-
-
-        Eigen::Vector3f pickedWorldPos;
-        float distanceToSurface = mpPointCloudSource->GetPointCloudPtr()->pickSurface(
-			camCentre.cast<float>(), pickDir.cast<float>(),
-			&pickedWorldPos );
-
-        // Place the pick point
-        if ( distanceToSurface >= 0.0 )
+        int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+        if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
         {
-            std::cout << "Pos " << pickedWorldPos << std::endl;
-            mpPickCubeActor->SetPosition( pickedWorldPos[ 0 ], pickedWorldPos[ 1 ], pickedWorldPos[ 2 ] );
-            mpPickCubeActor->SetVisibility( 1 );
+            // Now see if we're close to a point in the point cloud
+            Eigen::Vector3f worldPos;
+            bool bWorldPosFound = pickFromImage( pImageViewDialog, pickPoint, &worldPos, false );
+
+            if ( bWorldPosFound )
+            {
+                mKeyPoints[ curKeyPointIdx ].addKeyPointFrameInstance( curFrameIdx, worldPos );
+                refreshKeyPointInstances();
+            }
         }
-        else
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint,
+                                  Eigen::Vector3f* pWorldPosOut, bool bDrawPickLine ) const
+{
+    // Get the camera world and calibration matrices
+    const Eigen::Matrix4d* pCamWorldMtx = NULL;
+    const Eigen::Matrix3d* pCamCalibMtx = NULL;
+
+    if ( &mHighResImageViewDialog == pImageViewDialog )
+    {
+        pCamWorldMtx = &mHighResCamera.getCameraInWorldSpaceMatrix();
+        pCamCalibMtx = &mHighResCamera.getCalibrationMatrix();
+    }
+    else if ( &mKinectColorImageViewDialog == pImageViewDialog )
+    {
+        pCamWorldMtx = &mKinectColorCamera.getCameraInWorldSpaceMatrix();
+        pCamCalibMtx = &mKinectColorCamera.getCalibrationMatrix();
+    }
+    else if ( &mKinectDepthColorImageViewDialog == pImageViewDialog )
+    {
+        pCamWorldMtx = &mKinectDepthCamera.getCameraInWorldSpaceMatrix();
+        pCamCalibMtx = &mKinectDepthCamera.getCalibrationMatrix();
+    }
+    else
+    {
+        // Invalid image view dialog...
+        return false;
+    }
+
+    bool bSurfacePointFound = false;
+
+    // Fancy method...
+    /*Eigen::Matrix4d invCamWorldMtx = camWorldMtx.inverse();
+    Eigen::MatrixXd P = camCalibMtx*invCamWorldMtx.block<3,4>( 0, 0 );
+    Eigen::MatrixXd Pinv =  P.transpose()*(P*P.transpose()).inverse();
+
+    Eigen::Vector4d camCentre = camWorldMtx.block<4,1>( 0, 3 );
+
+    std::cout << "pick point " << pickPoint.x() << ", " << pickPoint.y() << std::endl;
+    Eigen::Vector3d homogImagePos( (pickPoint.x() - camCalibMtx( 0, 2 )),
+        (pickPoint.y() - camCalibMtx( 1, 2 )), 1.0 );
+    Eigen::Vector4d worldPos = Pinv*homogImagePos;
+
+    Eigen::Vector4d pickDir = worldPos - camCentre;*/
+
+
+    // Simpler method...
+    const Eigen::Vector3d& camCentre = pCamWorldMtx->block<3,1>( 0, 3 );
+
+    const Eigen::Vector3d& camAxisX = pCamWorldMtx->block<3,1>( 0, 0 );
+    const Eigen::Vector3d& camAxisY = pCamWorldMtx->block<3,1>( 0, 1 );
+    const Eigen::Vector3d& camAxisZ = pCamWorldMtx->block<3,1>( 0, 2 );
+
+
+    double imagePlaneX = -(pickPoint.x() - (*pCamCalibMtx)( 0, 2 )) / (*pCamCalibMtx)( 0, 0 );
+    double imagePlaneY = -(pickPoint.y() - (*pCamCalibMtx)( 1, 2 )) / (*pCamCalibMtx)( 1, 1 );
+    Eigen::Vector3d pickDir = camAxisZ + imagePlaneX*camAxisX + imagePlaneY*camAxisY;
+
+    Eigen::Vector3f pickedWorldPos;
+    float distanceToSurface = mpPointCloudSource->GetPointCloudPtr()->pickSurface(
+        camCentre.cast<float>(), pickDir.cast<float>(),
+        &pickedWorldPos );
+
+    // Place the pick point
+    if ( distanceToSurface >= 0.0 )
+    {
+        //std::cout << "Pos " << pickedWorldPos << std::endl;
+
+        bSurfacePointFound = true;
+        if ( NULL != pWorldPosOut )
         {
-            mpPickCubeActor->SetVisibility( 0 );
+            *pWorldPosOut = pickedWorldPos;
         }
 
+        mpPickCubeActor->SetPosition( pickedWorldPos[ 0 ], pickedWorldPos[ 1 ], pickedWorldPos[ 2 ] );
+    }
+
+    if ( bDrawPickLine )
+    {
         // Place a line to show the pick
         vtkSmartPointer<vtkPoints> points = vtkSmartPointer<vtkPoints>::New();
         vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
@@ -851,8 +953,20 @@ void TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
 
         mpPickLineMapper->SetInput( linesPolyData );
 
+        mpPickLineActor->SetVisibility( 1 );
+        mpPickCubeActor->SetVisibility( 1 );
+
         this->qvtkWidget->update();
     }
+    else
+    {
+        mpPickLineActor->SetVisibility( 0 );
+        mpPickCubeActor->SetVisibility( 0 );
+
+        this->qvtkWidget->update();
+    }
+
+    return bSurfacePointFound;
 }
 
 //--------------------------------------------------------------------------------------------------

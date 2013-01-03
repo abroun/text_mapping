@@ -91,15 +91,20 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public slots: void onCheckShowModelClicked();
 
     // KeyPoints
+    public slots: void onCurrentKeyPointRowChanged( int currentRow );
     public slots: void onBtnAddKeyPointClicked();
     public slots: void onBtnRemoveKeyPointClicked();
-    public slots: void onCurrentKeyPointRowChanged( int currentRow );
+    public slots: void onBtnRemoveKeyPointModelInstanceClicked();
+    public slots: void onBtnRemoveKeyPointFrameInstanceClicked();
 
     public: virtual void closeEvent( QCloseEvent* pEvent );
 
     public: void loadProject( const std::string& projectFilename );
     public: void saveProject( const std::string& projectFilename );
-    public: void pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint ) const;
+
+    public: void addKeyPointInstanceAtImagePos( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint );
+    public: bool pickFromImage( const ImageViewDialog* pImageViewDialog,
+        const QPointF& pickPoint, Eigen::Vector3f* pWorldPosOut=NULL, bool bDrawPickLine=true ) const;
 
     private: void refreshFrameList();
     private: void refreshKeyPointList();
