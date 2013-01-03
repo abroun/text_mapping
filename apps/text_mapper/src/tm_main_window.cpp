@@ -43,6 +43,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vtkPolyData.h>
 #include <vtkCellArray.h>
 #include <QtGui/QFileDialog>
+#include <QtGui/QMessageBox>
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
 #include <Eigen/Geometry>
@@ -51,6 +52,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "tm_main_window.h"
 #include "text_detection.h"
 #include <opencv2/core/eigen.hpp>
+
+//--------------------------------------------------------------------------------------------------
+static bool readVectorFromFileNode( cv::FileNode node, Eigen::Vector3f* pVectorOut )
+{
+    bool bVectorRead = false;
+
+    if ( node.size() == 3
+        && node[ 0 ].isReal() && node[ 1 ].isReal() && node[ 2 ].isReal() )
+    {
+        (*pVectorOut)[ 0 ] = (float)node[ 0 ];
+        (*pVectorOut)[ 1 ] = (float)node[ 1 ];
+        (*pVectorOut)[ 2 ] = (float)node[ 2 ];
+
+        bVectorRead = true;
+    }
+
+    return bVectorRead;
+}
 
 //--------------------------------------------------------------------------------------------------
 // TmMainWindow
@@ -120,6 +139,17 @@ TmMainWindow::TmMainWindow()
     mpRenderer->AddActor( mpPickCubeActor );
     mpRenderer->AddActor( mpPickLineActor );
 
+    // Prepare to render key point instances
+    mpKeyPointInstancesSource = vtkSmartPointer<vtkKeyPointInstancesSource>::New();
+    mpKeyPointInstancesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mpKeyPointInstancesActor = vtkSmartPointer<vtkActor>::New();
+
+    mpKeyPointInstancesMapper->SetInputConnection( mpKeyPointInstancesSource->GetOutputPort() );
+    mpKeyPointInstancesActor->SetMapper( mpKeyPointInstancesMapper );
+    mpKeyPointInstancesActor->GetProperty()->SetPointSize( 3 );
+
+    mpRenderer->AddActor( mpKeyPointInstancesActor );
+
     // Load in object model
     std::string dataDir = Utilities::getDataDir();
     QString modelFilename = QString( dataDir.c_str() ) + "/models/carrs_crackers.obj";
@@ -173,6 +203,11 @@ TmMainWindow::TmMainWindow()
     connect( this->btnDown, SIGNAL( clicked() ), this, SLOT( onBtnDownClicked() ) );
 
     connect( this->checkShowModel, SIGNAL( clicked() ), this, SLOT( onCheckShowModelClicked() ) );
+
+    connect( this->btnAddKeyPoint, SIGNAL( clicked() ), this, SLOT( onBtnAddKeyPointClicked() ) );
+    connect( this->btnRemoveKeyPoint, SIGNAL( clicked() ), this, SLOT( onBtnRemoveKeyPointClicked() ) );
+    connect( this->listWidgetKeyPoints, SIGNAL( currentRowChanged( int ) ),
+             this, SLOT( onCurrentKeyPointRowChanged( int ) ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -183,9 +218,11 @@ TmMainWindow::~TmMainWindow()
 //--------------------------------------------------------------------------------------------------
 void TmMainWindow::onNew()
 {
-    // Clear the frame list
+    // Clear project data
     mFrames.clear();
+    mKeyPoints.clear();
     refreshFrameList();
+    refreshKeyPointList();
     refreshImageDisplays( NULL );
 
     // Update the 3D display
@@ -503,6 +540,31 @@ void TmMainWindow::onCheckShowModelClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnAddKeyPointClicked()
+{
+    mKeyPoints.push_back( KeyPoint() );
+    refreshKeyPointList();
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnRemoveKeyPointClicked()
+{
+    int32_t curKeyPointIdx = this->listWidgetKeyPoints->currentRow();
+    if ( curKeyPointIdx >= 0 && curKeyPointIdx < (int32_t)mKeyPoints.size() )
+    {
+        mKeyPoints.erase( mKeyPoints.begin() + curKeyPointIdx );
+        refreshKeyPointList();
+        refreshKeyPointInstances();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onCurrentKeyPointRowChanged( int currentRow )
+{
+    refreshKeyPointInstances();
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::closeEvent( QCloseEvent* pEvent )
 {
     for ( uint32_t dialogIdx = 0; dialogIdx < mpImageViewDialogs.size(); dialogIdx++ )
@@ -521,6 +583,7 @@ void TmMainWindow::loadProject( const std::string& projectFilename )
     cv::FileStorage fileStorage;
     fileStorage.open( absProjectFilename, cv::FileStorage::READ );
 
+    // Read in frames
     std::vector<FrameData> newFrames;
     cv::FileNode framesNode = fileStorage[ "Frames" ];
 
@@ -542,13 +605,76 @@ void TmMainWindow::loadProject( const std::string& projectFilename )
         newFrames.push_back( frameData );
     }
 
+    // Read in key points
+    std::vector<KeyPoint> newKeyPoints;
+    cv::FileNode keyPointsNode = fileStorage[ "KeyPoints" ];
+
+    if ( !keyPointsNode.empty() )
+    {
+        newKeyPoints.reserve( keyPointsNode.size() );
+        for ( uint32_t keyPointIdx = 0; keyPointIdx < keyPointsNode.size(); keyPointIdx++ )
+        {
+            cv::FileNode keyPointNode = keyPointsNode[ keyPointIdx ];
+
+            KeyPoint keyPoint;
+
+            // Look for frame instances
+            cv::FileNode frameInstancesNode = keyPointNode[ "FrameInstances" ];
+            if ( !frameInstancesNode.empty() )
+            {
+                for ( uint32_t frameInstanceIdx = 0; frameInstanceIdx < frameInstancesNode.size(); frameInstanceIdx++ )
+                {
+                    cv::FileNode frameInstanceNode = frameInstancesNode[ frameInstanceIdx ];
+
+                    cv::FileNode frameIndexNode = frameInstanceNode[ "FrameIndex" ];
+                    if ( !frameIndexNode.isInt() )
+                    {
+                        QMessageBox::critical( NULL, "Error", "Unable to read key point frame instance frame index" );
+                        return;
+                    }
+                    int32_t frameIdx = (int32_t)frameIndexNode;
+
+                    Eigen::Vector3f pos;
+                    cv::FileNode posNode = frameInstanceNode[ "Pos" ];
+                    if ( !readVectorFromFileNode( posNode, &pos ) )
+                    {
+                        QMessageBox::critical( NULL, "Error", "Unable to read key point frame instance position" );
+                        return;
+                    }
+
+                    keyPoint.addKeyPointFrameInstance( frameIdx, pos );
+                }
+            }
+
+            // Look for a model instance
+            cv::FileNode modelInstanceNode = keyPointNode[ "ModelInstance" ];
+            if ( !modelInstanceNode.empty() )
+            {
+                Eigen::Vector3f pos;
+                cv::FileNode posNode = modelInstanceNode[ "Pos" ];
+                if ( !readVectorFromFileNode( posNode, &pos ) )
+                {
+                    QMessageBox::critical( NULL, "Error", "Unable to read key point model instance position" );
+                    return;
+                }
+
+                keyPoint.addKeyPointModelInstance( pos );
+            }
+
+            newKeyPoints.push_back( keyPoint );
+        }
+    }
+
+    // Store the project filename
     mProjectFilename = absProjectFilename;
 
     // Clear out the existing project
     onNew();
 
     mFrames = newFrames;
+    mKeyPoints = newKeyPoints;
     refreshFrameList();
+    refreshKeyPointList();
 
     // Select the first frame
     this->listViewFrames->setCurrentIndex( mpFrameListModel->index( 0 ) );
@@ -563,6 +689,7 @@ void TmMainWindow::saveProject( const std::string& projectFilename )
     // Write the data as a YAML file to memory
     cv::FileStorage fileStorage( absProjectFilename, cv::FileStorage::WRITE );
 
+    // Write out the frames
     fileStorage << "Frames" << "[";
     for ( uint32_t frameIdx = 0; frameIdx < mFrames.size(); frameIdx++ )
     {
@@ -580,6 +707,61 @@ void TmMainWindow::saveProject( const std::string& projectFilename )
         fileStorage << "KinectDepthPointCloud"
             << Utilities::createRelativeFilename( absProjectFilename,
                 Utilities::makeFilenameAbsoluteFromCWD( frameData.mKinectDepthPointCloudFilename ) );
+
+        fileStorage << "}";
+    }
+
+    fileStorage << "]";
+
+    // Write out the key points
+    fileStorage << "KeyPoints" << "[";
+    for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+    {
+        const KeyPoint& keyPoint = mKeyPoints[ keyPointIdx ];
+
+        fileStorage << "{";
+
+        // Store key point frame instances
+        std::vector<int32_t> frameInstanceIndices = keyPoint.getKeyPointFrameInstanceIndices();
+        if ( frameInstanceIndices.size() > 0 )
+        {
+            fileStorage << "FrameInstances" << "[";
+
+            for ( uint32_t frameInstanceIdx = 0; frameInstanceIdx < frameInstanceIndices.size(); frameInstanceIdx++ )
+            {
+                int32_t frameIdx = frameInstanceIndices[ frameInstanceIdx ];
+                const KeyPointInstance* pKeyPointInstance = keyPoint.getKeyPointFrameInstance( frameIdx );
+
+                fileStorage << "{";
+
+                fileStorage << "FrameIndex" << frameIdx;
+                fileStorage << "Pos" << "[:";
+                fileStorage << pKeyPointInstance->mPos[ 0 ];
+                fileStorage << pKeyPointInstance->mPos[ 1 ];
+                fileStorage << pKeyPointInstance->mPos[ 2 ];
+                fileStorage << "]";
+
+                fileStorage << "}";
+            }
+
+            fileStorage << "]";
+        }
+
+        // Store key point model instance if we have it
+        if ( keyPoint.hasKeyPointModelInstanceIndices() )
+        {
+            const KeyPointInstance* pKeyPointInstance = keyPoint.getKeyPointModelInstance();
+
+            fileStorage << "ModelInstance" << "{";
+
+            fileStorage << "Pos" << "[:";
+            fileStorage << pKeyPointInstance->mPos[ 0 ];
+            fileStorage << pKeyPointInstance->mPos[ 1 ];
+            fileStorage << pKeyPointInstance->mPos[ 2 ];
+            fileStorage << "]";
+
+            fileStorage << "}";
+        }
 
         fileStorage << "}";
     }
@@ -688,6 +870,20 @@ void TmMainWindow::refreshFrameList()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::refreshKeyPointList()
+{
+    this->listWidgetKeyPoints->clear();
+
+    // Add the key points to the list widget
+    for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+    {
+        QListWidgetItem* pNewItem = new QListWidgetItem();
+        pNewItem->setText( QString( "KeyPoint " ) + QString::number( keyPointIdx ) );
+        this->listWidgetKeyPoints->insertItem( keyPointIdx, pNewItem );
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::refreshImageDisplays( const FrameData* pFrameData )
 {
     if ( NULL == pFrameData )
@@ -717,6 +913,69 @@ void TmMainWindow::refreshImageDisplays( const FrameData* pFrameData )
         mpPointCloudActor->SetVisibility( 1 );
     }
 
+    refreshKeyPointInstances();
+    this->qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::refreshKeyPointInstances()
+{
+    // Create a list of the key point instances to display
+    std::vector<vtkKeyPointInstancesSource::InstanceData> keyPointInstances;
+
+    int32_t selectedKeyPointIdx = this->listWidgetKeyPoints->currentRow();
+
+    // Add frame instances first
+    int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+    if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
+    {
+        for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+        {
+            const KeyPointInstance* pInstance = mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( curFrameIdx );
+            if ( NULL != pInstance )
+            {
+                if ( (int32_t)keyPointIdx == selectedKeyPointIdx )
+                {
+                    // Yellow for selected frame instance
+                    keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
+                        *pInstance, 255, 255, 0 ) );
+                }
+                else
+                {
+                    // Green for normal frame instance
+                    keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
+                        *pInstance, 0, 255, 0 ) );
+                }
+            }
+        }
+    }
+
+    // Add in model instances if needed
+    if ( this->checkShowModel->isChecked() )
+    {
+        for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+        {
+            const KeyPointInstance* pInstance = mKeyPoints[ keyPointIdx ].getKeyPointModelInstance();
+            if ( NULL != pInstance )
+            {
+                if ( (int32_t)keyPointIdx == selectedKeyPointIdx )
+                {
+                    // Yellow for selected model instance
+                    keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
+                        *pInstance, 255, 255, 0 ) );
+                }
+                else
+                {
+                    // Green for normal model instance
+                    keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
+                        *pInstance, 0, 255, 0 ) );
+                }
+            }
+        }
+    }
+
+    // Display the key point instances
+    mpKeyPointInstancesSource->SetKeyPointInstances( keyPointInstances );
     this->qvtkWidget->update();
 }
 

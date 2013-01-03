@@ -4,3 +4,32 @@ Frames:
       HighResImage: "../../build/relative_chessboard_highres_1.png"
       KinectColorImage: "../../build/relative_chessboard_1.png"
       KinectDepthPointCloud: "../../build/relative_chessboard_1.spc"
+   -
+      HighResImage: "../../build/relative_chessboard_highres_2.png"
+      KinectColorImage: "../../build/relative_chessboard_2.png"
+      KinectDepthPointCloud: "../../build/relative_chessboard_2.spc"
+KeyPoints:
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ 0.0883478, 0.10087, 0.8 ]
+         -
+            FrameIndex: 1
+            Pos: [ 0.0692706, 0.100937, 0.758679 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ 0.029913, 0.0994783, 0.8 ]
+         -
+            FrameIndex: 1
+            Pos: [ 0.023164, 0.100795, 0.719962 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ 0.0897391, 0.000695652, 0.8 ]
+         -
+            FrameIndex: 1
+            Pos: [ 0.0678439, 0.000658679, 0.757481 ]

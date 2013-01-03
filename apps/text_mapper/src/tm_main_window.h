@@ -59,6 +59,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "image_view_dialog.h"
 #include "camera.h"
 #include "frame_data.h"
+#include "key_point.h"
+#include "vtk/vtk_key_point_instances_source.h"
 #include "text_mapping/vtk/vtk_point_cloud_source.h"
 #include "text_mapping/text_map.h"
 #include "text_mapping/vtk/vtk_text_map_source.h"
@@ -88,6 +90,11 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public slots: void onBtnDownClicked();
     public slots: void onCheckShowModelClicked();
 
+    // KeyPoints
+    public slots: void onBtnAddKeyPointClicked();
+    public slots: void onBtnRemoveKeyPointClicked();
+    public slots: void onCurrentKeyPointRowChanged( int currentRow );
+
     public: virtual void closeEvent( QCloseEvent* pEvent );
 
     public: void loadProject( const std::string& projectFilename );
@@ -95,7 +102,9 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public: void pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint ) const;
 
     private: void refreshFrameList();
+    private: void refreshKeyPointList();
     private: void refreshImageDisplays( const FrameData* pFrameData );
+    private: void refreshKeyPointInstances();
 
     private: typedef std::list<Letter, Eigen::aligned_allocator<Letter> > LetterList;
     private: LetterList detectTextInImage( cv::Mat image );
@@ -106,8 +115,6 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
 
     // Stuff to render a point cloud
     private: vtkSmartPointer<vtkPointCloudSource> mpPointCloudSource;
-    private: vtkSmartPointer<vtkCubeSource> mpCubeSource;
-    private: vtkSmartPointer<vtkGlyph3D> mpPointCloudGlyphs;
     private: vtkSmartPointer<vtkPolyDataMapper> mpPointCloudMapper;
     private: vtkSmartPointer<vtkActor> mpPointCloudActor;
 
@@ -130,6 +137,12 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: ImageViewDialog mKinectColorImageViewDialog;
     private: ImageViewDialog mKinectDepthColorImageViewDialog;
     private: std::vector<ImageViewDialog*> mpImageViewDialogs;
+
+    // Key points
+    private: std::vector<KeyPoint> mKeyPoints;
+    private: vtkSmartPointer<vtkKeyPointInstancesSource> mpKeyPointInstancesSource;
+    private: vtkSmartPointer<vtkPolyDataMapper> mpKeyPointInstancesMapper;
+    private: vtkSmartPointer<vtkActor> mpKeyPointInstancesActor;
 
     // Members to render pick point
     private: vtkSmartPointer<vtkCubeSource> mpPickCubeSource;

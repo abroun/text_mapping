@@ -10,14 +10,16 @@ SET( TEXT_MAPPER_SOURCES
     src/frame_data.cpp
     src/frame_dialog.cpp
 	src/image_view_dialog.cpp
+	src/key_point.cpp
 	src/text_mapper.cpp 
 	src/tm_main_window.cpp 
-	src/text_detection.cpp)
+	src/text_detection.cpp
+	src/vtk/vtk_key_point_instances_source.cpp )
 SET( TEXT_MAPPER_HEADERS
 	src/frame_dialog.h
 	src/image_view_dialog.h
 	src/tm_main_window.h 
-	src/text_detection.h)
+	src/text_detection.h )
 SET( TEXT_MAPPER_FORMS 
 	gui/frame_dialog.ui
 	gui/image_view_dialog.ui
