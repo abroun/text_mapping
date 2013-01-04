@@ -8,6 +8,107 @@
 #include "text_mapping/utilities.h"
 #include <stdexcept>
 
+#include "blob_detector.h"
+#include "circlesgrid.hpp"
+
+bool findCirclesGridAB( cv::InputArray _image, cv::Size patternSize,
+		cv::OutputArray _centers, int flags, const cv::Ptr<cv::FeatureDetector> &blobDetector )
+{
+    bool isAsymmetricGrid = (flags & cv::CALIB_CB_ASYMMETRIC_GRID) ? true : false;
+    bool isSymmetricGrid  = (flags & cv::CALIB_CB_SYMMETRIC_GRID ) ? true : false;
+    CV_Assert(isAsymmetricGrid ^ isSymmetricGrid);
+
+    cv::Mat image = _image.getMat();
+    std::vector<cv::Point2f> centers;
+
+    std::vector<cv::KeyPoint> keypoints;
+    blobDetector->detect(image, keypoints);
+    std::vector<cv::Point2f> points;
+    for (size_t i = 0; i < keypoints.size(); i++)
+    {
+      points.push_back (keypoints[i].pt);
+    }
+
+    if(flags & cv::CALIB_CB_CLUSTERING)
+    {
+      CirclesGridClusterFinder circlesGridClusterFinder(isAsymmetricGrid);
+      circlesGridClusterFinder.findGrid(points, patternSize, centers);
+      cv::Mat(centers).copyTo(_centers);
+      return !centers.empty();
+    }
+
+    CirclesGridFinderParameters parameters;
+    parameters.vertexPenalty = -0.6f;
+    parameters.vertexGain = 1;
+    parameters.existingVertexGain = 10000;
+    parameters.edgeGain = 1;
+    parameters.edgePenalty = -0.6f;
+
+    if(flags & cv::CALIB_CB_ASYMMETRIC_GRID)
+      parameters.gridType = CirclesGridFinderParameters::ASYMMETRIC_GRID;
+    if(flags & cv::CALIB_CB_SYMMETRIC_GRID)
+      parameters.gridType = CirclesGridFinderParameters::SYMMETRIC_GRID;
+
+    const int attempts = 2;
+    const size_t minHomographyPoints = 4;
+    cv::Mat H;
+    for (int i = 0; i < attempts; i++)
+    {
+      centers.clear();
+      CirclesGridFinder boxFinder(patternSize, points, parameters);
+      bool isFound = false;
+//#define BE_QUIET 1
+#if BE_QUIET
+      void* oldCbkData;
+      //cv::ErrorCallback oldCbk = redirectError(quiet_error, 0, &oldCbkData);
+#endif
+      try
+      {
+        isFound = boxFinder.findHoles();
+      }
+      catch (cv::Exception)
+      {
+
+      }
+#if BE_QUIET
+      redirectError(oldCbk, oldCbkData);
+#endif
+      if (isFound)
+      {
+      	switch(parameters.gridType)
+      	{
+          case CirclesGridFinderParameters::SYMMETRIC_GRID:
+            boxFinder.getHoles(centers);
+            break;
+          case CirclesGridFinderParameters::ASYMMETRIC_GRID:
+	    boxFinder.getAsymmetricHoles(centers);
+	    break;
+          default:
+            CV_Error(CV_StsBadArg, "Unkown pattern type");
+      	}
+
+        if (i != 0)
+        {
+        	cv::Mat orgPointsMat;
+        	cv::transform(centers, orgPointsMat, H.inv());
+        	cv::convertPointsFromHomogeneous(orgPointsMat, centers);
+        }
+        cv::Mat(centers).copyTo(_centers);
+        return true;
+      }
+
+      boxFinder.getHoles(centers);
+      if (i != attempts - 1)
+      {
+        if (centers.size() < minHomographyPoints)
+          break;
+        H = CirclesGridFinder::rectifyGrid(boxFinder.getDetectedGridSize(), centers, points, points);
+      }
+    }
+    cv::Mat(centers).copyTo(_centers);
+    return false;
+}
+
 //--------------------------------------------------------------------------------------------------
 std::vector<std::string> LoadConfig(std::string fileAddress,
     cv::Size* pBoardSizeOut, cv::Size* pBoardSizeMmOut,
@@ -169,11 +270,11 @@ int main(int argc, char** argv)
 		    //found = cv::findCirclesGrid(image,boardSize,imageCorners);
 
 
-            cv::SimpleBlobDetector::Params params;
+            BlobDetector::Params params;
 
             //params.minArea = 5.0;
             //params.minArea = 5.0;
-            //params.maxArea = 200.0;
+            params.maxArea = 20000.0;
             //params.minCircularity = 0.5;
             //params.minDistBetweenBlobs = 1.0;
             //params.filterByCircularity = false;
@@ -181,14 +282,44 @@ int main(int argc, char** argv)
             //params.filterByConvexity = false;
             //printf( "minDistBetweenBlobs is %f\n", params.min );
 
-            cv::Ptr<cv::FeatureDetector> pDetector = new cv::SimpleBlobDetector( params );
 
-            found = cv::findCirclesGrid( image, boardSize, imageCorners,
+            cv::Ptr<cv::FeatureDetector> pDetector = new BlobDetector( params );
+
+            std::vector<cv::KeyPoint> keypoints;
+            pDetector->detect(image, keypoints);
+
+            printf( "Detected %lu keypoints\n", keypoints.size() );
+
+            found = findCirclesGridAB( image, boardSize, imageCorners,
                 cv::CALIB_CB_SYMMETRIC_GRID, pDetector );
 
-            //cv::drawChessboardCorners(image,boardSize,imageCorners,found);
-            //cv::imshow( "Corners", image );
-            //cv::waitKey();
+
+
+            if ( !found )
+            {
+            	cv::Mat scaled;
+            	cv::resize( image, scaled, cv::Size( 0, 0 ), 0.25, 0.25 );
+
+            	pDetector->detect(scaled, keypoints);
+
+				printf( "Detected %lu keypoints on second go\n", keypoints.size() );
+
+				found = findCirclesGridAB( scaled, boardSize, imageCorners,
+					cv::CALIB_CB_SYMMETRIC_GRID, pDetector );
+				std::cout << "Found " << imageCorners.size() << " corners" << std::endl;
+
+				for ( uint32_t i = 0; i < imageCorners.size(); i++ )
+				{
+					imageCorners[ i ].x *= 4.0;
+					imageCorners[ i ].y *= 4.0;
+				}
+            }
+
+            cv::namedWindow("Corners", CV_WINDOW_NORMAL);
+			cv::drawChessboardCorners(image,boardSize,imageCorners,found);
+			cv::imshow( "Corners", image );
+			cv::waitKey();
+
             //cv::destroyWindow("Corners");
 		}
 
