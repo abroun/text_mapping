@@ -145,7 +145,7 @@ PointCloud::Ptr PointCloud::loadPointCloudFromSpcFile( const std::string& filena
 					{
 						int useBinaryData;
 						readResult = fscanf( pSpcFile, " %i ", &useBinaryData );
-						bBinaryData = useBinaryData;
+						bBinaryData = (useBinaryData != 0);
 					}
 					else if ( boost::iequals( tokenBuffer, "DEPTH_DATA" ) )
 					{
@@ -370,8 +370,8 @@ int32_t PointCloud::addPoint( const Eigen::Vector3f& worldPos, uint8_t r, uint8_
     float imageCentreX = (float)(mImage.cols/2) - 0.5f;
     float imageCentreY = (float)(mImage.rows/2) - 0.5f;
 
-    int32_t pixelX = imageCentreX + mFocalLengthPixels*worldPos[ 0 ]/worldPos[ 2 ];
-    int32_t pixelY = imageCentreY + mFocalLengthPixels*worldPos[ 1 ]/worldPos[ 2 ];
+    int32_t pixelX = (int32_t)(imageCentreX + mFocalLengthPixels*worldPos[ 0 ]/worldPos[ 2 ]);
+    int32_t pixelY = (int32_t)(imageCentreY + mFocalLengthPixels*worldPos[ 1 ]/worldPos[ 2 ]);
 
     if ( pixelX >= 0 && pixelX <= mImage.cols
         && pixelY >= 0 && pixelY <= mImage.rows )

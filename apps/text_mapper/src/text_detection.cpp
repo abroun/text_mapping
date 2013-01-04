@@ -41,8 +41,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifdef WIN32
 #include <Windows.h>
 
-#include <baseapi.h>
-#include <resultiterator.h> 
+#include <tesseract/baseapi.h>
+#include <tesseract/resultiterator.h> 
 #endif
 
 struct CompStruct

@@ -45,6 +45,11 @@ class Utilities
     //! @return The angle converted to radians
     public: static float degToRad( float degrees ) { return (float)(degrees*M_PI/180.0); }
 
+    //! Converts degrees into radians
+    //! @param degrees The input angle in degrees
+    //! @return The angle converted to radians
+    public: static double degToRad( double degrees ) { return degrees*M_PI/180.0; }
+
     //! Converts radians into degrees
     //! @param radians The input angle in radians
     //! @return The angle converted to degrees

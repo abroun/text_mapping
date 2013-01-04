@@ -35,6 +35,9 @@ FIND_PACKAGE( Boost 1.46.1 REQUIRED COMPONENTS system filesystem )
 FIND_PACKAGE( Eigen3 REQUIRED )
 FIND_PACKAGE( OpenCV 2.3.1 REQUIRED )
 
+SET( TESSERACT_INCLUDE_DIR "" CACHE PATH "Include path for Tesseract" )
+SET( TESSERACT_LIB_DIR "" CACHE PATH "Library path for Tesseract" )
+
 IF(	WIN32 )
 	# We remove the security warnings as we're not writing code for production, just for researchers
 	ADD_DEFINITIONS( -D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS )
@@ -51,10 +54,12 @@ INCLUDE_DIRECTORIES(
     ${EIGEN3_INCLUDE_DIRS}
 	${Boost_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
+	${TESSERACT_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/include )
 
 LINK_DIRECTORIES(
 	${Boost_LIBRARY_DIRS}
+	${TESSERACT_LIB_DIR}
 	)
 
 ADD_LIBRARY( TextMapping

@@ -301,7 +301,7 @@ ePixelColour getChessboardPixelColour( double u, double v )
 		}
 		else
 		{
-			int32_t squareIdxU = ((u - borderProportionU)/(1.0 - 2.0*borderProportionU)) * CHESSBOARD_WIDTH;
+			int32_t squareIdxU = (int32_t)(((u - borderProportionU)/(1.0 - 2.0*borderProportionU)) * CHESSBOARD_WIDTH);
 			ePixelColour topRowColour;
 			if ( CHESSBOARD_TOP_LEFT_CORNER_IS_BLACK )
 			{
@@ -322,7 +322,7 @@ ePixelColour getChessboardPixelColour( double u, double v )
 			}
 			else
 			{
-				int32_t squareIdxV = ((v - borderProportionV)/(1.0 - 2.0*borderProportionV)) * CHESSBOARD_HEIGHT;
+				int32_t squareIdxV = (int32_t)(((v - borderProportionV)/(1.0 - 2.0*borderProportionV)) * CHESSBOARD_HEIGHT);
 				if ( ePC_Black == topRowColour )
 				{
 					pixelColour = ( squareIdxV%2 == 0 ? ePC_Black : ePC_White );
@@ -501,7 +501,7 @@ PointCloud::Ptr generatePointCloudOfChessboard( const cv::Mat& cameraWorldMtx, c
         int32_t imageWidth, int32_t imageHeight, const cv::Mat& chessboardPoseMtx )
 {
     double focalLengthPixels = cameraCalibMtx.at<double>( 0, 0 );
-    PointCloud::Ptr pCloud( new PointCloud( imageWidth, imageHeight, focalLengthPixels ) );
+    PointCloud::Ptr pCloud( new PointCloud( imageWidth, imageHeight, (float)focalLengthPixels ) );
 
     std::vector<PointData> points = generateImagePoints(
         cameraWorldMtx, cameraCalibMtx, imageWidth, imageHeight, chessboardPoseMtx );
@@ -531,7 +531,7 @@ PointCloud::Ptr generatePointCloudOfChessboard( const cv::Mat& cameraWorldMtx, c
             continue;
         }
 
-        pCloud->addPoint( Eigen::Vector3f( point.mWorldX, point.mWorldY, point.mWorldZ ), r, g, b, a );
+        pCloud->addPoint( Eigen::Vector3f( (float)point.mWorldX, (float)point.mWorldY, (float)point.mWorldZ ), r, g, b, a );
     }
 
     return pCloud;

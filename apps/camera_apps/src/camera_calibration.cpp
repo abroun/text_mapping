@@ -166,7 +166,30 @@ int main(int argc, char** argv)
 		else
 		{
 		    printf( "Looking for circles...\n" );
-		    found = cv::findCirclesGrid(image,boardSize,imageCorners);
+		    //found = cv::findCirclesGrid(image,boardSize,imageCorners);
+
+
+            cv::SimpleBlobDetector::Params params;
+
+            //params.minArea = 5.0;
+            //params.minArea = 5.0;
+            //params.maxArea = 200.0;
+            //params.minCircularity = 0.5;
+            //params.minDistBetweenBlobs = 1.0;
+            //params.filterByCircularity = false;
+            //params.filterByInertia = false;
+            //params.filterByConvexity = false;
+            //printf( "minDistBetweenBlobs is %f\n", params.min );
+
+            cv::Ptr<cv::FeatureDetector> pDetector = new cv::SimpleBlobDetector( params );
+
+            found = cv::findCirclesGrid( image, boardSize, imageCorners,
+                cv::CALIB_CB_SYMMETRIC_GRID, pDetector );
+
+            //cv::drawChessboardCorners(image,boardSize,imageCorners,found);
+            //cv::imshow( "Corners", image );
+            //cv::waitKey();
+            //cv::destroyWindow("Corners");
 		}
 
 		if ( !found )
