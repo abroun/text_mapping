@@ -1,14 +1,4 @@
 %YAML:1.0
-kinectDepthCameraPos: !!opencv-matrix
-   rows: 3
-   cols: 1
-   dt: d
-   data: [ 0.0, 0.0, 0.0 ]
-kinectDepthCameraRotXYZDeg: !!opencv-matrix
-   rows: 3
-   cols: 1
-   dt: d
-   data: [ 0.0, 0.0, 0.0 ]
 kinectDepthFocalLengthPixel: 575
 kinectDepthImageWidth: 640
 kinectDepthImageHeight: 480
@@ -31,12 +21,12 @@ highResCameraPos: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ -0.025, 0.1, -0.05 ]
+   data: [ 0.025, -0.1, -0.05 ]
 highResCameraRotXYZDeg: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ 2.0, 2.0, 0.0 ]
+   data: [ -2.0, -2.0, 0.0 ]
 highResFocalLengthPixel: 6000
 highResImageWidth: 2272
 highResImageHeight: 1704

@@ -173,14 +173,6 @@ bool findImageCorners( std::string imageFilename, cv::Size boardSize, bool bUseD
     {
         bCornersFound = false;
     }
-    else
-    {
-        for ( uint32_t cornerIdx = 0; cornerIdx < pImageCornersOut->size(); cornerIdx++ )
-        {
-            (*pImageCornersOut)[ cornerIdx ].x = image.cols - (*pImageCornersOut)[ cornerIdx ].x;
-            (*pImageCornersOut)[ cornerIdx ].y = image.rows - (*pImageCornersOut)[ cornerIdx ].y;
-        }
-    }
 
     return bCornersFound;
 }

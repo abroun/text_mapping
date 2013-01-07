@@ -94,17 +94,9 @@ TmMainWindow::TmMainWindow()
     qvtkWidget->GetRenderWindow()->AddRenderer( mpRenderer );
 
     mpRenderer->SetBackground( 0.0, 0.0, 0.0 );
-    mpRenderer->GetActiveCamera()->SetPosition( -2.0, 2.0, -2.0 );
+    mpRenderer->GetActiveCamera()->SetViewUp( 0.0, -1.0, 0.0 );
+    mpRenderer->GetActiveCamera()->SetPosition( 2.0, -2.0, -2.0 );
     mpRenderer->GetActiveCamera()->SetFocalPoint( 0.0, 0.0, 2.0 );
-
-    vtkSmartPointer<vtkPoints> points =
-        vtkSmartPointer<vtkPoints>::New();
-      points->InsertNextPoint(0,0,0);
-      points->InsertNextPoint(1,1,1);
-      points->InsertNextPoint(2,2,2);
-      vtkSmartPointer<vtkPolyData> polydata =
-        vtkSmartPointer<vtkPolyData>::New();
-      polydata->SetPoints(points);
 
     // Set up the pipeline to render a point cloud
     mpPointCloudSource = vtkSmartPointer<vtkPointCloudSource>::New();
@@ -902,8 +894,8 @@ bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
     const Eigen::Vector3d& camAxisZ = pCamWorldMtx->block<3,1>( 0, 2 );
 
 
-    double imagePlaneX = -(pickPoint.x() - (*pCamCalibMtx)( 0, 2 )) / (*pCamCalibMtx)( 0, 0 );
-    double imagePlaneY = -(pickPoint.y() - (*pCamCalibMtx)( 1, 2 )) / (*pCamCalibMtx)( 1, 1 );
+    double imagePlaneX = (pickPoint.x() - (*pCamCalibMtx)( 0, 2 )) / (*pCamCalibMtx)( 0, 0 );
+    double imagePlaneY = (pickPoint.y() - (*pCamCalibMtx)( 1, 2 )) / (*pCamCalibMtx)( 1, 1 );
     Eigen::Vector3d pickDir = camAxisZ + imagePlaneX*camAxisX + imagePlaneY*camAxisY;
 
     Eigen::Vector3f pickedWorldPos;

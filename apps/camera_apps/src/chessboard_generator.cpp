@@ -115,62 +115,62 @@ void initialiseTestPositions()
     gHighResCalibrationPositions.clear();
 
     gHighResCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) ) );
 
     // Rotate around X
     gHighResCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
             cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) ) );
     gHighResCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) ) );
 
     // Rotate around Y
     gHighResCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
         cv::Vec3d( Utilities::degToRad( -40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
     gHighResCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
         cv::Vec3d( Utilities::degToRad( 40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
 
     // Rotate around Z
     gHighResCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( -40.0 ) ) ) );
     gHighResCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( 40.0 ) ) ) );
 
     // Set up positions so that the relative camera poses can be found
     gRelativeCalibrationPositions.clear();
 
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), 0.0 ) ) );
 
     // Rotate around X
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.7 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.7 ),
             cv::Vec3d( 0.0, Utilities::degToRad( 140.0 ), 0.0 ) ) );
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.9 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.9 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 220.0 ), 0.0 ) ) );
 
     // Rotate around Y
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
         cv::Vec3d( Utilities::degToRad( -40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.7 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.7 ),
         cv::Vec3d( Utilities::degToRad( 40.0 ), Utilities::degToRad( 180.0 ), 0.0 ) ) );
 
     // Rotate around Z
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.8 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.8 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( -40.0 ) ) ) );
     gRelativeCalibrationPositions.push_back(
-        PoseData( cv::Vec3d( 0.0, 0.07, 0.9 ),
+        PoseData( cv::Vec3d( 0.0, 0.1, 0.9 ),
         cv::Vec3d( 0.0, Utilities::degToRad( 180.0 ), Utilities::degToRad( 40.0 ) ) ) );
 }
 
@@ -246,7 +246,7 @@ cv::Mat createRotationMatrixZ( double angle )
 //--------------------------------------------------------------------------------------------------
 cv::Mat createCameraWorldMatrix( const cv::Mat& cameraPos, const cv::Mat& cameraRotXYZDeg )
 {
-    cv::Mat worldMtx = cv::Mat::eye( 4, 4, CV_64FC1 );
+    cv::Mat cameraInAssemblySpaceMtx = cv::Mat::eye( 4, 4, CV_64FC1 );
 
     double angleX = Utilities::degToRad( cameraRotXYZDeg.at<double>( 0, 0 ) );
     double angleY = Utilities::degToRad( cameraRotXYZDeg.at<double>( 1, 0 ) );
@@ -254,13 +254,18 @@ cv::Mat createCameraWorldMatrix( const cv::Mat& cameraPos, const cv::Mat& camera
     cv::Mat rotMtx = createRotationMatrixZ( angleZ )
         *createRotationMatrixY( angleY )*createRotationMatrixX( angleX );
 
-    cv::Mat rotTarget( worldMtx, cv::Rect( 0, 0, 3, 3 ) );
-    cv::Mat posTarget( worldMtx, cv::Rect( 3, 0, 1, 3 ) );
+    cv::Mat rotTarget( cameraInAssemblySpaceMtx, cv::Rect( 0, 0, 3, 3 ) );
+    cv::Mat posTarget( cameraInAssemblySpaceMtx, cv::Rect( 3, 0, 1, 3 ) );
 
     rotMtx.copyTo( rotTarget );
     cameraPos.copyTo( posTarget );
 
-    return worldMtx;
+    cv::Mat assemblyInWorldSpaceMtx = cv::Mat::eye( 4, 4, CV_64FC1 );
+    cv::Mat assemblyRotTarget( assemblyInWorldSpaceMtx, cv::Rect( 0, 0, 3, 3 ) );
+    cv::Mat assemblyRotMtx = createRotationMatrixZ( Utilities::degToRad( 180.0 ) );
+    assemblyRotMtx.copyTo( assemblyRotTarget );
+
+    return assemblyInWorldSpaceMtx*cameraInAssemblySpaceMtx;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -414,8 +419,8 @@ std::vector<PointData> generateImagePoints( const cv::Mat& cameraWorldMtx, const
     {
         for ( int32_t x = 0; x < imageWidth; x++ )
         {
-            double imagePlaneX = -(x - cameraCalibMtx.at<double>( 0, 2 )) / cameraCalibMtx.at<double>( 0, 0 );
-            double imagePlaneY = -(y - cameraCalibMtx.at<double>( 1, 2 )) / cameraCalibMtx.at<double>( 1, 1 );
+            double imagePlaneX = (x - cameraCalibMtx.at<double>( 0, 2 )) / cameraCalibMtx.at<double>( 0, 0 );
+            double imagePlaneY = (y - cameraCalibMtx.at<double>( 1, 2 )) / cameraCalibMtx.at<double>( 1, 1 );
             cv::Mat rayDir = camAxisZ + imagePlaneX*camAxisX + imagePlaneY*camAxisY;
 
             double cosOfAngleToChessboard = cv::Mat(rayDir.t()*chessboardAxisZ).at<double>( 0 );
@@ -580,8 +585,12 @@ int main( int argc, char** argv )
     int32_t highResImageWidth;
     int32_t highResImageHeight;
 
-    configFileStorage[ "kinectDepthCameraPos" ] >> kinectDepthCameraPos;
-    configFileStorage[ "kinectDepthCameraRotXYZDeg" ] >> kinectDepthCameraRotXYZDeg;
+    // The camera poses are defined in a coordinate system with the Kinect depth camera at the
+    // origin looking down the +ve z-axis, so z values increase into the image. The x and y axes
+    // of the depth camera are aligned with its image plane, so +ve x points to its right, and
+    // +ve y points down through the base of the camera. To position the camera in world space, it
+    // is rotated 180 degrees about the z axis, the chessboard positions are defined in world space.
+
     configFileStorage[ "kinectDepthFocalLengthPixel" ] >> kinectDepthFocalLengthPixel;
     configFileStorage[ "kinectDepthImageWidth" ] >> kinectDepthImageWidth;
     configFileStorage[ "kinectDepthImageHeight" ] >> kinectDepthImageHeight;
@@ -599,10 +608,10 @@ int main( int argc, char** argv )
     configFileStorage[ "highResImageHeight" ] >> highResImageHeight;
 
     // Construct camera matrices
+    cv::Mat zeroVec = cv::Mat::zeros( 3, 1, CV_64FC1 );
     cv::Mat kinectDepthCalibMtx = createCameraCalibrationMatrix(
         kinectDepthFocalLengthPixel, kinectDepthImageWidth, kinectDepthImageHeight );
-    cv::Mat kinectDepthWorldMtx = createCameraWorldMatrix(
-        kinectDepthCameraPos, kinectDepthCameraRotXYZDeg );
+    cv::Mat kinectDepthWorldMtx = createCameraWorldMatrix( zeroVec, zeroVec );
 
     cv::Mat kinectRGBCalibMtx = createCameraCalibrationMatrix(
         kinectRGBFocalLengthPixel, kinectRGBImageWidth, kinectRGBImageHeight );
