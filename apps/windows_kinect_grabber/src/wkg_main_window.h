@@ -51,8 +51,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //--------------------------------------------------------------------------------------------------
 struct FrameData
 {
-    std::vector<uint16_t> mDepthBuffer;
-    std::vector<uint8_t> mColorBuffer;
+    cv::Mat mDepthBuffer;
+    cv::Mat mColorBuffer;
 };
 
 //--------------------------------------------------------------------------------------------------

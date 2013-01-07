@@ -1,0 +1,19 @@
+%YAML:1.0
+BoardSize: [ 9, 6 ]
+BoardSizeMM: [ 131, 83 ]
+FirstCameraName: KinectRGB
+SecondCameraName: CanonZoom4
+FirstCameraCalibrationFile: "../../point_clouds/calibration_data/KinectRGB_cameraMatrix.yml"
+SecondCameraCalibrationFile: "../CanonZoom4/CanonZoom4_cameraMatrix.yml"
+UseDotPattern: 0
+ImageFilePairs:
+    - First: "stereo_kinect_chess_0001.jpg"
+      Second: "stereo_canon_chess_0001.jpg"
+    - First: "stereo_kinect_chess_0002.jpg"
+      Second: "stereo_canon_chess_0002.jpg"
+    - First: "stereo_kinect_chess_0003.jpg"
+      Second: "stereo_canon_chess_0003.jpg"
+    #- First: "stereo_kinect_chess_0004.jpg"
+    #  Second: "stereo_canon_chess_0004.jpg"
+    #- First: "stereo_kinect_chess_0005.jpg"
+    #  Second: "stereo_canon_chess_0005.jpg"      

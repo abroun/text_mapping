@@ -1122,11 +1122,16 @@ void TmMainWindow::loadCameras()
     //std::string highResCalibrationFilename = dataDir + "/calibration_images/canon_zoom4_cameraMatrix_2.yml";
     //std::string highResPoseFilename = dataDir + "/calibration_images/stereo_calibration.yml";
 
-    std::string kinectCalibrationFilename = dataDir + "/calibration_images/Simulated/kinect_calib.yaml";
+    //std::string kinectCalibrationFilename = dataDir + "/calibration_images/Simulated/kinect_calib.yaml";
     //std::string highResCalibrationFilename = dataDir + "/calibration_images/Simulated/high_res_calib.yaml";
-    std::string highResCalibrationFilename = dataDir + "/calibration_images/Simulated/HighResRGB_cameraMatrix.yml";
+    //std::string highResCalibrationFilename = dataDir + "/calibration_images/Simulated/HighResRGB_cameraMatrix.yml";
     //std::string highResPoseFilename = dataDir + "/calibration_images/Simulated/colour_stereo_calib.yaml";
-    std::string highResPoseFilename = dataDir + "/calibration_images/Simulated/KinectRGB_to_HighResRGB_calib.yml";
+    //std::string highResPoseFilename = dataDir + "/calibration_images/Simulated/KinectRGB_to_HighResRGB_calib.yml";
+
+    std::string kinectCalibrationFilename = dataDir + "/point_clouds/calibration_data/windows_kinect.yaml";
+    std::string highResCalibrationFilename = dataDir + "/calibration_images/Canon_Zoom4/CanonZoom4_cameraMatrix.yml";
+    //std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectRGB_to_CanonZoom4_calib.yml";
+    std::string highResPoseFilename = dataDir + "/calibration_images/KinectRGB_to_HighResRGB_calib.yml";
 
     // Load in the Kinect calibration file
     cv::FileStorage fileStorage;

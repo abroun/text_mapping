@@ -38,7 +38,7 @@ DepthToColorCameraTranslation: !!opencv-matrix
    rows: 3
    cols: 1
    dt: d
-   data: [ -2.1833501908016716e-002, 4.2701240927287573e-004,
+   data: [ 2.1833501908016716e-002, 4.2701240927287573e-004,
        -9.8561220630288241e-004 ]
 DepthToColorCameraEssentialMatrix: !!opencv-matrix
    rows: 3

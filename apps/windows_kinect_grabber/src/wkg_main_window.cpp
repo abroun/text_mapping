@@ -218,11 +218,15 @@ void WkgMainWindow::onBtnGrabCalibrationImageClicked()
     {
         // Copy the current color and depth images
         FrameData frameData;
-        frameData.mColorBuffer.resize( mImageWidth*mImageHeight*4 );
-        frameData.mDepthBuffer.resize( mImageWidth*mImageHeight );
+        frameData.mColorBuffer = cv::Mat( mImageHeight, mImageWidth, CV_8UC4 );
+        frameData.mDepthBuffer = cv::Mat( mImageHeight, mImageWidth, CV_16U );
 
-        memcpy( &frameData.mColorBuffer[ 0 ], mpColorBuffer, mImageWidth*mImageHeight*4 );
-        memcpy( &frameData.mDepthBuffer[ 0 ], mpDepthBuffer, mImageWidth*mImageHeight*sizeof( uint16_t ) );
+        memcpy( frameData.mColorBuffer.data, mpColorBuffer, mImageWidth*mImageHeight*4 );
+        memcpy( frameData.mDepthBuffer.data, mpDepthBuffer, mImageWidth*mImageHeight*sizeof( uint16_t ) );
+
+        // Flip the images about the vertical
+        cv::flip( frameData.mColorBuffer, frameData.mColorBuffer, 1 );
+        cv::flip( frameData.mDepthBuffer, frameData.mDepthBuffer, 1 );
 
         // Save the frame
         mCalibrationImages.push_back( frameData );
@@ -273,8 +277,8 @@ void WkgMainWindow::onBtnCalculateCameraMatricesClicked()
                 int x = distX( gRandomNumberGenerator );
                 int y = distY( gRandomNumberGenerator );
 
-                int depthPixelIdx = y*mImageWidth + x;
-                uint16_t depthValue = frameData.mDepthBuffer[ depthPixelIdx ];
+                //int depthPixelIdx = y*mImageWidth + x;
+                uint16_t depthValue = frameData.mDepthBuffer.at<uint16_t>( y, x );
 
                 // Check that the depth value is valid
                 if ( depthValue > 0 )
