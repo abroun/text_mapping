@@ -121,7 +121,7 @@ class PointCloud
 	public: void getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const;
 
     public: float pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir,
-        Eigen::Vector3f* pPosOut=NULL, float close=0.005f ) const;
+         int32_t* pClosestPointIdxOut=NULL, float close=0.005f ) const;
 
     private: float mFocalLengthPixels;
     private: cv::Mat mImage;

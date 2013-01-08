@@ -60,7 +60,7 @@ class Camera
 
     public: void addPickPoint( const Eigen::Vector2d& screenPos );
 	public: void clearPickPoints();
-    public: void getLineForPickPoint( const Eigen::Vector2d& screenPos, Eigen::Vector3d* pLineStartOut, Eigen::Vector3d* pLineDirOut );
+    public: void getLineForPickPoint( const Eigen::Vector2d& screenPos, Eigen::Vector3d* pLineStartOut, Eigen::Vector3d* pLineDirOut ) const;
 
     public: void updatePickLines();
     public: void tweakLookAtPos( const Eigen::Vector3d& offset );

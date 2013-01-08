@@ -18,8 +18,7 @@ SET( TEXT_MAPPER_SOURCES
 SET( TEXT_MAPPER_HEADERS
 	src/frame_dialog.h
 	src/image_view_dialog.h
-	src/tm_main_window.h 
-	src/text_detection.h )
+	src/tm_main_window.h )
 SET( TEXT_MAPPER_FORMS 
 	gui/frame_dialog.ui
 	gui/image_view_dialog.ui

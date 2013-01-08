@@ -435,7 +435,7 @@ void PointCloud::getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector
 
 //--------------------------------------------------------------------------------------------------
 float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir,
-    Eigen::Vector3f* pPosOut, float close ) const
+    int32_t* pClosestPointIdxOut, float close ) const
 {
     float dirLength = lineDir.norm();
 
@@ -448,10 +448,11 @@ float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Ve
 
     bool bPointFound = false;
     float closestRayToPointSquared = FLT_MAX;
-    Eigen::Vector3f closestPos = Eigen::Vector3f::Zero();
+    float distanceAlongRayToClosestApproach = -1.0;
+   int32_t closestPointIdx = INVALID_POINT_IDX;
 
-	printf( "Start Pos is %f %f %f\n", lineStart[ 0 ], lineStart[ 1 ], lineStart[ 2 ] );
-    printf( "Dir length is %f\n", normLineDir.squaredNorm() );
+	//printf( "Start Pos is %f %f %f\n", lineStart[ 0 ], lineStart[ 1 ], lineStart[ 2 ] );
+    //printf( "Dir length is %f\n", normLineDir.squaredNorm() );
 
     uint32_t pointIdx = 0;
     for  ( ; pointIdx < mPointWorldPositions.size(); pointIdx++ )
@@ -475,15 +476,16 @@ float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Ve
                 {
                     // The ray comes close enough for contact
                     bPointFound = true;
-                    closestPos = pos;
+                    closestPointIdx = pointIdx;
+                    distanceAlongRayToClosestApproach = distanceToClosestApproach;
                 }
             }
         }
     }
 
-    printf( "Checked %u points\n", pointIdx );
+    //printf( "Checked %u points\n", pointIdx );
 
-    printf( "Closest we got was %f\n", sqrtf( closestRayToPointSquared ) );
+    //printf( "Closest we got was %f\n", sqrtf( closestRayToPointSquared ) );
 
     if ( !bPointFound )
     {
@@ -491,11 +493,11 @@ float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Ve
     }
     else
     {
-        if ( NULL != pPosOut )
+        if ( NULL != pClosestPointIdxOut )
         {
-            *pPosOut = closestPos;
+            *pClosestPointIdxOut = closestPointIdx;
         }
 
-        return sqrtf( closestRayToPointSquared );
+        return distanceAlongRayToClosestApproach;
     }
 }

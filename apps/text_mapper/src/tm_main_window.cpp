@@ -50,7 +50,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "text_mapping/utilities.h"
 #include "frame_dialog.h"
 #include "tm_main_window.h"
-#include "text_detection.h"
 #include <opencv2/core/eigen.hpp>
 
 //--------------------------------------------------------------------------------------------------
@@ -277,6 +276,10 @@ void TmMainWindow::onCurrentFrameChanged( const QModelIndex& current, const QMod
         {
             mFrames[ currentFrameIdx ].tryToLoadImages( false );
             refreshImageDisplays( &mFrames[ currentFrameIdx ] );
+
+            // Create a new text map for the frame
+            mpFrameTextMap = TextMap::Ptr( new TextMap() );
+            mpTextMapSource->SetTextMapPtr( mpFrameTextMap );
         }
     }
 }
@@ -294,13 +297,6 @@ void TmMainWindow::onBtnAddFrameClicked()
 
         // Select the last item that was added
         this->listViewFrames->setCurrentIndex( mpFrameListModel->index( mFrames.size() - 1 ) );
-
-        // TODO: Fix text map creation
-        if ( mFrames.size() == 1 )
-        {
-            mpFrameTextMap = TextMap::Ptr( new TextMap() );
-            mpTextMapSource->SetTextMapPtr( mpFrameTextMap );
-        }
     }
 }
 
@@ -370,27 +366,6 @@ void TmMainWindow::onBtnDeleteFrameClicked()
     }
 }
 
-struct Letter2D
-{
-    Letter2D( char c, double tl_x, double tl_y, double tr_x, double tr_y,
-        double bl_x, double bl_y, double br_x, double br_y )
-        : mCharacter( c ),
-        mTopLeft( tl_x, tl_y ),
-        mTopRight( tr_x, tr_y ),
-        mBottomLeft( bl_x, bl_y ),
-        mBottomRight( br_x, br_y ) {}
-
-    char mCharacter;
-    Eigen::Vector2d mTopLeft;
-    Eigen::Vector2d mTopRight;
-    Eigen::Vector2d mBottomLeft;
-    Eigen::Vector2d mBottomRight;
-
-    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
-};
-
-typedef std::vector<Letter2D, Eigen::aligned_allocator<Letter2D> > Letter2DVector;
-
 //--------------------------------------------------------------------------------------------------
 void TmMainWindow::onBtnDetectTextClicked()
 {
@@ -399,9 +374,9 @@ void TmMainWindow::onBtnDetectTextClicked()
     {
         printf( "Detecting text...\n" );
 
-        LetterList letterList = detectTextInImage( mFrames[ curFrameIdx ].mHighResImage );
+        Letter2DVector letters2D = detect_text( mFrames[ curFrameIdx ].mHighResImage );
 
-        printf( "Found %u letter%s\n", (uint32_t)letterList.size(), ( letterList.size() == 1 ? "" : "s" ) );
+        printf( "Found %u letter%s\n", (uint32_t)letters2D.size(), ( letters2D.size() == 1 ? "" : "s" ) );
 
 
         // Add the found letters to the text map
@@ -410,63 +385,57 @@ void TmMainWindow::onBtnDetectTextClicked()
 
         vtkSmartPointer<vtkCellPicker> pPicker = vtkSmartPointer<vtkCellPicker>::New();
 
-        Letter2DVector letters2D;
-        //letters2D.push_back( Letter2D( 'C', 1091.0, 382.0, 1220.0, 391.0, 1076.0, 535.0, 1180.0, 548.0 ) );
-		//letters2D.push_back( Letter2D( 'a', 1192.0, 457.0, 1298.0, 457.0, 1188.0, 550.0, 1180.0, 548.0 ) );
 
         for ( uint32_t letterIdx = 0; letterIdx < letters2D.size(); letterIdx++ )
         {
+            printf( "Adding letter %lu of %lu\n", letterIdx + 1, letters2D.size() );
+
             const Letter2D& letter2D = letters2D[ letterIdx ];
 			Eigen::Vector3f topLeft;
 			Eigen::Vector3f topRight;
 			Eigen::Vector3f bottomLeft;
 
-            //mHighResCamera.addPickPoint( letter2D.mTopLeft );
-            //mHighResCamera.addPickPoint( letter2D.mTopRight );
-            //mHighResCamera.addPickPoint( letter2D.mBottomLeft );
-            //mHighResCamera.addPickPoint( letter2D.mBottomRight );
-
             Eigen::Vector3d lineStartPos;
             Eigen::Vector3d lineDir;
             mHighResCamera.getLineForPickPoint( letter2D.mTopLeft, &lineStartPos, &lineDir );
 
-            float result = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
+            float distanceToSurface = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
                 lineStartPos.cast<float>(), lineDir.cast<float>() );
 
-            if ( result < 0.0 )
+            if ( distanceToSurface < 0.0 )
 			{
 				continue;
 			}
-			topLeft = lineStartPos.cast<float>() + result*lineDir.cast<float>();
+			topLeft = lineStartPos.cast<float>() + distanceToSurface*lineDir.cast<float>();
 
             mHighResCamera.getLineForPickPoint( letter2D.mTopRight, &lineStartPos, &lineDir );
 
-            result = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
+            distanceToSurface = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
                 lineStartPos.cast<float>(), lineDir.cast<float>() );
 
-            if ( result < 0.0 )
+            if ( distanceToSurface < 0.0 )
 			{
 				continue;
 			}
-			topRight = lineStartPos.cast<float>() + result*lineDir.cast<float>();
+			topRight = lineStartPos.cast<float>() + distanceToSurface*lineDir.cast<float>();
 
             mHighResCamera.getLineForPickPoint( letter2D.mBottomLeft, &lineStartPos, &lineDir );
 
-            result = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
+            distanceToSurface = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
                 lineStartPos.cast<float>(), lineDir.cast<float>() );
 
-            if ( result < 0.0 )
+            if ( distanceToSurface < 0.0 )
 			{
 				continue;
 			}
-			bottomLeft = lineStartPos.cast<float>() + result*lineDir.cast<float>();
+			bottomLeft = lineStartPos.cast<float>() + distanceToSurface*lineDir.cast<float>();
 
             mHighResCamera.getLineForPickPoint( letter2D.mBottomRight, &lineStartPos, &lineDir );
 
-            result = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
+            distanceToSurface = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface( 
                 lineStartPos.cast<float>(), lineDir.cast<float>() );
 
-            if ( result < 0.0 )
+            if ( distanceToSurface < 0.0 )
 			{
 				continue;
 			}
@@ -844,24 +813,22 @@ void TmMainWindow::addKeyPointInstanceAtImagePos( const ImageViewDialog* pImageV
 bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint,
                                   Eigen::Vector3f* pWorldPosOut, bool bDrawPickLine ) const
 {
-    // Get the camera world and calibration matrices
-    const Eigen::Matrix4d* pCamWorldMtx = NULL;
-    const Eigen::Matrix3d* pCamCalibMtx = NULL;
+    // Get the start point, and direction of the ray
+    Eigen::Vector3d lineStartPos;
+    Eigen::Vector3d lineDir;
+    Eigen::Vector2d eigenPickPoint( pickPoint.x(), pickPoint.y() ); 
 
     if ( &mHighResImageViewDialog == pImageViewDialog )
     {
-        pCamWorldMtx = &mHighResCamera.getCameraInWorldSpaceMatrix();
-        pCamCalibMtx = &mHighResCamera.getCalibrationMatrix();
+        mHighResCamera.getLineForPickPoint( eigenPickPoint, &lineStartPos, &lineDir );
     }
     else if ( &mKinectColorImageViewDialog == pImageViewDialog )
     {
-        pCamWorldMtx = &mKinectColorCamera.getCameraInWorldSpaceMatrix();
-        pCamCalibMtx = &mKinectColorCamera.getCalibrationMatrix();
+        mKinectColorCamera.getLineForPickPoint( eigenPickPoint, &lineStartPos, &lineDir );
     }
     else if ( &mKinectDepthColorImageViewDialog == pImageViewDialog )
     {
-        pCamWorldMtx = &mKinectDepthCamera.getCameraInWorldSpaceMatrix();
-        pCamCalibMtx = &mKinectDepthCamera.getCalibrationMatrix();
+        mKinectDepthCamera.getLineForPickPoint( eigenPickPoint, &lineStartPos, &lineDir );
     }
     else
     {
@@ -871,44 +838,18 @@ bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
 
     bool bSurfacePointFound = false;
 
-    // Fancy method...
-    /*Eigen::Matrix4d invCamWorldMtx = camWorldMtx.inverse();
-    Eigen::MatrixXd P = camCalibMtx*invCamWorldMtx.block<3,4>( 0, 0 );
-    Eigen::MatrixXd Pinv =  P.transpose()*(P*P.transpose()).inverse();
-
-    Eigen::Vector4d camCentre = camWorldMtx.block<4,1>( 0, 3 );
-
-    std::cout << "pick point " << pickPoint.x() << ", " << pickPoint.y() << std::endl;
-    Eigen::Vector3d homogImagePos( (pickPoint.x() - camCalibMtx( 0, 2 )),
-        (pickPoint.y() - camCalibMtx( 1, 2 )), 1.0 );
-    Eigen::Vector4d worldPos = Pinv*homogImagePos;
-
-    Eigen::Vector4d pickDir = worldPos - camCentre;*/
-
-
-    // Simpler method...
-    const Eigen::Vector3d& camCentre = pCamWorldMtx->block<3,1>( 0, 3 );
-
-    const Eigen::Vector3d& camAxisX = pCamWorldMtx->block<3,1>( 0, 0 );
-    const Eigen::Vector3d& camAxisY = pCamWorldMtx->block<3,1>( 0, 1 );
-    const Eigen::Vector3d& camAxisZ = pCamWorldMtx->block<3,1>( 0, 2 );
-
-
-    double imagePlaneX = (pickPoint.x() - (*pCamCalibMtx)( 0, 2 )) / (*pCamCalibMtx)( 0, 0 );
-    double imagePlaneY = (pickPoint.y() - (*pCamCalibMtx)( 1, 2 )) / (*pCamCalibMtx)( 1, 1 );
-    Eigen::Vector3d pickDir = camAxisZ + imagePlaneX*camAxisX + imagePlaneY*camAxisY;
-
-    Eigen::Vector3f pickedWorldPos;
+    
     float distanceToSurface = mpPointCloudSource->GetPointCloudPtr()->pickSurface(
-        camCentre.cast<float>(), pickDir.cast<float>(),
-        &pickedWorldPos );
+        lineStartPos.cast<float>(), lineDir.cast<float>() );
 
     // Place the pick point
     if ( distanceToSurface >= 0.0 )
     {
         //std::cout << "Pos " << pickedWorldPos << std::endl;
-
         bSurfacePointFound = true;
+
+        Eigen::Vector3f pickedWorldPos = lineStartPos.cast<float>() + lineDir.cast<float>()*distanceToSurface;
+
         if ( NULL != pWorldPosOut )
         {
             *pWorldPosOut = pickedWorldPos;
@@ -924,9 +865,9 @@ bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
         vtkSmartPointer<vtkCellArray> lines = vtkSmartPointer<vtkCellArray>::New();
 
         // Create the line
-        points->InsertNextPoint( camCentre[ 0 ], camCentre[ 1 ], camCentre[ 2 ] );
+        points->InsertNextPoint( lineStartPos[ 0 ], lineStartPos[ 1 ], lineStartPos[ 2 ] );
 
-        Eigen::Vector3d pickLineEnd = camCentre + 4.0*pickDir;
+        Eigen::Vector3d pickLineEnd = lineStartPos + 4.0*lineDir;
         points->InsertNextPoint( pickLineEnd[ 0 ], pickLineEnd[ 1 ], pickLineEnd[ 2 ] );
 
         vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
@@ -1083,30 +1024,6 @@ void TmMainWindow::refreshKeyPointInstances()
     // Display the key point instances
     mpKeyPointInstancesSource->SetKeyPointInstances( keyPointInstances );
     this->qvtkWidget->update();
-}
-
-//--------------------------------------------------------------------------------------------------
-TmMainWindow::LetterList TmMainWindow::detectTextInImage( cv::Mat image )
-{
-    // TODO: Magic text detection stuff
-
-	std::cout << detect_text(image) << endl;
-
-    // TODO: Create a list of letters to send back
-    LetterList letterList;
-
-    // AB: An example of how the existing letter class could be used...
-    float letterX = 100.0f;
-    float letterY = 300.0f;
-
-    Letter letter;
-    letter.mMtx = Eigen::Matrix4f::Identity();
-    letter.mMtx.block<2,1>( 0, 3 ) = Eigen::Vector2f( letterX, letterY );
-    letter.mCharacter = 'A';
-    letterList.push_back( letter );
-
-
-    return letterList;
 }
 
 //--------------------------------------------------------------------------------------------------

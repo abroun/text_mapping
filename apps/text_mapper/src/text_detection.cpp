@@ -32,11 +32,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Desc: main text_detection routines
 //--------------------------------------------------------------------------------------------------
 
+#include <stdint.h>
+#include "text_detection.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/ml/ml.hpp"
 #include "opencv2/features2d/features2d.hpp"
+#include <boost/algorithm/string.hpp>
 
 #ifdef WIN32
 #include <Windows.h>
@@ -51,8 +54,10 @@ struct CompStruct
 	std::string textString;
 };
 
-int detect_text(cv::Mat inputImage)
+Letter2DVector detect_text(cv::Mat inputImage)
 {   
+    Letter2DVector foundLetters;
+
     cv::cvtColor(inputImage,inputImage,cv::COLOR_RGB2BGR);
 
 #ifdef WIN32	
@@ -67,19 +72,21 @@ int detect_text(cv::Mat inputImage)
 	std::vector<CompStruct> bad;
 	CompStruct storeComp;
 	//list.push_back(cv::Rect(x,y,dx,dy));
-	storeComp.boundingBox = cv::Rect(1208,581,163,56);
+	//storeComp.boundingBox = cv::Rect(713,462,533,156);
+	//good.push_back(storeComp);
+	storeComp.boundingBox = cv::Rect(869,632,223,61);
 	good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(1192,645,189,46);
+	storeComp.boundingBox = cv::Rect(860,702,251,54);
 	good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(1103,1402,174,21);
+	storeComp.boundingBox = cv::Rect(935,411,104,19);
 	good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(1035,1532,301,26);
+	
+    storeComp.boundingBox = cv::Rect(888,429,199,15);
 	good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(1381,1489,65,36);
+	storeComp.boundingBox = cv::Rect(950,445,75,15);
 	good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(888,293,103,110);
-	good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(917,394,42,38);
+	
+    /*storeComp.boundingBox = cv::Rect(917,394,42,38);
 	good.push_back(storeComp);
 	storeComp.boundingBox = cv::Rect(1044,1444,278,22);
 	good.push_back(storeComp);
@@ -93,11 +100,11 @@ int detect_text(cv::Mat inputImage)
 	storeComp.boundingBox = cv::Rect(1086,392,403,186);
 	bad.push_back(storeComp);
 	storeComp.boundingBox = cv::Rect(1110,1467,217,24);
-	bad.push_back(storeComp);
+	bad.push_back(storeComp);*/
 	
 
 
-	for(int i = 0; i < good.size(); i++)
+	for(uint32_t i = 0; i < good.size(); i++)
 	{
 
 		cv::Mat storeImage = cv::Mat::zeros(good.at(i).boundingBox.height,good.at(i).boundingBox.width, inputImage.type());
@@ -114,9 +121,39 @@ int detect_text(cv::Mat inputImage)
 		tess.SetImage((uchar*)storeImage.data, storeImage.size().width, storeImage.size().height, storeImage.channels(),storeImage.step1());
 		tess.Recognize(0);
 		good.at(i).textString = tess.GetUTF8Text();
+
+        // Convert the string into letters. Assume that each letter takes up the same amount of space
+        // in the rectangle...
+        std::string textString = good.at(i).textString;
+        boost::algorithm::trim( textString );
+
+        if ( textString.length() > 0 )
+        {
+            float topLeftX = (float)good.at(i).boundingBox.x;
+            float letterWidth = (float)good.at(i).boundingBox.width / (float)textString.length();
+            float letterTopY = (float)good.at(i).boundingBox.y;
+            float letterBottomY = letterTopY + (float)good.at(i).boundingBox.height;
+
+            storeComp.boundingBox = cv::Rect(713,462,533,156);
+
+            for ( uint32_t letterIdx = 0; letterIdx < textString.length(); letterIdx++ )
+            {
+                float letterLeftX = topLeftX + letterIdx*letterWidth;
+                float letterRightX = topLeftX + (letterIdx + 1)*letterWidth;
+
+                Letter2D letter2D;
+                letter2D.mCharacter = textString[ letterIdx ];
+                letter2D.mTopLeft = Eigen::Vector2d( letterLeftX, letterTopY );
+                letter2D.mTopRight = Eigen::Vector2d( letterRightX, letterTopY );
+                letter2D.mBottomLeft = Eigen::Vector2d( letterLeftX, letterBottomY );
+                letter2D.mBottomRight = Eigen::Vector2d( letterRightX, letterBottomY );
+
+                foundLetters.push_back( letter2D );
+            }
+        }
 	}
 
-	for(int i = 0; i < bad.size(); i++)
+	for(uint32_t i = 0; i < bad.size(); i++)
 	{
 
 		cv::Mat storeImage = cv::Mat::zeros(bad.at(i).boundingBox.height,bad.at(i).boundingBox.width, inputImage.type());
@@ -136,7 +173,7 @@ int detect_text(cv::Mat inputImage)
 	}
 
 	std::cout << "Accepted text! " << std::endl;
-	for(int i = 0; i < good.size(); i++)
+	for(uint32_t i = 0; i < good.size(); i++)
 	{
 		std::cout << good.at(i).textString;// << std::endl;
 		cv::rectangle(outputImage,good.at(i).boundingBox,cv::Scalar(0,255,255),2);
@@ -145,7 +182,7 @@ int detect_text(cv::Mat inputImage)
 
 	std::cout << "Unaccepted text! " << std::endl;
 
-	for(int i = 0; i < bad.size(); i++)
+	for(uint32_t i = 0; i < bad.size(); i++)
 	{
 		std::cout << bad.at(i).textString;// << std::endl;
 		cv::rectangle(outputImage,bad.at(i).boundingBox,cv::Scalar(0,0,255),2);
@@ -158,5 +195,5 @@ int detect_text(cv::Mat inputImage)
 	cv::destroyAllWindows();
 
 #endif
-	return 0;
+	return foundLetters;
 }

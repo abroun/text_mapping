@@ -64,6 +64,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "text_mapping/vtk/vtk_point_cloud_source.h"
 #include "text_mapping/text_map.h"
 #include "text_mapping/vtk/vtk_text_map_source.h"
+#include "text_detection.h"
 
 //--------------------------------------------------------------------------------------------------
 class TmMainWindow : public QMainWindow, private Ui::tm_main_window
@@ -112,7 +113,6 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: void refreshKeyPointInstances();
 
     private: typedef std::list<Letter, Eigen::aligned_allocator<Letter> > LetterList;
-    private: LetterList detectTextInImage( cv::Mat image );
 
     private: void loadCameras();
 

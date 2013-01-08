@@ -32,10 +32,41 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // Desc: Header file for main text_detection routines
 //--------------------------------------------------------------------------------------------------
 
-
 #ifndef TEXT_DETECTION_H
 #define TEXT_DETECTION_H
 
-int detect_text(cv::Mat inputImage);
+//--------------------------------------------------------------------------------------------------
+#include <vector>
+#include <Eigen/Core>
+#include <Eigen/StdVector>
+#include <opencv2/core/core.hpp>
+
+//--------------------------------------------------------------------------------------------------
+struct Letter2D
+{
+    Letter2D() {}
+    Letter2D( char c, double tl_x, double tl_y, double tr_x, double tr_y,
+        double bl_x, double bl_y, double br_x, double br_y )
+        : mCharacter( c ),
+        mTopLeft( tl_x, tl_y ),
+        mTopRight( tr_x, tr_y ),
+        mBottomLeft( bl_x, bl_y ),
+        mBottomRight( br_x, br_y ) {}
+
+    char mCharacter;
+    Eigen::Vector2d mTopLeft;
+    Eigen::Vector2d mTopRight;
+    Eigen::Vector2d mBottomLeft;
+    Eigen::Vector2d mBottomRight;
+
+    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+};
+
+EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION( Letter2D );
+
+typedef std::vector<Letter2D, Eigen::aligned_allocator<Letter2D> > Letter2DVector;
+
+//--------------------------------------------------------------------------------------------------
+Letter2DVector detect_text(cv::Mat inputImage);
 
 #endif

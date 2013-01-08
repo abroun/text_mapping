@@ -46,6 +46,9 @@ Camera::Camera()
     mpVtkCamera = vtkSmartPointer<vtkCamera>::New();
     mpVtkCameraActor = vtkSmartPointer<vtkCameraActor>::New();
     mpVtkCameraActor->SetCamera( mpVtkCamera );
+    mpVtkCameraActor->GetProperty()->SetLineWidth( 2.0 );
+    mpVtkCameraActor->GetProperty()->SetBackfaceCulling( 0 );
+    mpVtkCameraActor->GetProperty()->SetLighting( false );
     setImageSize( 640.0, 480.0 );
 
     mpPickLinesMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
@@ -125,34 +128,38 @@ void Camera::clearPickPoints()
 }
 
 //--------------------------------------------------------------------------------------------------
-void Camera::getLineForPickPoint( const Eigen::Vector2d& screenPos, Eigen::Vector3d* pLineStartOut, Eigen::Vector3d* pLineDirOut )
+void Camera::getLineForPickPoint( const Eigen::Vector2d& screenPos, Eigen::Vector3d* pLineStartOut, Eigen::Vector3d* pLineDirOut ) const
 {
-	Eigen::Vector2d normalisedScreenPos( 
-        (2.0*screenPos[ 0 ])/mImageWidth - 1.0, (2.0*screenPos[ 1 ])/mImageHeight - 1.0 );
+    // Fancy method...
+    /*Eigen::Matrix4d invCamWorldMtx = camWorldMtx.inverse();
+    Eigen::MatrixXd P = camCalibMtx*invCamWorldMtx.block<3,4>( 0, 0 );
+    Eigen::MatrixXd Pinv =  P.transpose()*(P*P.transpose()).inverse();
 
-    double halfVerticalAngle = 0.5*Utilities::degToRad( mpVtkCamera->GetViewAngle() );
-    double verticalLength = tan( halfVerticalAngle );
-    double horizontalLength = verticalLength*(mImageWidth/mImageHeight);
+    Eigen::Vector4d camCentre = camWorldMtx.block<4,1>( 0, 3 );
 
-    Eigen::Vector3d cameraPos;
-    Eigen::Vector3d cameraAxisX;
-    Eigen::Vector3d cameraAxisY;
-    Eigen::Vector3d cameraAxisZ;
-    mpVtkCamera->GetPosition( cameraPos[ 0 ], cameraPos[ 1 ], cameraPos[ 2 ] );
-    mpVtkCamera->GetDirectionOfProjection( cameraAxisZ[ 0 ], cameraAxisZ[ 1 ], cameraAxisZ[ 2 ] );
-    mpVtkCamera->GetViewUp( cameraAxisY[ 0 ], cameraAxisY[ 1 ], cameraAxisY[ 2 ] );
+    std::cout << "pick point " << pickPoint.x() << ", " << pickPoint.y() << std::endl;
+    Eigen::Vector3d homogImagePos( (pickPoint.x() - camCalibMtx( 0, 2 )),
+        (pickPoint.y() - camCalibMtx( 1, 2 )), 1.0 );
+    Eigen::Vector4d worldPos = Pinv*homogImagePos;
 
-    cameraAxisX = cameraAxisY.cross( cameraAxisZ );
+    Eigen::Vector4d pickDir = worldPos - camCentre;*/
 
-    Eigen::Vector3d startPos = cameraPos;
-    Eigen::Vector3d rayDir = cameraAxisZ 
-        - normalisedScreenPos[ 0 ]*horizontalLength*cameraAxisX
-        - normalisedScreenPos[ 1 ]*verticalLength*cameraAxisY;
 
-    rayDir.normalize();
+    // Simpler method...
 
-    *pLineStartOut = startPos;
-    *pLineDirOut = rayDir;
+    const Eigen::Matrix4d& worldMtx = getCameraInWorldSpaceMatrix();
+    const Eigen::Matrix3d& calibMtx = getCalibrationMatrix();
+
+    *pLineStartOut = worldMtx.block<3,1>( 0, 3 );
+
+    const Eigen::Vector3d& camAxisX = worldMtx.block<3,1>( 0, 0 );
+    const Eigen::Vector3d& camAxisY = worldMtx.block<3,1>( 0, 1 );
+    const Eigen::Vector3d& camAxisZ = worldMtx.block<3,1>( 0, 2 );
+
+    double imagePlaneX = (screenPos[ 0 ] - calibMtx( 0, 2 )) / calibMtx( 0, 0 );
+    double imagePlaneY = (screenPos[ 1 ] - calibMtx( 1, 2 )) / calibMtx( 1, 1 );
+    *pLineDirOut = camAxisZ + imagePlaneX*camAxisX + imagePlaneY*camAxisY;
+    pLineDirOut->normalize();
 }
 
 //--------------------------------------------------------------------------------------------------
