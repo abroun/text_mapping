@@ -580,8 +580,8 @@ bool CirclesGridFinder::findHoles()
       findBasis(filteredVectors, basis, basisGraphs);
       findMCS(basis, basisGraphs);
 
-      cv::imshow("rng", realtiveNeighbourhoodGraph);
-	  waitKey();
+      //cv::imshow("rng", realtiveNeighbourhoodGraph);
+	  //waitKey();
 
       break;
     }

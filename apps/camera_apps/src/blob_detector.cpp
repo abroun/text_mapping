@@ -10,7 +10,7 @@
 
 #include <iterator>
 
-#define DEBUG_BLOB_DETECTOR
+//#define DEBUG_BLOB_DETECTOR
 
 
 using namespace cv;

@@ -1131,7 +1131,7 @@ void TmMainWindow::loadCameras()
     std::string kinectCalibrationFilename = dataDir + "/point_clouds/calibration_data/windows_kinect.yaml";
     std::string highResCalibrationFilename = dataDir + "/calibration_images/Canon_Zoom4/CanonZoom4_cameraMatrix.yml";
     //std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectRGB_to_CanonZoom4_calib.yml";
-    std::string highResPoseFilename = dataDir + "/calibration_images/KinectRGB_to_HighResRGB_calib.yml";
+    std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectDepth_to_CanonZoom4_calib.yml";
 
     // Load in the Kinect calibration file
     cv::FileStorage fileStorage;
@@ -1211,7 +1211,8 @@ void TmMainWindow::loadCameras()
     //highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 ) = -highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 );
 
     Eigen::Matrix4d highResCameraInWorldSpaceMatrix =
-        kinectColorCameraInWorldSpaceMatrix*highResCameraInColorCameraSpaceMatrix;
+        //kinectColorCameraInWorldSpaceMatrix*highResCameraInColorCameraSpaceMatrix;
+    		highResCameraInColorCameraSpaceMatrix;
 
     // HACK: Flipping about the x-axis.
     //highResCameraInWorldSpaceMatrix.block<1,4>( 1, 0 ) = -highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 );
