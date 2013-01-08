@@ -1,0 +1,18 @@
+%YAML:1.0
+BoardSize: [ 10, 7 ]
+BoardSizeMM: [ 216, 144 ]
+CameraName: CanonZoom4
+UseDotPattern: 1
+ImageFiles:
+   - "Canon_z4_0001.jpg"
+   - "Canon_z4_0002.jpg"
+   - "Canon_z4_0003.jpg"
+   - "Canon_z4_0004.jpg"
+   - "Canon_z4_0005.jpg"
+   - "Canon_z4_0006.jpg"
+   - "Canon_z4_0007.jpg"
+   - "Canon_z4_0008.jpg"
+   - "Canon_z4_0009.jpg"
+   - "Canon_z4_0010.jpg"
+   - "Canon_z4_0011.jpg"
+

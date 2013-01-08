@@ -162,7 +162,7 @@ std::vector<std::string> LoadConfig(std::string fileAddress,
     for ( uint32_t fileIdx = 0; fileIdx < imageFilesNode.size(); fileIdx++ )
     {
         imageFilenames.push_back( Utilities::decodeRelativeFilename(
-            fileAddress, (std::string)(imageFilesNode[ fileIdx ]) ) );
+			Utilities::makeFilenameAbsoluteFromCWD( fileAddress ), (std::string)(imageFilesNode[ fileIdx ]) ) );
     }
 
     fileStorage.release();
@@ -225,9 +225,9 @@ int main(int argc, char** argv)
 	//Initialize the chessboard corners
 	//in the chessboard reference frame
 	//The corners are at 3D location (x,y,z) = (i,j,0)
-	for(int i=0; i<boardSize.height; i++)
+	for(int i=boardSize.height-1; i>=0; i--)
 		for(int j=0; j<boardSize.width; j++)
-			objectCorners.push_back(cv::Point3f(i*squareHeight,j*squareWidth,0.0f));
+			objectCorners.push_back(cv::Point3f(j*squareWidth,i*squareHeight,0.0f));
 
 	for(int i = 0; i < (int)NameLocation.size(); i++)
 	{
@@ -285,11 +285,6 @@ int main(int argc, char** argv)
 
             cv::Ptr<cv::FeatureDetector> pDetector = new BlobDetector( params );
 
-            std::vector<cv::KeyPoint> keypoints;
-            pDetector->detect(image, keypoints);
-
-            printf( "Detected %lu keypoints\n", keypoints.size() );
-
             found = findCirclesGridAB( image, boardSize, imageCorners,
                 cv::CALIB_CB_SYMMETRIC_GRID, pDetector );
 
@@ -299,10 +294,6 @@ int main(int argc, char** argv)
             {
             	cv::Mat scaled;
             	cv::resize( image, scaled, cv::Size( 0, 0 ), 0.25, 0.25 );
-
-            	pDetector->detect(scaled, keypoints);
-
-				printf( "Detected %lu keypoints on second go\n", keypoints.size() );
 
 				found = findCirclesGridAB( scaled, boardSize, imageCorners,
 					cv::CALIB_CB_SYMMETRIC_GRID, pDetector );
@@ -315,10 +306,10 @@ int main(int argc, char** argv)
 				}
             }
 
-            cv::namedWindow("Corners", CV_WINDOW_NORMAL);
+            /*cv::namedWindow("Corners", CV_WINDOW_NORMAL);
 			cv::drawChessboardCorners(image,boardSize,imageCorners,found);
 			cv::imshow( "Corners", image );
-			cv::waitKey();
+			cv::waitKey();*/
 
             //cv::destroyWindow("Corners");
 		}
@@ -356,12 +347,21 @@ int main(int argc, char** argv)
 
 	std::vector<cv::Mat> rvecs,tvecs;
 
+	cameraMatrix = cv::Mat::eye( 3, 3, CV_64F );
+	cameraMatrix.at<double>( 0, 0 ) = 5458.0;
+	cameraMatrix.at<double>( 1, 1 ) = 5458.0;
+	cameraMatrix.at<double>( 0, 2 ) = 2272.0/2.0;
+	cameraMatrix.at<double>( 1, 2 ) = 1704.0/2.0;
 	distCoeffs = cv::Mat::zeros( 8, 1, CV_64F );
 
 	std::cout << cv::calibrateCamera(
 	    objectPoints,imagePoints,imageSize,cameraMatrix,distCoeffs,rvecs,tvecs,
-	        CV_CALIB_ZERO_TANGENT_DIST | CV_CALIB_FIX_K1 | CV_CALIB_FIX_K2 | CV_CALIB_FIX_K3
-	        | CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5 | CV_CALIB_FIX_K6 )<< std::endl;
+	    	CV_CALIB_USE_INTRINSIC_GUESS
+	    	//| CV_CALIB_FIX_PRINCIPAL_POINT
+	    	//| CV_CALIB_FIX_ASPECT_RATIO
+	        // | CV_CALIB_ZERO_TANGENT_DIST | CV_CALIB_FIX_K1 | CV_CALIB_FIX_K2 | CV_CALIB_FIX_K3
+	        //| CV_CALIB_FIX_K4 | CV_CALIB_FIX_K5 | CV_CALIB_FIX_K6
+	        )<< std::endl;
 
 	cv::FileStorage fs((cameraName + "_cameraMatrix.yml").c_str(), cv::FileStorage::WRITE);
     fs << "cameraMatrix" << cameraMatrix;

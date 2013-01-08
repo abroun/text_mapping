@@ -5,6 +5,7 @@
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 #include "opencv2/highgui/highgui.hpp"
+#include "text_mapping/point_cloud.h"
 #include "text_mapping/utilities.h"
 #include <stdexcept>
 
@@ -201,9 +202,9 @@ std::vector<std::pair<std::string, std::string> > LoadConfig(std::string fileAdd
         else
         {
             std::string firstFilename = Utilities::decodeRelativeFilename(
-                fileAddress, (std::string)firstFileNode );
+				Utilities::makeFilenameAbsoluteFromCWD( fileAddress ), (std::string)firstFileNode );
             std::string secondFilename = Utilities::decodeRelativeFilename(
-                fileAddress, (std::string)secondFileNode );
+				Utilities::makeFilenameAbsoluteFromCWD( fileAddress ), (std::string)secondFileNode );
 
             imageFilenamePairs.push_back( std::pair<std::string, std::string>(
                 firstFilename, secondFilename ) );
@@ -230,7 +231,27 @@ bool findImageCorners( std::string imageFilename, cv::Size boardSize, bool bUseD
     bool bCornersFound = false;
     pImageCornersOut->clear();
 
-    cv::Mat image = cv::imread( imageFilename, CV_LOAD_IMAGE_GRAYSCALE );
+    cv::Mat image;
+    PointCloud::Ptr pCloud;
+
+    // Load the image, either from an image file supported by OpenCV, or from a point cloud
+    if ( imageFilename.length() >= 4
+		&& imageFilename.substr( imageFilename.length() - 4, 4 ) == ".spc" )
+    {
+    	pCloud = PointCloud::loadPointCloudFromSpcFile( imageFilename );
+    	if ( NULL == pCloud )
+    	{
+    		fprintf( stderr, "Error: Unable to load %s\n", imageFilename.c_str() );
+    		return false;
+    	}
+
+    	cv::Mat colourImage = pCloud->getImage();
+    	cv::cvtColor( colourImage, image, CV_RGB2GRAY );
+    }
+    else
+    {
+    	image = cv::imread( imageFilename, CV_LOAD_IMAGE_GRAYSCALE );
+    }
 
     if ( !bUseDotPattern )
     {
@@ -383,7 +404,6 @@ int main(int argc, char** argv)
     std::vector<std::vector<cv::Point3f>> objectPoints;
 
     for(int i=boardSize.height-1; i>=0; i--)
-    //for(int i=0; i<boardSize.height; i++)
         for(int j=0; j<boardSize.width; j++)
             objectCorners.push_back(cv::Point3f(j*squareWidth,i*squareHeight,0.0f));
 
@@ -401,6 +421,18 @@ int main(int argc, char** argv)
 	cv::FileStorage firstCalibFile( firstCameraCalibrationFilename, cv::FileStorage::READ );
 	cv::FileStorage secondCalibFile( secondCameraCalibrationFilename, cv::FileStorage::READ );
 
+	if ( !firstCalibFile.isOpened() )
+	{
+		fprintf( stderr, "Error: Unable to open %s\n", firstCameraCalibrationFilename.c_str() );
+		return -1;
+	}
+
+	if ( !secondCalibFile.isOpened() )
+	{
+		fprintf( stderr, "Error: Unable to open %s\n", secondCameraCalibrationFilename.c_str() );
+		return -1;
+	}
+
 	firstCalibFile[ "cameraMatrix" ] >> firstCalibMatrix;
 	firstCalibFile[ "distCoeffs" ] >> firstDistCoeffs;
 	secondCalibFile[ "cameraMatrix" ] >> secondCalibMatrix;
@@ -414,7 +446,9 @@ int main(int argc, char** argv)
 	        objectPoints, secondCameraPoints, firstCameraPoints,
 	        secondCalibMatrix, secondDistCoeffs,
 	        firstCalibMatrix, firstDistCoeffs,
-	        cv::Size(0, 0), R, T, E, F ) << std::endl;
+	        cv::Size(0, 0), R, T, E, F,
+	        cv::TermCriteria(cv::TermCriteria::COUNT+cv::TermCriteria::EPS, 30, 1e-6),
+	        CV_CALIB_FIX_INTRINSIC  ) << std::endl;
 
 	std::cout << "R\n\n\n" << R << "\n\n\n" << std::endl;
 
@@ -433,6 +467,43 @@ int main(int argc, char** argv)
 
 	std::cout << "Finished stereo Calibration" << std::endl;
 
+	/*
+	// Try to solve manually with solvePnP
+	cv::Mat firstRotVec, firstTransVec;
+	cv::Mat secondRotVec, secondTransVec;
+	solvePnP( objectPoints[ 0 ], firstCameraPoints[ 0 ], firstCalibMatrix, firstDistCoeffs, firstRotVec, firstTransVec );
+	solvePnP( objectPoints[ 0 ], secondCameraPoints[ 0 ], secondCalibMatrix, secondDistCoeffs, secondRotVec, secondTransVec );
+
+	cv::Mat objectInFirstCameraSpaceMtx = cv::Mat::eye( 4, 4, CV_64F );
+	cv::Mat objectInSecondCameraSpaceMtx = cv::Mat::eye( 4, 4, CV_64F );
+
+
+	cv::Mat firstRotMtx;
+	cv::Mat secondRotMtx;
+
+	cv::Rodrigues( firstRotVec, firstRotMtx );
+	cv::Rodrigues( secondRotVec, secondRotMtx );
+
+	cv::Mat firstRotTarget( objectInFirstCameraSpaceMtx, cv::Rect( 0, 0, 3, 3 ) );
+	cv::Mat firstPosTarget( objectInFirstCameraSpaceMtx, cv::Rect( 3, 0, 1, 3 ) );
+
+	firstRotMtx.copyTo( firstRotTarget );
+	firstTransVec.copyTo( firstPosTarget );
+
+	cv::Mat secondRotTarget( objectInSecondCameraSpaceMtx, cv::Rect( 0, 0, 3, 3 ) );
+	cv::Mat secondPosTarget( objectInSecondCameraSpaceMtx, cv::Rect( 3, 0, 1, 3 ) );
+
+	secondRotMtx.copyTo( secondRotTarget );
+	secondTransVec.copyTo( secondPosTarget );
+
+	cv::Mat secondCameraInFirstCameraSpace = objectInFirstCameraSpaceMtx*objectInSecondCameraSpaceMtx.inv();
+	std::cout << "firstCalibMatrix" << std::endl;
+	std::cout << firstCalibMatrix << std::endl;
+	std::cout << "secondCalibMatrix" << std::endl;
+	std::cout << secondCalibMatrix << std::endl;
+	std::cout << "secondCameraInFirstCameraSpace" << std::endl;
+	std::cout << secondCameraInFirstCameraSpace << std::endl;
+*/
 	return 0;
 }
 
