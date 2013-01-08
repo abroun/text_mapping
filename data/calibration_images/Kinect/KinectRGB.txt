@@ -1,0 +1,14 @@
+%YAML:1.0
+BoardSize: [ 10, 7 ]
+BoardSizeMM: [ 216, 144 ]
+CameraName: KinectRGB
+UseDotPattern: 1
+ImageFiles:
+   - "kinect_rgb_0001.jpg"
+   - "kinect_rgb_0002.jpg"
+   - "kinect_rgb_0003.jpg"
+   - "kinect_rgb_0004.jpg"
+   - "kinect_rgb_0005.jpg"
+   - "kinect_rgb_0006.jpg"
+   - "kinect_rgb_0007.jpg"
+
