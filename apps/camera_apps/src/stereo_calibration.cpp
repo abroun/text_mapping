@@ -293,7 +293,18 @@ bool findImageCorners( std::string imageFilename, cv::Size boardSize, bool bUseD
         if ( !bCornersFound )
         {
             cv::Mat scaled;
-            cv::resize( image, scaled, cv::Size( 0, 0 ), 0.25, 0.25 );
+
+            float scale;
+            if ( image.rows < 480 )
+            {
+                scale = 2.0;
+            }
+            else
+            {
+                scale = 0.25;
+            }
+
+            cv::resize( image, scaled, cv::Size( 0, 0 ), scale, scale );
 
 
 			bCornersFound = findCirclesGridAB( scaled, boardSize, *pImageCornersOut,
@@ -302,8 +313,8 @@ bool findImageCorners( std::string imageFilename, cv::Size boardSize, bool bUseD
 
 			for ( uint32_t i = 0; i < pImageCornersOut->size(); i++ )
 			{
-				(*pImageCornersOut)[ i ].x *= 4.0;
-				(*pImageCornersOut)[ i ].y *= 4.0;
+				(*pImageCornersOut)[ i ].x /= scale;
+				(*pImageCornersOut)[ i ].y /= scale;
 			}
         }
 

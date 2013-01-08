@@ -293,7 +293,18 @@ int main(int argc, char** argv)
             if ( !found )
             {
             	cv::Mat scaled;
-            	cv::resize( image, scaled, cv::Size( 0, 0 ), 0.25, 0.25 );
+
+                float scale;
+                if ( image.rows < 480 )
+                {
+                    scale = 2.0;
+                }
+                else
+                {
+                    scale = 0.25;
+                }
+
+            	cv::resize( image, scaled, cv::Size( 0, 0 ), scale, scale );
 
 				found = findCirclesGridAB( scaled, boardSize, imageCorners,
 					cv::CALIB_CB_SYMMETRIC_GRID, pDetector );
@@ -301,8 +312,8 @@ int main(int argc, char** argv)
 
 				for ( uint32_t i = 0; i < imageCorners.size(); i++ )
 				{
-					imageCorners[ i ].x *= 4.0;
-					imageCorners[ i ].y *= 4.0;
+					imageCorners[ i ].x /= scale;
+					imageCorners[ i ].y /= scale;
 				}
             }
 

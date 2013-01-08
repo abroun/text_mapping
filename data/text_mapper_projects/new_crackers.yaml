@@ -1,0 +1,16 @@
+%YAML:1.0
+Frames:
+   -
+      HighResImage: "../images/high_res/new_cracker_z4_0001.jpg"
+      KinectColorImage: "../images/kinect/new_cracker_0001.jpg"
+      KinectDepthPointCloud: "../point_clouds/new_cracker_0001.spc"
+   -
+      HighResImage: "../images/high_res/new_cracker_z4_0002.jpg"
+      KinectColorImage: "../images/kinect/new_cracker_0002.jpg"
+      KinectDepthPointCloud: "../point_clouds/new_cracker_0002.spc"
+   -
+      HighResImage: "../images/high_res/new_cracker_z4_0003.jpg"
+      KinectColorImage: "../images/kinect/new_cracker_0003.jpg"
+      KinectDepthPointCloud: "../point_clouds/new_cracker_0003.spc"
+KeyPoints:
+   []

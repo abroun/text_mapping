@@ -1162,10 +1162,10 @@ void TmMainWindow::loadCameras()
     std::cout << highResCameraCalibrationMatrix << std::endl;
 
     fileStorage.open( highResPoseFilename, cv::FileStorage::READ );
-    cv::Mat colorToHighResCameraRotationMatrix;
-    cv::Mat colorToHighResCameraTranslationVector;
-    fileStorage[ "R" ] >> colorToHighResCameraRotationMatrix;
-    fileStorage[ "T" ] >> colorToHighResCameraTranslationVector;
+    cv::Mat depthToHighResCameraRotationMatrix;
+    cv::Mat depthToHighResCameraTranslationVector;
+    fileStorage[ "R" ] >> depthToHighResCameraRotationMatrix;
+    fileStorage[ "T" ] >> depthToHighResCameraTranslationVector;
     fileStorage.release();
 
     // Set up the cameras
@@ -1199,28 +1199,14 @@ void TmMainWindow::loadCameras()
     mKinectColorCamera.setCalibrationMatrix( eigen3x3 );
 
     // High Resolution
-    Eigen::Matrix4d highResCameraInColorCameraSpaceMatrix = Eigen::Matrix4d::Identity();
+    Eigen::Matrix4d highResCameraInDepthCameraSpaceMatrix = Eigen::Matrix4d::Identity();
 
-    cv2eigen( colorToHighResCameraRotationMatrix, eigen3x3 );
-    highResCameraInColorCameraSpaceMatrix.block<3,3>( 0, 0 ) = eigen3x3;
-    highResCameraInColorCameraSpaceMatrix.block<3,1>( 0, 3 ) = 
-        Eigen::Map<Eigen::Vector3d>( (double*)colorToHighResCameraTranslationVector.data, 3, 1 );
-    //highResCameraInColorCameraSpaceMatrix( 1, 3 ) = -highResCameraInColorCameraSpaceMatrix( 1, 3 );
-
-    // HACK: Flipping about the x-axis.
-    //highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 ) = -highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 );
-
-    Eigen::Matrix4d highResCameraInWorldSpaceMatrix =
-        //kinectColorCameraInWorldSpaceMatrix*highResCameraInColorCameraSpaceMatrix;
-    		highResCameraInColorCameraSpaceMatrix;
-
-    // HACK: Flipping about the x-axis.
-    //highResCameraInWorldSpaceMatrix.block<1,4>( 1, 0 ) = -highResCameraInColorCameraSpaceMatrix.block<1,4>( 1, 0 );
-
-    //const Eigen::Vector3d HIGH_RES_CAMERA_OFFSET( -0.04, 0.02, 0.0 );
-    //const float HIGH_RES_CAMERA_FOV_SCALE = 1.0/0.9;
-
-    mHighResCamera.setCameraInWorldSpaceMatrix( highResCameraInWorldSpaceMatrix );
+    cv2eigen( depthToHighResCameraRotationMatrix, eigen3x3 );
+    highResCameraInDepthCameraSpaceMatrix.block<3,3>( 0, 0 ) = eigen3x3;
+    highResCameraInDepthCameraSpaceMatrix.block<3,1>( 0, 3 ) = 
+        Eigen::Map<Eigen::Vector3d>( (double*)depthToHighResCameraTranslationVector.data, 3, 1 );
+    
+    mHighResCamera.setCameraInWorldSpaceMatrix( highResCameraInDepthCameraSpaceMatrix );
 
     cv2eigen( highResCameraCalibrationMatrix, eigen3x3 );
     mHighResCamera.setCalibrationMatrix( eigen3x3 );

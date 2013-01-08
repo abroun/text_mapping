@@ -9,4 +9,11 @@ UseDotPattern: 1
 ImageFilePairs:
     - First: "../../point_clouds/calib.spc"
       Second: "../../images/high_res/calib.jpg"
-    
+    - First: "../../point_clouds/calib_0002.spc"
+      Second: "../../images/high_res/calib_0002.jpg"    
+    - First: "../../point_clouds/calib_0003.spc"
+      Second: "../../images/high_res/calib_0003.jpg"
+    - First: "../../point_clouds/calib_0004.spc"
+      Second: "../../images/high_res/calib_0004.jpg"    
+    - First: "../../point_clouds/calib_0005.spc"
+      Second: "../../images/high_res/calib_0005.jpg"
