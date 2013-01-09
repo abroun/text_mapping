@@ -42,10 +42,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vtkLine.h>
 #include <vtkPolyData.h>
 #include <vtkCellArray.h>
+#include <vtkPropPicker.h>
 #include <QtGui/QFileDialog>
 #include <QtGui/QMessageBox>
 #include <boost/algorithm/string.hpp>
 #include <boost/filesystem.hpp>
+#include <Eigen/Dense>
 #include <Eigen/Geometry>
 #include "text_mapping/utilities.h"
 #include "frame_dialog.h"
@@ -104,6 +106,7 @@ TmMainWindow::TmMainWindow()
 
     mpPointCloudMapper->SetInputConnection( mpPointCloudSource->GetOutputPort() );
     mpPointCloudActor->SetMapper( mpPointCloudMapper );
+    mpPointCloudActor->GetProperty()->SetPointSize( 3.0 );
 
     mpRenderer->AddActor( mpPointCloudActor );
 
@@ -137,7 +140,7 @@ TmMainWindow::TmMainWindow()
 
     mpKeyPointInstancesMapper->SetInputConnection( mpKeyPointInstancesSource->GetOutputPort() );
     mpKeyPointInstancesActor->SetMapper( mpKeyPointInstancesMapper );
-    mpKeyPointInstancesActor->GetProperty()->SetPointSize( 3 );
+    mpKeyPointInstancesActor->GetProperty()->SetPointSize( 6 );
 
     mpRenderer->AddActor( mpKeyPointInstancesActor );
 
@@ -171,6 +174,13 @@ TmMainWindow::TmMainWindow()
 
     mpRenderer->AddActor( mpTextMapActor );
 
+    // Set up a callback to handle mouse events in the main renderer
+    mpDisplayEventCallback = vtkCallbackCommand::New();
+    mpDisplayEventCallback->SetCallback( onInteractorEvent );
+    mpDisplayEventCallback->SetClientData( this );
+
+    qvtkWidget->GetInteractor()->AddObserver( vtkCommand::LeftButtonPressEvent, mpDisplayEventCallback );
+
     // Hook up signals
     connect( this->action_New, SIGNAL( triggered() ), this, SLOT( onNew() ) );
     connect( this->action_Open, SIGNAL( triggered() ), this, SLOT( onOpen() ) );
@@ -187,6 +197,7 @@ TmMainWindow::TmMainWindow()
     connect( this->btnEditFrame, SIGNAL( clicked() ), this, SLOT( onBtnEditFrameClicked() ) );
     connect( this->btnDeleteFrame, SIGNAL( clicked() ), this, SLOT( onBtnDeleteFrameClicked() ) );
     connect( this->btnDetectText, SIGNAL( clicked() ), this, SLOT( onBtnDetectTextClicked() ) );
+    connect( this->btnAlignModelWithFrame, SIGNAL( clicked() ), this, SLOT( onBtnAlignModelWithFrameClicked() ) );
 
     connect( this->btnLeft, SIGNAL( clicked() ), this, SLOT( onBtnLeftClicked() ) );
     connect( this->btnRight, SIGNAL( clicked() ), this, SLOT( onBtnRightClicked() ) );
@@ -194,6 +205,7 @@ TmMainWindow::TmMainWindow()
     connect( this->btnDown, SIGNAL( clicked() ), this, SLOT( onBtnDownClicked() ) );
 
     connect( this->checkShowModel, SIGNAL( clicked() ), this, SLOT( onCheckShowModelClicked() ) );
+    connect( this->checkShowFrame, SIGNAL( clicked() ), this, SLOT( onCheckShowFrameClicked() ) );
 
     connect( this->listWidgetKeyPoints, SIGNAL( currentRowChanged( int ) ),
              this, SLOT( onCurrentKeyPointRowChanged( int ) ) );
@@ -276,6 +288,7 @@ void TmMainWindow::onCurrentFrameChanged( const QModelIndex& current, const QMod
         {
             mFrames[ currentFrameIdx ].tryToLoadImages( false );
             refreshImageDisplays( &mFrames[ currentFrameIdx ] );
+            refreshModelTransform();
 
             // Create a new text map for the frame
             mpFrameTextMap = TextMap::Ptr( new TextMap() );
@@ -388,7 +401,7 @@ void TmMainWindow::onBtnDetectTextClicked()
 
         for ( uint32_t letterIdx = 0; letterIdx < letters2D.size(); letterIdx++ )
         {
-            printf( "Adding letter %lu of %lu\n", letterIdx + 1, letters2D.size() );
+            printf( "Adding letter %u of %lu\n", letterIdx + 1, letters2D.size() );
 
             const Letter2D& letter2D = letters2D[ letterIdx ];
 			Eigen::Vector3f topLeft;
@@ -482,6 +495,83 @@ void TmMainWindow::onBtnDetectTextClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnAlignModelWithFrameClicked()
+{
+    int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+
+    if ( this->checkShowModel->isChecked()
+        && curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
+    {
+        // Find the common set of key point instances shared by both the model and the current frame
+        std::vector<Eigen::Vector3f> modelPoints;
+        std::vector<Eigen::Vector3f> framePoints;
+
+        modelPoints.reserve( mKeyPoints.size() );
+        framePoints.reserve( mKeyPoints.size() );
+
+        for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+        {
+            const KeyPointInstance* pModelInstance = mKeyPoints[ keyPointIdx ].getKeyPointModelInstance();
+            if ( NULL != pModelInstance )
+            {
+                const KeyPointInstance* pFrameInstance =
+                    mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( curFrameIdx );
+
+                if ( NULL != pFrameInstance )
+                {
+                    // This key point is represented by an instance both in the model, and in
+                    // the frame
+                    modelPoints.push_back( pModelInstance->mPos );
+                    framePoints.push_back( pFrameInstance->mPos );
+                }
+            }
+        }
+
+        // Check that we've got enough points
+        uint32_t numPoints = modelPoints.size();
+        if ( numPoints < 3 )
+        {
+            QMessageBox::critical( NULL, "Error",
+                "Not enough common key points. At least 3, non co-linear points are needed" );
+
+            return;
+        }
+
+        // Find the transformation
+        Eigen::Matrix3f rotationMtx;
+        Eigen::Vector3f translation;
+        float scale = 1.0;
+        if ( !Utilities::findOptimumTransformation3D( &modelPoints[ 0 ], &framePoints[ 0 ],
+            numPoints, &rotationMtx, &translation, &scale, true ) )
+        {
+            QMessageBox::critical( NULL, "Error",
+                "Unable to find transform. This may be because of co-linear key points" );
+
+            return;
+        }
+
+        // Store the transform
+        Eigen::Matrix4f modelInFrameSpaceTransform = Eigen::Matrix4f::Identity();
+        modelInFrameSpaceTransform.block<3,3>( 0, 0 ) = rotationMtx;
+        modelInFrameSpaceTransform.block<3,1>( 0, 3 ) = translation;
+
+        mFrames[ curFrameIdx ].setModelInFrameSpaceTransform( modelInFrameSpaceTransform );
+
+        // Debug check scale...
+        if ( Utilities::findOptimumTransformation3D( &modelPoints[ 0 ], &framePoints[ 0 ],
+            numPoints, &rotationMtx, &translation, &scale ) )
+        {
+            printf( "Optimum scale would be %f\n", scale );
+        }
+
+        // Update the display
+        refreshModelTransform();
+        refreshKeyPointInstances();
+        this->qvtkWidget->update();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::onBtnLeftClicked()
 {
     mHighResCamera.tweakLookAtPos( Eigen::Vector3d( -0.02, 0.0, 0.0 ) );
@@ -514,17 +604,31 @@ void TmMainWindow::onCheckShowModelClicked()
 {
 	if ( this->checkShowModel->isChecked() )
 	{
-		mHighResCamera.addPickPoint( Eigen::Vector2d( 1057.0, 124.0 ) );
-		mHighResCamera.addPickPoint( Eigen::Vector2d( 1523.0, 176.0 ) );
-		mHighResCamera.addPickPoint( Eigen::Vector2d( 1025.0, 1556.0 ) );
-		mHighResCamera.addPickPoint( Eigen::Vector2d( 1496.0, 1562.0 ) );
+	    refreshModelTransform();
 		mpModelActor->SetVisibility( 1 );
 	}
 	else
 	{
-		mHighResCamera.clearPickPoints();
 		mpModelActor->SetVisibility( 0 );
 	}
+
+	refreshKeyPointInstances();
+    this->qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onCheckShowFrameClicked()
+{
+    if ( this->checkShowFrame->isChecked() )
+    {
+        mpPointCloudActor->SetVisibility( 1 );
+    }
+    else
+    {
+        mpPointCloudActor->SetVisibility( 0 );
+    }
+
+    refreshKeyPointInstances();
     this->qvtkWidget->update();
 }
 
@@ -539,6 +643,9 @@ void TmMainWindow::onBtnAddKeyPointClicked()
 {
     mKeyPoints.push_back( KeyPoint() );
     refreshKeyPointList();
+
+    // Select the last item that was added
+    this->listWidgetKeyPoints->setCurrentRow( this->listWidgetKeyPoints->count() - 1 );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -585,6 +692,52 @@ void TmMainWindow::closeEvent( QCloseEvent* pEvent )
     for ( uint32_t dialogIdx = 0; dialogIdx < mpImageViewDialogs.size(); dialogIdx++ )
     {
         mpImageViewDialogs[ dialogIdx ]->close();
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::onInteractorEvent( vtkObject *caller, unsigned long eid,
+                                      void* clientdata, void* calldata )
+{
+    TmMainWindow* pWin = (TmMainWindow*)clientdata;
+    vtkRenderWindowInteractor* pInteractor = pWin->qvtkWidget->GetInteractor();
+
+    switch ( eid )
+    {
+        case vtkCommand::LeftButtonPressEvent:
+        {
+            if ( pInteractor->GetControlKey() )
+            {
+                // Check to see if we have a key point and a frame selected
+                int32_t curKeyPointIdx = pWin->listWidgetKeyPoints->currentRow();
+                if ( curKeyPointIdx >= 0 && curKeyPointIdx < (int32_t)pWin->mKeyPoints.size() )
+                {
+                    // Now check to see if we've clicked on the object model
+                    int* mousePos = pInteractor->GetEventPosition();
+
+                    vtkSmartPointer<vtkPropPicker> pPicker = vtkSmartPointer<vtkPropPicker>::New();
+                    pPicker->Pick( mousePos[ 0 ], mousePos[ 1 ], 0, pWin->mpRenderer );
+
+                    if ( pPicker->GetActor() == pWin->mpModelActor )
+                    {
+                        double* pickPos = pPicker->GetPickPosition();
+                        Eigen::Vector3f posInFrameSpace( pickPos[ 0 ], pickPos[ 1 ], pickPos[ 2 ] );
+
+                        Eigen::Matrix4f modelInFrameSpaceTransform = pWin->getModelInFrameSpaceTransform();
+                        Eigen::Matrix4f frameInModelSpaceTransform = modelInFrameSpaceTransform.inverse();
+
+                        Eigen::Vector3f posInModelSpace =
+                            frameInModelSpaceTransform.block<3,3>( 0, 0 )*posInFrameSpace
+                            + frameInModelSpaceTransform.block<3,1>( 0, 3 );
+
+                        pWin->mKeyPoints[ curKeyPointIdx ].addKeyPointModelInstance( posInModelSpace );
+                        pWin->refreshKeyPointInstances();
+                    }
+                }
+            }
+
+            break;
+        }
     }
 }
 
@@ -903,6 +1056,23 @@ bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
 }
 
 //--------------------------------------------------------------------------------------------------
+Eigen::Matrix4f TmMainWindow::getModelInFrameSpaceTransform() const
+{
+    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
+
+    int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+    if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
+    {
+        if ( mFrames[ curFrameIdx ].isModelInFrameSpaceTransformSet() )
+        {
+            transform = mFrames[ curFrameIdx ].getModelInFrameSpaceTransform();
+        }
+    }
+
+    return transform;
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::refreshFrameList()
 {
     // Create a list of strings and thumbnails representing the frames
@@ -1000,22 +1170,29 @@ void TmMainWindow::refreshKeyPointInstances()
     // Add in model instances if needed
     if ( this->checkShowModel->isChecked() )
     {
+        Eigen::Matrix4f modelInFrameSpaceTransform = getModelInFrameSpaceTransform();
+
         for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
         {
             const KeyPointInstance* pInstance = mKeyPoints[ keyPointIdx ].getKeyPointModelInstance();
             if ( NULL != pInstance )
             {
+                KeyPointInstance transformedInstance = *pInstance;
+                transformedInstance.mPos =
+                    modelInFrameSpaceTransform.block<3,3>( 0, 0 )*transformedInstance.mPos
+                    + modelInFrameSpaceTransform.block<3,1>( 0, 3 );
+
                 if ( (int32_t)keyPointIdx == selectedKeyPointIdx )
                 {
                     // Yellow for selected model instance
                     keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
-                        *pInstance, 255, 255, 0 ) );
+                        transformedInstance, 255, 255, 0 ) );
                 }
                 else
                 {
                     // Green for normal model instance
                     keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
-                        *pInstance, 0, 255, 0 ) );
+                        transformedInstance, 0, 255, 0 ) );
                 }
             }
         }
@@ -1024,6 +1201,24 @@ void TmMainWindow::refreshKeyPointInstances()
     // Display the key point instances
     mpKeyPointInstancesSource->SetKeyPointInstances( keyPointInstances );
     this->qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::refreshModelTransform()
+{
+    Eigen::Matrix4f modelTransform = getModelInFrameSpaceTransform();
+
+    // Break the rotation matrix down into angles Z, X, Y. The order in which VTK will apply them
+    Eigen::Vector3f angles = modelTransform.block<3,3>( 0, 0 ).eulerAngles( 2, 0, 1 );
+
+    // Now pass the angles as degrees to VTK
+    float degreesX = Utilities::radToDeg( angles[ 1 ] );
+    float degreesY = Utilities::radToDeg( angles[ 2 ] );
+    float degreesZ = Utilities::radToDeg( angles[ 0 ] );
+    mpModelActor->SetOrientation( degreesX, degreesY, degreesZ );
+
+    const Eigen::Vector3f& pos = modelTransform.block<3,1>( 0, 3 );
+    mpModelActor->SetPosition( pos[ 0 ], pos[ 1 ], pos[ 2 ] );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1183,9 +1378,10 @@ void TmMainWindow::loadObjModel( QString filename )
             // Add the actors to the scene
 
             mpRenderer->AddActor( mpModelActor );
-            mpModelActor->SetPosition( 0.02, -0.05, 0.72 );
-            mpModelActor->SetScale( 0.5 );
-            mpModelActor->SetOrientation( 170.0, 120.0 + 175.0, 0.0 );
+            //mpModelActor->SetPosition( 0.02, -0.05, 0.72 );
+            const float CRACKER_MODEL_SCALE = 0.975f;
+            mpModelActor->SetScale( 0.5*CRACKER_MODEL_SCALE );
+            //mpModelActor->SetOrientation( 170.0, 120.0 + 175.0, 0.0 );
 
             mpModelActor->SetVisibility( this->checkShowModel->isChecked() ? 1 : 0 );
         }

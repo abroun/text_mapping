@@ -49,7 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vtkSmartPointer.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkActor.h>
-
+#include <vtkCallbackCommand.h>
 #include <vtkOBJReader.h>
 #include <vtkJPEGReader.h>
 #include <vtkTexture.h>
@@ -83,13 +83,16 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public slots: void onBtnAddFrameClicked();
     public slots: void onBtnEditFrameClicked();
     public slots: void onBtnDeleteFrameClicked();
+
     public slots: void onBtnDetectTextClicked();
+    public slots: void onBtnAlignModelWithFrameClicked();
     
     public slots: void onBtnLeftClicked();
     public slots: void onBtnRightClicked();
     public slots: void onBtnUpClicked();
     public slots: void onBtnDownClicked();
     public slots: void onCheckShowModelClicked();
+    public slots: void onCheckShowFrameClicked();
 
     // KeyPoints
     public slots: void onCurrentKeyPointRowChanged( int currentRow );
@@ -100,6 +103,9 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
 
     public: virtual void closeEvent( QCloseEvent* pEvent );
 
+    public: static void onInteractorEvent( vtkObject *caller,
+        unsigned long eid, void* clientdata, void* calldata );
+
     public: void loadProject( const std::string& projectFilename );
     public: void saveProject( const std::string& projectFilename );
 
@@ -107,16 +113,22 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public: bool pickFromImage( const ImageViewDialog* pImageViewDialog,
         const QPointF& pickPoint, Eigen::Vector3f* pWorldPosOut=NULL, bool bDrawPickLine=true ) const;
 
+    //! Gets the current transformation matrix for the model in frame space. Returns the identity
+    //! matrix if no frame is currently selected
+    private: Eigen::Matrix4f getModelInFrameSpaceTransform() const;
+
     private: void refreshFrameList();
     private: void refreshKeyPointList();
     private: void refreshImageDisplays( const FrameData* pFrameData );
     private: void refreshKeyPointInstances();
+    private: void refreshModelTransform();
 
     private: typedef std::list<Letter, Eigen::aligned_allocator<Letter> > LetterList;
 
     private: void loadCameras();
 
     private: vtkSmartPointer<vtkRenderer> mpRenderer;
+    private: vtkSmartPointer<vtkCallbackCommand> mpDisplayEventCallback;
 
     // Stuff to render a point cloud
     private: vtkSmartPointer<vtkPointCloudSource> mpPointCloudSource;

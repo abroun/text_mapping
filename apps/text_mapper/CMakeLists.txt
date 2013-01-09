@@ -51,23 +51,15 @@ ADD_EXECUTABLE( text_mapper ${TEXT_MAPPER_SOURCES}
     ${TEXT_MAPPER_FORMS_HEADERS} )
     
 IF( WIN32 )
-TARGET_LINK_LIBRARIES( text_mapper ${QT_LIBRARIES} QVTK ${OpenCV_LIBS} TextMapping ${BOOST_LIBRARIES} 
-	#ccmain.lib
-	#ccstruct.lib
-	#ccutil.lib
-	#classify.lib
-	#cube.lib
-	#cutil.lib
-	#dict.lib
-	#image.lib
-	libtesseract302
-	#libtesseract_tessopt.lib
-	#libtesseract_training.lib
-	#neural_networks.lib
-	#textord.lib
-	#viewer.lib
-	#wordrec.lib
-	)
+    SET( TESSERACT_LIBS libtesseract302 )
 ELSE( WIN32 )
-    TARGET_LINK_LIBRARIES( text_mapper ${QT_LIBRARIES} QVTK ${OpenCV_LIBS} TextMapping ${BOOST_LIBRARIES} )
+    SET( TESSERACT_LIBS tesseract )
 ENDIF( WIN32 )
+
+TARGET_LINK_LIBRARIES( text_mapper 
+    ${QT_LIBRARIES} 
+    QVTK 
+    ${OpenCV_LIBS} 
+    TextMapping 
+    ${BOOST_LIBRARIES} 
+    ${TESSERACT_LIBS} )

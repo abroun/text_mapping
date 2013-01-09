@@ -43,10 +43,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef WIN32
 #include <Windows.h>
+#endif
 
 #include <tesseract/baseapi.h>
 #include <tesseract/resultiterator.h> 
-#endif
+
 
 struct CompStruct
 {
@@ -60,10 +61,15 @@ Letter2DVector detect_text(cv::Mat inputImage)
 
     cv::cvtColor(inputImage,inputImage,cv::COLOR_RGB2BGR);
 
-#ifdef WIN32	
+
 	cv::Mat outputImage = inputImage.clone();
 	tesseract::TessBaseAPI tess;
+
+#ifdef WIN32
 	tess.Init("C:\\Program Files (x86)\\Tesseract-OCR\\tessdata", "eng", tesseract::OEM_DEFAULT);
+#else
+	tess.Init( "/usr/share/tesseract-ocr/tessdata/", "eng", tesseract::OEM_DEFAULT );
+#endif
 	
 	CvFont font;
 	cvInitFont( &font, CV_FONT_HERSHEY_COMPLEX_SMALL, .6, .6, 0, 1, 6);
@@ -194,6 +200,5 @@ Letter2DVector detect_text(cv::Mat inputImage)
 	cv::waitKey();
 	cv::destroyAllWindows();
 
-#endif
 	return foundLetters;
 }

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>655</width>
+    <width>777</width>
     <height>735</height>
    </rect>
   </property>
@@ -38,7 +38,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>655</width>
+     <width>777</width>
      <height>25</height>
     </rect>
    </property>
@@ -171,8 +171,8 @@
        <widget class="QPushButton" name="btnDetectText">
         <property name="geometry">
          <rect>
-          <x>310</x>
-          <y>20</y>
+          <x>20</x>
+          <y>100</y>
           <width>93</width>
           <height>28</height>
          </rect>
@@ -236,8 +236,8 @@
        <widget class="QCheckBox" name="checkShowModel">
         <property name="geometry">
          <rect>
-          <x>250</x>
-          <y>60</y>
+          <x>20</x>
+          <y>150</y>
           <width>141</width>
           <height>20</height>
          </rect>
@@ -246,15 +246,36 @@
          <string>Show Model</string>
         </property>
        </widget>
-       <zorder>groupBox_3</zorder>
-       <zorder>groupBox_4</zorder>
-       <zorder>btnDetectText</zorder>
-       <zorder>btnUp</zorder>
-       <zorder>btnDown</zorder>
-       <zorder>btnLeft</zorder>
-       <zorder>btnRight</zorder>
-       <zorder>checkShowModel</zorder>
-       <zorder>qvtkWidget</zorder>
+       <widget class="QPushButton" name="btnAlignModelWithFrame">
+        <property name="geometry">
+         <rect>
+          <x>150</x>
+          <y>100</y>
+          <width>111</width>
+          <height>41</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Align Model
+With Frame</string>
+        </property>
+       </widget>
+       <widget class="QCheckBox" name="checkShowFrame">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>180</y>
+          <width>131</width>
+          <height>22</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Show Frame</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
       </widget>
      </item>
     </layout>
@@ -262,10 +283,16 @@
   </widget>
   <widget class="QDockWidget" name="dockKeyPoints">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>0</horstretch>
      <verstretch>0</verstretch>
     </sizepolicy>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>400</width>
+     <height>524287</height>
+    </size>
    </property>
    <property name="features">
     <set>QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>

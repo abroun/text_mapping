@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //--------------------------------------------------------------------------------------------------
 #include <cstdlib>
 #include <boost/filesystem.hpp>
+#include <Eigen/Dense>
 #include "text_mapping/utilities.h"
 
 //--------------------------------------------------------------------------------------------------
@@ -176,4 +177,66 @@ std::string Utilities::getDataDir()
 
      boost::filesystem::path directoryPath( directoryName );
      return boost::filesystem::absolute( directoryPath ).string();
+}
+
+//--------------------------------------------------------------------------------------------------
+bool Utilities::findOptimumTransformation3D( Eigen::Vector3f* pPointsA, Eigen::Vector3f* pPointsB,
+                                  uint32_t numPoints, Eigen::Matrix3f* pRotationMtxOut,
+                                  Eigen::Vector3f* pTranslationOut, float* pScaleInOut, bool bFixScale )
+{
+    bool transformationFound = false;
+
+    // Calculate the mean of the point sets
+    Eigen::Vector3f meanA = Eigen::Vector3f::Zero();
+    Eigen::Vector3f meanB = Eigen::Vector3f::Zero();
+    for ( uint32_t pointIdx = 0; pointIdx < numPoints; pointIdx++ )
+    {
+        meanA += pPointsA[ pointIdx ];
+        meanB += pPointsB[ pointIdx ];
+    }
+    meanA /= numPoints;
+    meanB /= numPoints;
+
+    // Calculate the covariance of the points
+    Eigen::Matrix3f covarianceMtx = Eigen::Matrix3f::Zero();
+
+    for ( uint32_t pointIdx = 0; pointIdx < numPoints; pointIdx++ )
+    {
+        covarianceMtx += (pPointsB[ pointIdx ] - meanB)*(pPointsA[ pointIdx ] - meanA).transpose();
+    }
+    covarianceMtx /= numPoints;
+
+    // Check the rank of the covariance matrix. It must be greater than or equal to
+    // 1 to calculate the transformation
+    Eigen::FullPivLU<Eigen::Matrix3f> luDecomp( covarianceMtx );
+    if ( luDecomp.rank() >= 2 )
+    {
+        Eigen::JacobiSVD<Eigen::Matrix3f> svd( covarianceMtx,
+            Eigen::ComputeFullU | Eigen::ComputeFullV );
+
+        Eigen::Matrix3f S = Eigen::Matrix3f::Identity();
+        if ( covarianceMtx.determinant() < 0 )
+        {
+            S( 2, 2 ) = -1.0f;
+        }
+
+        *pRotationMtxOut = svd.matrixU()*S*svd.matrixV().transpose();
+        if ( !bFixScale )
+        {
+            // Calculate the variance of the first set of points
+            float varA = 0.0;
+            for ( uint32_t pointIdx = 0; pointIdx < numPoints; pointIdx++ )
+            {
+                varA += (pPointsA[ pointIdx ] - meanA).squaredNorm();
+            }
+            varA /= numPoints;
+
+            *pScaleInOut = (svd.singularValues().asDiagonal()*S).trace()/varA;
+        }
+        *pTranslationOut = meanB - (*pScaleInOut)*(*pRotationMtxOut)*meanA;
+
+        transformationFound = true;
+    }
+
+    return transformationFound;
 }

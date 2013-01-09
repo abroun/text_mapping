@@ -37,12 +37,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include <string>
+#include <Eigen/Core>
 #include <opencv2/core/core.hpp>
 #include "text_mapping/point_cloud.h"
 
 //--------------------------------------------------------------------------------------------------
 struct FrameData
 {
+    public: FrameData()
+    {
+        mModelInFrameSpaceTransform = Eigen::Matrix4f::Identity();
+        mbModelInFrameSpaceTransformSet = false;
+    }
+
     std::string mHighResImageFilename;
 	std::string mKinectColorImageFilename;
 	std::string mKinectDepthPointCloudFilename;
@@ -51,14 +58,32 @@ struct FrameData
     cv::Mat mKinectColorImage;
     PointCloud::Ptr mpKinectDepthPointCloud;
 
+    private: Eigen::Matrix4f mModelInFrameSpaceTransform;
+    private: bool mbModelInFrameSpaceTransformSet;
+
     //! Tries to load in the images referenced by the filenames.
     //! @param bShowErrorMsgBox If set to true, the user will be shown a message box telling them
     //!        about the missing image
     //! @return true if all the images were loaded, and false otherwise
-    bool tryToLoadImages( bool bShowErrorMsgBox );
+    public: bool tryToLoadImages( bool bShowErrorMsgBox );
 
     //! Unloads images to save memory
-    void unloadImages();
+    public: void unloadImages();
+
+    public: void setModelInFrameSpaceTransform( const Eigen::Matrix4f& transform )
+    {
+        mModelInFrameSpaceTransform = transform;
+        mbModelInFrameSpaceTransformSet = true;
+    }
+
+    public: const Eigen::Matrix4f& getModelInFrameSpaceTransform() const
+    {
+        return mModelInFrameSpaceTransform;
+    }
+
+    public: bool isModelInFrameSpaceTransformSet() const { return mbModelInFrameSpaceTransformSet; }
+
+    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
 #endif // FRAME_DATA_H_

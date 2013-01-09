@@ -1,0 +1,27 @@
+%YAML:1.0
+BoardSize: [ 9, 6 ]
+BoardSizeMM: [ 131, 83 ]
+CameraName: CanonZoom4_Chess
+UseDotPattern: 0
+ImageFiles:
+   - "Canon_Zoom4_1.jpg"
+   - "Canon_Zoom4_2.jpg"
+   - "Canon_Zoom4_3.jpg"
+   - "Canon_Zoom4_4.jpg"
+   - "Canon_Zoom4_5.jpg"
+   - "Canon_Zoom4_6.jpg"
+   - "Canon_Zoom4_7.jpg"
+   - "Canon_Zoom4_8.jpg"
+   - "Canon_Zoom4_9.jpg"
+   - "Canon_Zoom4_10.jpg"
+   - "Canon_Zoom4_11.jpg"
+   - "Canon_Zoom4_12.jpg"
+   - "Canon_Zoom4_13.jpg"
+   - "Canon_Zoom4_14.jpg"
+   - "Canon_Zoom4_15.jpg"
+   - "Canon_Zoom4_16.jpg"
+   - "Canon_Zoom4_17.jpg"
+   - "Canon_Zoom4_18.jpg"
+   - "Canon_Zoom4_19.jpg"
+   - "Canon_Zoom4_20.jpg"
+

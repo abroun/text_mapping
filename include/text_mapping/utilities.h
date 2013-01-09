@@ -35,6 +35,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _USE_MATH_DEFINES
 #include <math.h>
 #include <string>
+#include <Eigen/Core>
 
 //--------------------------------------------------------------------------------------------------
 //! \brief Dumping ground for utility routines that have yet to find a proper home elsewhere. 
@@ -86,6 +87,29 @@ class Utilities
     //! working directory.
     //! @return An absolute path to the data directory.
     public: static std::string getDataDir();
+
+    //! Finds the optimum transformation that minimises the squared error between two point sets
+    //! where the correspondences are known. Based on the paper 'Least-squares estimation of
+    //! transformation parameters between two point patterns' by Shinji Umeyama.
+    //! @param pPointsA An array containing the first set of points
+    //! @param pPointsB An array containing the second set of points
+    //! @param numPoints The number of points in each set
+    //! @param pRotationMtxOut A pointer to a matrix to be filled in with the rotation matrix
+    //! @param pTranslationOut A pointer to a vector to be filled in with the translation
+    //! @param pScaleInOut A pointer value to be filled in with the scale, or to pass a fixed
+    //!        scale into the routine.
+    //! @param bFixScale If you know what the scale should be, then set this to true, and pass
+    //!        the scale in via pScaleInOut. NOTE: At the moment I've just hacked the fixed scale
+    //!        in. It produces reasonable results, but I haven't checked yet to make sure that
+    //!        it's still the least squares solution...
+    //! @return true if it was possible to calculate the transformation, and false if the rank of
+    //!        the point sets covariance was not high enough (i.e. if there weren't enough
+    //!        independent points).
+    //----------------------------------------------------------------------------------------------
+    public: static bool findOptimumTransformation3D(
+        Eigen::Vector3f* pPointsA, Eigen::Vector3f* pPointsB, uint32_t numPoints,
+        Eigen::Matrix3f* pRotationMtxOut, Eigen::Vector3f* pTranslationOut, float* pScaleInOut,
+        bool bFixScale=false );
 };
 
 #endif // UTILITIES_H
