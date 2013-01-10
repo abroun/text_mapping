@@ -49,6 +49,27 @@ struct KeyPointInstance
 };
 
 //--------------------------------------------------------------------------------------------------
+//! Struct for carrying around a key point, and non permanent data, such as display colour, size etc
+struct KeyPointInstanceData
+{
+	KeyPointInstanceData() : mbDisplayAsCross( false ) {}
+	KeyPointInstanceData( const KeyPointInstance& keyPointInstance,
+		uint8_t r, uint8_t g, uint8_t b, bool bDisplayAsCross=false )
+		: mKeyPointInstance( keyPointInstance ),
+		  mbDisplayAsCross( bDisplayAsCross ),
+		  mR( r ), mG( g ), mB( b ) {}
+
+	KeyPointInstance mKeyPointInstance;
+	Eigen::Vector2f mProjectedPosition;
+	bool mbDisplayAsCross;
+	uint8_t mR;
+	uint8_t mG;
+	uint8_t mB;
+
+	public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+};
+
+//--------------------------------------------------------------------------------------------------
 class KeyPoint
 {
     public: KeyPoint();

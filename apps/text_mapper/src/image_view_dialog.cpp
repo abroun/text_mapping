@@ -46,7 +46,7 @@ void ImageViewPixmap::mousePressEvent( QGraphicsSceneMouseEvent *pEvent )
 
         if ( pEvent->modifiers() & Qt::ControlModifier )
         {
-            mpParentDialog->addKeyPointInstanceAtImagePos( pos );
+            mpParentDialog->addKeyPointInstanceToFrameAtImagePos( pos );
         }
         else
         {
@@ -127,9 +127,39 @@ void ImageViewDialog::setImage( const cv::Mat& image )
 }
 
 //--------------------------------------------------------------------------------------------------
-void ImageViewDialog::addKeyPointInstanceAtImagePos( const QPointF& pickPoint )
+void ImageViewDialog::setKeyPointInstancesToDisplay(
+		const std::vector<KeyPointInstanceData>& keyPointInstances )
 {
-    mpParentWindow->addKeyPointInstanceAtImagePos( this, pickPoint );
+	mKeyPointInstances = keyPointInstances;
+
+	// Remove any existing graphic items used to display the key points
+	for ( uint32_t itemIdx = 0; itemIdx < mKeyPointGraphicItems.size(); itemIdx++ )
+	{
+		mpScene->removeItem( mKeyPointGraphicItems[ itemIdx ] );
+	}
+	mKeyPointGraphicItems.clear();
+
+	const float KEYPOINT_SIDE_LENGTH = 4.0;
+
+	for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPointInstances.size(); keyPointIdx++ )
+	{
+		const KeyPointInstanceData& instanceData = mKeyPointInstances[ keyPointIdx ];
+		float topLeftX = instanceData.mProjectedPosition[ 0 ] - KEYPOINT_SIDE_LENGTH/2.0;
+		float topLeftY = instanceData.mProjectedPosition[ 1 ] - KEYPOINT_SIDE_LENGTH/2.0;
+
+		QPen outlinePen( ( QBrush( QColor( 0, 0, 0 ) ), 1.0 ) );
+		QBrush fillBrush( QColor( instanceData.mR, instanceData.mG, instanceData.mB ) );
+
+		mKeyPointGraphicItems.push_back(
+			mpScene->addEllipse( topLeftX, topLeftY, KEYPOINT_SIDE_LENGTH, KEYPOINT_SIDE_LENGTH,
+				outlinePen, fillBrush ) );
+	}
+}
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewDialog::addKeyPointInstanceToFrameAtImagePos( const QPointF& pickPoint )
+{
+    mpParentWindow->addKeyPointInstanceToFrameAtImagePos( this, pickPoint );
 }
 
 //--------------------------------------------------------------------------------------------------

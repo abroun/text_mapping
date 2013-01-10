@@ -305,6 +305,49 @@ void PointCloud::saveToSpcFile( const std::string& filename, bool bBinary )
 }
 
 //--------------------------------------------------------------------------------------------------
+PointCloud::Ptr PointCloud::filterOutPointsFarFromPointSet(
+	const std::vector<Eigen::Vector3f>& filterPoints, float filterDistance ) const
+{
+	Ptr pPointCloud( new PointCloud( mImage.cols, mImage.rows, mFocalLengthPixels ) );
+
+	float squaredFilterDistance = filterDistance*filterDistance;
+	for ( int32_t pointIdx = 0; pointIdx < (int32_t)mPointWorldPositions.size(); pointIdx++ )
+	{
+		// Check to see if the point is close enough to one of the filter points
+		bool bPointCloseEnough = false;
+
+		const Eigen::Vector3f& pointWorldPos = mPointWorldPositions[ pointIdx ];
+		for ( uint32_t filterPointIdx = 0; filterPointIdx < filterPoints.size(); filterPointIdx++ )
+		{
+			if ( (pointWorldPos - filterPoints[ filterPointIdx ]).squaredNorm() <= squaredFilterDistance )
+			{
+				bPointCloseEnough = true;
+				break;
+			}
+		}
+
+		// If the point was close enough, pass it through to the new point cloud
+		if ( bPointCloseEnough )
+		{
+			Eigen::Vector2i pointImagePos = getPointImagePos( pointIdx ).cast<int>();
+
+			// Add the point world position
+			uint32_t newPointIdx = pPointCloud->mPointWorldPositions.size();
+			pPointCloud->mPointWorldPositions.push_back( pointWorldPos );
+
+			// Update the new point map
+			uint32_t pixelIdx = pointImagePos[ 1 ]*mImage.cols + pointImagePos[ 0 ];
+			pPointCloud->mPointMap[ pixelIdx ] = (int32_t)newPointIdx;
+
+			// Copy over the points pixel
+			pPointCloud->mImage.at<uint32_t>( pixelIdx ) = mImage.at<uint32_t>( pixelIdx );
+		}
+	}
+
+	return pPointCloud;
+}
+
+//--------------------------------------------------------------------------------------------------
 int32_t PointCloud::getPointIdxAtImagePos( int32_t u, int32_t v ) const
 {
 	int32_t result = INVALID_POINT_IDX;

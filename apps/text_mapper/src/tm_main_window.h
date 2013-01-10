@@ -57,6 +57,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "text_mapping/letter.h"
 #include "ui_tm_main_window.h"
 #include "image_view_dialog.h"
+#include "dialogs/model_view_dialog.h"
 #include "camera.h"
 #include "frame_data.h"
 #include "key_point.h"
@@ -86,6 +87,7 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
 
     public slots: void onBtnDetectTextClicked();
     public slots: void onBtnAlignModelWithFrameClicked();
+    public slots: void onBtnBuildModelClicked();
     
     public slots: void onBtnLeftClicked();
     public slots: void onBtnRightClicked();
@@ -109,7 +111,8 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public: void loadProject( const std::string& projectFilename );
     public: void saveProject( const std::string& projectFilename );
 
-    public: void addKeyPointInstanceAtImagePos( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint );
+    public: void addKeyPointInstanceToFrameAtImagePos(
+		const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint );
     public: bool pickFromImage( const ImageViewDialog* pImageViewDialog,
         const QPointF& pickPoint, Eigen::Vector3f* pWorldPosOut=NULL, bool bDrawPickLine=true ) const;
 
@@ -154,6 +157,7 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: ImageViewDialog mKinectColorImageViewDialog;
     private: ImageViewDialog mKinectDepthColorImageViewDialog;
     private: std::vector<ImageViewDialog*> mpImageViewDialogs;
+    private: ModelViewDialog mModelViewDialog;
 
     // Key points
     private: std::vector<KeyPoint> mKeyPoints;

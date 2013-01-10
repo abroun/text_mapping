@@ -198,6 +198,7 @@ TmMainWindow::TmMainWindow()
     connect( this->btnDeleteFrame, SIGNAL( clicked() ), this, SLOT( onBtnDeleteFrameClicked() ) );
     connect( this->btnDetectText, SIGNAL( clicked() ), this, SLOT( onBtnDetectTextClicked() ) );
     connect( this->btnAlignModelWithFrame, SIGNAL( clicked() ), this, SLOT( onBtnAlignModelWithFrameClicked() ) );
+    connect( this->btnBuildModel, SIGNAL( clicked() ), this, SLOT( onBtnBuildModelClicked() ) );
 
     connect( this->btnLeft, SIGNAL( clicked() ), this, SLOT( onBtnLeftClicked() ) );
     connect( this->btnRight, SIGNAL( clicked() ), this, SLOT( onBtnRightClicked() ) );
@@ -572,6 +573,113 @@ void TmMainWindow::onBtnAlignModelWithFrameClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::onBtnBuildModelClicked()
+{
+	const float FILTER_DISTANCE = 0.15f;
+
+	if ( mFrames.size() <= 0 )
+	{
+		return;
+	}
+
+	PointCloudWithPoseVector pointCloudsAndPoses;
+
+	// Build the model around the first frame
+	std::vector<Eigen::Vector3f> firstFrameKeyPoints;
+	for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+	{
+		const KeyPointInstance* pInstance = mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( 0 );
+		if ( NULL != pInstance )
+		{
+			firstFrameKeyPoints.push_back( pInstance->mPos );
+		}
+	}
+
+	// Roughly filter the frame based on proximity to its key points
+	if ( NULL == mFrames[ 0 ].mpKinectDepthPointCloud )
+	{
+		if ( !mFrames[ 0 ].tryToLoadImages( true ) )
+		{
+			return;
+		}
+	}
+	PointCloud::Ptr pFilteredCloud =
+		mFrames[ 0 ].mpKinectDepthPointCloud->filterOutPointsFarFromPointSet(
+			firstFrameKeyPoints, FILTER_DISTANCE );
+
+	Eigen::Matrix4f combinedTransform = Eigen::Matrix4f::Identity();
+	pointCloudsAndPoses.push_back( PointCloudWithPose( pFilteredCloud, combinedTransform ) );
+
+	// Go through each of the remaining frames
+	for ( uint32_t frameIdx = 1; frameIdx < mFrames.size(); frameIdx++ )
+	{
+		std::vector<Eigen::Vector3f> frameFilterKeyPoints;
+		std::vector<Eigen::Vector3f> prevAlignmentKeyPoints;
+		std::vector<Eigen::Vector3f> curAlignmentKeyPoints;
+
+		// Get key points for this frame, along with the ones it has in common with the previous frame
+		for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+		{
+			const KeyPointInstance* pInstance = mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( frameIdx );
+			if ( NULL != pInstance )
+			{
+				frameFilterKeyPoints.push_back( pInstance->mPos );
+
+				const KeyPointInstance* pOtherInstance = mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( frameIdx - 1 );
+				if ( NULL != pOtherInstance )
+				{
+					prevAlignmentKeyPoints.push_back( pOtherInstance->mPos );
+					curAlignmentKeyPoints.push_back( pInstance->mPos );
+				}
+			}
+		}
+
+		// Stop if we don't have enough common points to align the frames
+		uint32_t numCommonPoints = prevAlignmentKeyPoints.size();
+		if ( numCommonPoints < 3 )
+		{
+			printf( "Stopped at frame %u due to lack of key points\n", frameIdx );
+			break;
+		}
+
+		// Roughly filter the frame based on proximity to its key points
+		if ( NULL == mFrames[ frameIdx ].mpKinectDepthPointCloud )
+		{
+			if ( !mFrames[ frameIdx ].tryToLoadImages( true ) )
+			{
+				return;
+			}
+		}
+		pFilteredCloud =
+			mFrames[ frameIdx ].mpKinectDepthPointCloud->filterOutPointsFarFromPointSet(
+				frameFilterKeyPoints, FILTER_DISTANCE );
+
+		// Calculate the transform between frames
+		Eigen::Matrix3f rotationMtx;
+		Eigen::Vector3f translation;
+		float scale = 1.0;
+		if ( !Utilities::findOptimumTransformation3D( &curAlignmentKeyPoints[ 0 ],
+			&prevAlignmentKeyPoints[ 0 ], numCommonPoints, &rotationMtx, &translation, &scale, true ) )
+		{
+			printf( "Stopped at frame %u as unable to calculate transform\n", frameIdx );
+			break;
+		}
+
+		// Store the filtered point cloud and transform
+		Eigen::Matrix4f curFrameInPrevFrameSpaceTransform = Eigen::Matrix4f::Identity();
+		curFrameInPrevFrameSpaceTransform.block<3,3>( 0, 0 ) = rotationMtx;
+		curFrameInPrevFrameSpaceTransform.block<3,1>( 0, 3 ) = translation;
+
+		combinedTransform = combinedTransform*curFrameInPrevFrameSpaceTransform;
+		pointCloudsAndPoses.push_back( PointCloudWithPose( pFilteredCloud, combinedTransform ) );
+	}
+
+	// Send a vector of point clouds and transforms to the model viewer dialog
+	mModelViewDialog.buildModel( pointCloudsAndPoses );
+	mModelViewDialog.show();
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::onBtnLeftClicked()
 {
     mHighResCamera.tweakLookAtPos( Eigen::Vector3d( -0.02, 0.0, 0.0 ) );
@@ -693,6 +801,7 @@ void TmMainWindow::closeEvent( QCloseEvent* pEvent )
     {
         mpImageViewDialogs[ dialogIdx ]->close();
     }
+    mModelViewDialog.close();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -940,7 +1049,7 @@ void TmMainWindow::saveProject( const std::string& projectFilename )
 }
 
 //--------------------------------------------------------------------------------------------------
-void TmMainWindow::addKeyPointInstanceAtImagePos( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint )
+void TmMainWindow::addKeyPointInstanceToFrameAtImagePos( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint )
 {
     // Check to see if we have a key point and a frame selected
     int32_t curKeyPointIdx = this->listWidgetKeyPoints->currentRow();
@@ -1138,7 +1247,32 @@ void TmMainWindow::refreshImageDisplays( const FrameData* pFrameData )
 void TmMainWindow::refreshKeyPointInstances()
 {
     // Create a list of the key point instances to display
-    std::vector<vtkKeyPointInstancesSource::InstanceData> keyPointInstances;
+    std::vector<KeyPointInstanceData> frameKeyPointInstances;
+
+    // TODO: Tidy the handling of image view dialogs up
+    const uint32_t NUM_IMAGE_VIEW_DIALOGS = 3;
+    std::vector<KeyPointInstanceData> imageKeyPointInstances[ 3 ];
+
+    Eigen::Matrix4d worldInCameraSpaceMatrices[ 3 ] =
+    {
+		mHighResCamera.getCameraInWorldSpaceMatrix().inverse(),
+		mKinectColorCamera.getCameraInWorldSpaceMatrix().inverse(),
+		mKinectDepthCamera.getCameraInWorldSpaceMatrix().inverse()
+    };
+
+    Eigen::Matrix3d calibrationMatrices[ 3 ] =
+	{
+		mHighResCamera.getCalibrationMatrix(),
+		mKinectColorCamera.getCalibrationMatrix(),
+		mKinectDepthCamera.getCalibrationMatrix()
+	};
+
+	ImageViewDialog* imageViewDialogs[ 3 ] =
+	{
+		&mHighResImageViewDialog,
+		&mKinectColorImageViewDialog,
+		&mKinectDepthColorImageViewDialog
+	};
 
     int32_t selectedKeyPointIdx = this->listWidgetKeyPoints->currentRow();
 
@@ -1151,18 +1285,35 @@ void TmMainWindow::refreshKeyPointInstances()
             const KeyPointInstance* pInstance = mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( curFrameIdx );
             if ( NULL != pInstance )
             {
+            	KeyPointInstanceData instanceData;
+
                 if ( (int32_t)keyPointIdx == selectedKeyPointIdx )
                 {
                     // Yellow for selected frame instance
-                    keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
-                        *pInstance, 255, 255, 0 ) );
+                	instanceData = KeyPointInstanceData( *pInstance, 255, 255, 0 );
                 }
                 else
                 {
                     // Green for normal frame instance
-                    keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
-                        *pInstance, 0, 255, 0 ) );
+                	instanceData = KeyPointInstanceData( *pInstance, 0, 255, 0 );
                 }
+
+                // Project the key point into each of the image displays
+                for ( uint32_t i = 0; i < NUM_IMAGE_VIEW_DIALOGS; i++ )
+                {
+                	const Eigen::Matrix3d& calibMtx = calibrationMatrices[ i ];
+
+                	Eigen::Vector3d posInCameraSpace =
+						worldInCameraSpaceMatrices[ i ].block<3,3>( 0, 0 )*instanceData.mKeyPointInstance.mPos.cast<double>()
+						+ worldInCameraSpaceMatrices[ i ].block<3,1>( 0, 3 );
+                	instanceData.mProjectedPosition = Eigen::Vector2f(
+						calibMtx( 0, 0 )*posInCameraSpace[ 0 ]/posInCameraSpace[ 2 ] + calibMtx( 0, 2 ),
+						calibMtx( 1, 1 )*posInCameraSpace[ 1 ]/posInCameraSpace[ 2 ] + calibMtx( 1, 2 ) );
+
+                	imageKeyPointInstances[ i ].push_back( instanceData );
+                }
+
+                frameKeyPointInstances.push_back( instanceData );
             }
         }
     }
@@ -1185,21 +1336,24 @@ void TmMainWindow::refreshKeyPointInstances()
                 if ( (int32_t)keyPointIdx == selectedKeyPointIdx )
                 {
                     // Yellow for selected model instance
-                    keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
-                        transformedInstance, 255, 255, 0 ) );
+                    frameKeyPointInstances.push_back( KeyPointInstanceData( transformedInstance, 255, 255, 0 ) );
                 }
                 else
                 {
                     // Green for normal model instance
-                    keyPointInstances.push_back( vtkKeyPointInstancesSource::InstanceData(
-                        transformedInstance, 0, 255, 0 ) );
+                	frameKeyPointInstances.push_back( KeyPointInstanceData( transformedInstance, 0, 255, 0 ) );
                 }
             }
         }
     }
 
     // Display the key point instances
-    mpKeyPointInstancesSource->SetKeyPointInstances( keyPointInstances );
+    for ( uint32_t i = 0; i < NUM_IMAGE_VIEW_DIALOGS; i++ )
+	{
+    	imageViewDialogs[ i ]->setKeyPointInstancesToDisplay( imageKeyPointInstances[ i ] );
+	}
+
+    mpKeyPointInstancesSource->SetKeyPointInstances( frameKeyPointInstances );
     this->qvtkWidget->update();
 }
 

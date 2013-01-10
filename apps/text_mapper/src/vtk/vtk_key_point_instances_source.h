@@ -45,25 +45,14 @@ class vtkKeyPointInstancesSource : public vtkPolyDataAlgorithm
     // Constructs an empty key point instances source
     public: static vtkKeyPointInstancesSource* New();
 
-    public: struct InstanceData
-    {
-        InstanceData( const KeyPointInstance& keyPointInstance, uint8_t r, uint8_t g, uint8_t b )
-            : mKeyPointInstance( keyPointInstance ), mR( r ), mG( g ), mB( b ) {}
-
-        KeyPointInstance mKeyPointInstance;
-        uint8_t mR;
-        uint8_t mG;
-        uint8_t mB;
-    };
-
     // Sets the set of key point instances to display
-    public: virtual void SetKeyPointInstances( std::vector<InstanceData> _arg)
+    public: virtual void SetKeyPointInstances( std::vector<KeyPointInstanceData> _arg)
     {
         this->KeyPointInstances = _arg;
         this->Modified();
     }
 
-    public: virtual std::vector<InstanceData> GetKeyPointInstances()
+    public: virtual std::vector<KeyPointInstanceData> GetKeyPointInstances()
     {
         return this->KeyPointInstances;
     }
@@ -74,7 +63,7 @@ class vtkKeyPointInstancesSource : public vtkPolyDataAlgorithm
     protected: virtual int RequestData( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
     protected: virtual int RequestInformation( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
 
-    protected: std::vector<InstanceData> KeyPointInstances;
+    protected: std::vector<KeyPointInstanceData> KeyPointInstances;
 
     private: vtkKeyPointInstancesSource( const vtkKeyPointInstancesSource& );  // Not implemented.
     void operator=( const vtkKeyPointInstancesSource& );  // Not implemented.

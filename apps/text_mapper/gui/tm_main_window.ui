@@ -276,6 +276,19 @@ With Frame</string>
          <bool>true</bool>
         </property>
        </widget>
+       <widget class="QPushButton" name="btnBuildModel">
+        <property name="geometry">
+         <rect>
+          <x>230</x>
+          <y>50</y>
+          <width>98</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Build Model</string>
+        </property>
+       </widget>
       </widget>
      </item>
     </layout>

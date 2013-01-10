@@ -28,57 +28,66 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 //--------------------------------------------------------------------------------------------------
-// File: image_view_dialog.h
-// Desc: Simple dialog for viewing frame images
+// File: model_view_dialog.h
+// Desc: A dialog for viewing a model constructed from a number of frames
 //--------------------------------------------------------------------------------------------------
 
-#ifndef IMAGE_VIEW_DIALOG_H_
-#define IMAGE_VIEW_DIALOG_H_
+#ifndef MODEL_VIEW_DIALOG_H_
+#define MODEL_VIEW_DIALOG_H_
 
 //--------------------------------------------------------------------------------------------------
 #include <stdint.h>
+#include <vector>
+#include <Eigen/Core>
+#include <Eigen/StdVector>
 #include <QtGui/QDialog>
-#include <QtGui/QMainWindow>
-#include <QtGui/QGraphicsPixmapItem>
-#include <opencv2/core/core.hpp>
-#include "ui_image_view_dialog.h"
-#include "key_point.h"
-
-class TmMainWindow;
-class ImageViewDialog;
+#include <vtkRenderer.h>
+#include <vtkSmartPointer.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkActor.h>
+#include "text_mapping/point_cloud.h"
+#include "text_mapping/vtk/vtk_point_cloud_source.h"
+#include "ui_model_view_dialog.h"
 
 //--------------------------------------------------------------------------------------------------
-class ImageViewPixmap : public QGraphicsPixmapItem
+struct PointCloudWithPose
 {
-    public: ImageViewPixmap( const QPixmap &pixmap, ImageViewDialog* pParentDialog )
-        : QGraphicsPixmapItem( pixmap ), mpParentDialog( pParentDialog ) {}
+	PointCloudWithPose() {}
+	PointCloudWithPose( PointCloud::Ptr pCloud, const Eigen::Matrix4f& transform )
+		: mpCloud( pCloud ), mTransform( transform ) {}
 
-    public: virtual void mousePressEvent( QGraphicsSceneMouseEvent *pEvent );
+	PointCloud::Ptr mpCloud;
+	Eigen::Matrix4f mTransform;
 
-    private: ImageViewDialog* mpParentDialog;
+	public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+};
+
+EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION( PointCloudWithPose );
+
+typedef std::vector<PointCloudWithPose, Eigen::aligned_allocator<PointCloudWithPose> > PointCloudWithPoseVector;
+
+//--------------------------------------------------------------------------------------------------
+struct PointCloudWidget
+{
+	vtkSmartPointer<vtkPointCloudSource> mpPointCloudSource;
+    vtkSmartPointer<vtkPolyDataMapper> mpPointCloudMapper;
+    vtkSmartPointer<vtkActor> mpPointCloudActor;
 };
 
 //--------------------------------------------------------------------------------------------------
-class ImageViewDialog : public QDialog, private Ui::image_view_dialog
+class ModelViewDialog : public QDialog, private Ui::model_view_dialog
 {
     Q_OBJECT
 
-    public: ImageViewDialog( TmMainWindow* pParentWindow );
-    public: virtual ~ImageViewDialog();
-	
-	public: void setImage( const cv::Mat& image );
-	public: void setKeyPointInstancesToDisplay(
-		const std::vector<KeyPointInstanceData>& keyPointInstances );
+    public: ModelViewDialog();
+    public: virtual ~ModelViewDialog();
 
-	public: void addKeyPointInstanceToFrameAtImagePos( const QPointF& pickPoint );
-	public: void pickFromImage( const QPointF& pickPoint ) const;
+    public slots: void onBtnCloseClicked();
 
-	private: QGraphicsScene* mpScene;
-    private: QGraphicsPixmapItem* mpPixmapItem;
-    private: cv::Mat mImage;
-    private: TmMainWindow* mpParentWindow;
-    private: std::vector<KeyPointInstanceData> mKeyPointInstances;
-    private: std::vector<QGraphicsItem*> mKeyPointGraphicItems;
+	public: void buildModel( const PointCloudWithPoseVector& pointCloudsAndPoses );
+
+	private: vtkSmartPointer<vtkRenderer> mpRenderer;
+	private: std::vector<PointCloudWidget> mPointCloudWidgets;
 };
 
-#endif // IMAGE_VIEW_DIALOG_H_
+#endif // MODEL_VIEW_DIALOG_H_

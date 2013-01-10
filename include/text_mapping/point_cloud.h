@@ -68,6 +68,15 @@ class PointCloud
     //! @param bBinary If true, the binary format is used. Otherwise the ascii format is used.
     public: void saveToSpcFile( const std::string& filename, bool bBinary );
 
+    //! Creates and returns a filtered version of the point cloud, where each point is only allowed
+    //! through if it is within a certain distance of one or more of a set of filter points
+    //! @param filterPoints A list of points to test against
+    //! @param filterDistance If a point is not within this distance of at least one of the filter
+    //!        points it is filtered out.
+    //! @return A new point cloud containing all of the points that weren't filtered out
+    public: PointCloud::Ptr filterOutPointsFarFromPointSet(
+		const std::vector<Eigen::Vector3f>& filterPoints, float filterDistance ) const;
+
     //! Gets the focal length of the depth camera used to capture the point cloud
     public: float getFocalLengthInPixels() const { return mFocalLengthPixels; }
 
