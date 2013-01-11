@@ -103,6 +103,11 @@ class PointCloud
 	//! @return The 2D image position of the point
 	public: Eigen::Vector2f getPointImagePos( int32_t pointIdx ) const;
 
+	//! Projects a position in the point cloud world space onto the image plane of the point cloud
+	//! @param worldPos The position in world space
+	//! @return The 2D image position of the position
+	public: Eigen::Vector2f convertWorldPosToImagePos( const Eigen::Vector3f& worldPos ) const;
+
 	//! Gets the color of a point based on its position in the image space of the depth camera
 	//! which captured the image
 	//! @param pointIdx The index of the desired point

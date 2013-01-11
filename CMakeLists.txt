@@ -65,6 +65,7 @@ LINK_DIRECTORIES(
 ADD_LIBRARY( TextMapping
     src/letter.cpp
     src/point_cloud.cpp
+    src/signed_distance_field.cpp
     src/text_map.cpp
     src/utilities.cpp
     src/vtk/vtk_point_cloud_source.cpp

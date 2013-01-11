@@ -37,6 +37,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <Eigen/Dense>
 #include <vtkProperty.h>
 #include <vtkRenderWindow.h>
+#include <vtkOBJExporter.h>
+#include "text_mapping/signed_distance_field.h"
 #include "text_mapping/utilities.h"
 
 //--------------------------------------------------------------------------------------------------
@@ -54,6 +56,16 @@ ModelViewDialog::ModelViewDialog()
 
 	mpRenderer->SetBackground( 0.0, 0.0, 0.0 );
 
+	// Prepare to render model
+	mpMarchingCubes = vtkMarchingCubes::New();
+	mpModelMapper = vtkPolyDataMapper::New();
+	mpModelActor = vtkActor::New();
+
+	mpModelMapper->SetInput( mpMarchingCubes->GetOutput() );
+	mpModelActor->SetMapper( mpModelMapper );
+
+	mpRenderer->AddActor( mpModelActor );
+
 	// Hook up signals
 	connect( this->btnClose, SIGNAL( clicked() ), this, SLOT( onBtnCloseClicked() ) );
 }
@@ -70,7 +82,7 @@ void ModelViewDialog::onBtnCloseClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
-void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAndPoses )
+void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAndPoses, const Camera* pHighResCamera )
 {
 	// Clear away existing point cloud widgets
 	for ( uint32_t widgetIdx = 0; widgetIdx < mPointCloudWidgets.size(); widgetIdx++ )
@@ -80,7 +92,7 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 	mPointCloudWidgets.clear();
 
 	// Create a point cloud widget for each point cloud
-	for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
+	/*for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
 	{
 		const PointCloudWithPose& p = pointCloudsAndPoses[ i ];
 
@@ -113,10 +125,68 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 		mpRenderer->AddActor( widget.mpPointCloudActor );
 
 		mPointCloudWidgets.push_back( widget );
+	}*/
+
+	if ( pointCloudsAndPoses.size() > 0 )
+	{
+		const float VOXEL_SIDE_LENGTH = 0.001;
+		const float BOX_SIZE_X = 0.2;
+		const float BOX_SIZE_Y = 0.4;
+		const float BOX_SIZE_Z = 0.2;
+
+		// Locate the centre point of the first point cloud
+		Eigen::Vector3f firstCorner;
+		Eigen::Vector3f secondCorner;
+		pointCloudsAndPoses[ 0 ].mpCloud->getBoundingBox( &firstCorner, &secondCorner );
+
+		Eigen::Vector3f centrePos = (firstCorner + secondCorner)/2.0f;
+		Eigen::Vector3i sdfDimensions( BOX_SIZE_X/VOXEL_SIDE_LENGTH,
+			BOX_SIZE_Y/VOXEL_SIDE_LENGTH, BOX_SIZE_Z/VOXEL_SIDE_LENGTH );
+
+		// Build a Signed Distance Field (SDF) from the point clouds
+		SignedDistanceField signedDistanceField( centrePos, sdfDimensions, VOXEL_SIDE_LENGTH );
+
+		for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
+		{
+			printf( "Adding frame %i to SDF\n", i );
+			signedDistanceField.addPointCloud(
+				*(pointCloudsAndPoses[ i ].mpCloud), pointCloudsAndPoses[ i ].mTransform );
+		}
+
+		signedDistanceField.outputToVTKFile( "/home/abroun/modelSDF.vtk" );
+
+		// Transfer the SDF to image data
+		mpImageData = vtkImageData::New();
+		mpImageData->SetDimensions( sdfDimensions[ 0 ], sdfDimensions[ 1 ], sdfDimensions[ 2 ] );
+		mpImageData->SetScalarTypeToDouble();
+		mpImageData->SetNumberOfScalarComponents( 1 );
+		mpImageData->AllocateScalars();
+
+		for ( int32_t x = 0; x < sdfDimensions[ 0 ]; x++ )
+		{
+			for ( int32_t y = 0; y < sdfDimensions[ 1 ]; y++ )
+			{
+				for ( int32_t z = 0; z < sdfDimensions[ 2 ]; z++ )
+				{
+					*(double*)(mpImageData->GetScalarPointer( x, y, z )) = signedDistanceField.getVoxelValue( x, y, z );
+				}
+			}
+		}
+
+		mpMarchingCubes->SetInput( mpImageData );
+
+		// Use a contour filter to extract a polygonal model
+
+		// Apply texture to the model
 	}
 
 	// Update the view
 	this->qvtkWidget->update();
+
+	vtkSmartPointer<vtkOBJExporter> pExporter = vtkSmartPointer<vtkOBJExporter>::New();
+	pExporter->SetRenderWindow( qvtkWidget->GetRenderWindow() );
+	pExporter->SetFilePrefix( "/home/abroun/modelMC" );
+	pExporter->Write();
 }
 
 

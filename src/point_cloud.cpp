@@ -370,14 +370,18 @@ Eigen::Vector2f PointCloud::getPointImagePos( int32_t pointIdx ) const
 		return Eigen::Vector2f::Zero();
 	}
 
+	return convertWorldPosToImagePos( mPointWorldPositions[ pointIdx ] );
+}
+
+//--------------------------------------------------------------------------------------------------
+Eigen::Vector2f PointCloud::convertWorldPosToImagePos( const Eigen::Vector3f& worldPos ) const
+{
 	float imageCentreX = (float)(mImage.cols/2) - 0.5f;
 	float imageCentreY = (float)(mImage.rows/2) - 0.5f;
 
-	const Eigen::Vector3f pos = mPointWorldPositions[ pointIdx ];
-
 	return Eigen::Vector2f(
-		imageCentreX + mFocalLengthPixels*pos[ 0 ]/pos[ 2 ],
-		imageCentreY + mFocalLengthPixels*pos[ 1 ]/pos[ 2 ] );
+		imageCentreX + mFocalLengthPixels*worldPos[ 0 ]/worldPos[ 2 ],
+		imageCentreY + mFocalLengthPixels*worldPos[ 1 ]/worldPos[ 2 ] );
 }
 
 //--------------------------------------------------------------------------------------------------

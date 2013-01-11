@@ -40,24 +40,29 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <vector>
 #include <Eigen/Core>
 #include <Eigen/StdVector>
+#include <opencv2/core/core.hpp>
 #include <QtGui/QDialog>
 #include <vtkRenderer.h>
 #include <vtkSmartPointer.h>
+#include <vtkImageData.h>
+#include <vtkMarchingCubes.h>
 #include <vtkPolyDataMapper.h>
 #include <vtkActor.h>
 #include "text_mapping/point_cloud.h"
 #include "text_mapping/vtk/vtk_point_cloud_source.h"
+#include "../camera.h"
 #include "ui_model_view_dialog.h"
 
 //--------------------------------------------------------------------------------------------------
 struct PointCloudWithPose
 {
 	PointCloudWithPose() {}
-	PointCloudWithPose( PointCloud::Ptr pCloud, const Eigen::Matrix4f& transform )
-		: mpCloud( pCloud ), mTransform( transform ) {}
+	PointCloudWithPose( PointCloud::Ptr pCloud, const Eigen::Matrix4f& transform, cv::Mat highResImage )
+		: mpCloud( pCloud ), mTransform( transform ), mHighResImage( highResImage ) {}
 
 	PointCloud::Ptr mpCloud;
 	Eigen::Matrix4f mTransform;
+	cv::Mat mHighResImage;
 
 	public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
@@ -84,10 +89,15 @@ class ModelViewDialog : public QDialog, private Ui::model_view_dialog
 
     public slots: void onBtnCloseClicked();
 
-	public: void buildModel( const PointCloudWithPoseVector& pointCloudsAndPoses );
+	public: void buildModel( const PointCloudWithPoseVector& pointCloudsAndPoses, const Camera* pHighResCamera );
 
 	private: vtkSmartPointer<vtkRenderer> mpRenderer;
 	private: std::vector<PointCloudWidget> mPointCloudWidgets;
+
+	private: vtkSmartPointer<vtkImageData> mpImageData;
+	private: vtkSmartPointer<vtkMarchingCubes> mpMarchingCubes;
+	private: vtkSmartPointer<vtkPolyDataMapper> mpModelMapper;
+	private: vtkSmartPointer<vtkActor> mpModelActor;
 };
 
 #endif // MODEL_VIEW_DIALOG_H_

@@ -608,7 +608,8 @@ void TmMainWindow::onBtnBuildModelClicked()
 			firstFrameKeyPoints, FILTER_DISTANCE );
 
 	Eigen::Matrix4f combinedTransform = Eigen::Matrix4f::Identity();
-	pointCloudsAndPoses.push_back( PointCloudWithPose( pFilteredCloud, combinedTransform ) );
+	pointCloudsAndPoses.push_back( PointCloudWithPose(
+		pFilteredCloud, combinedTransform, mFrames[ 0 ].mHighResImage ) );
 
 	// Go through each of the remaining frames
 	for ( uint32_t frameIdx = 1; frameIdx < mFrames.size(); frameIdx++ )
@@ -671,11 +672,12 @@ void TmMainWindow::onBtnBuildModelClicked()
 		curFrameInPrevFrameSpaceTransform.block<3,1>( 0, 3 ) = translation;
 
 		combinedTransform = combinedTransform*curFrameInPrevFrameSpaceTransform;
-		pointCloudsAndPoses.push_back( PointCloudWithPose( pFilteredCloud, combinedTransform ) );
+		pointCloudsAndPoses.push_back( PointCloudWithPose(
+			pFilteredCloud, combinedTransform, mFrames[ frameIdx ].mHighResImage ) );
 	}
 
 	// Send a vector of point clouds and transforms to the model viewer dialog
-	mModelViewDialog.buildModel( pointCloudsAndPoses );
+	mModelViewDialog.buildModel( pointCloudsAndPoses, &mHighResCamera );
 	mModelViewDialog.show();
 }
 
