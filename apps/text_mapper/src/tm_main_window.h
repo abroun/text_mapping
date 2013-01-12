@@ -62,6 +62,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "frame_data.h"
 #include "key_point.h"
 #include "vtk/vtk_key_point_instances_source.h"
+#include "text_mapping/vtk/vtk_box_filter_source.h"
 #include "text_mapping/vtk/vtk_point_cloud_source.h"
 #include "text_mapping/text_map.h"
 #include "text_mapping/vtk/vtk_text_map_source.h"
@@ -95,6 +96,7 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public slots: void onBtnDownClicked();
     public slots: void onCheckShowModelClicked();
     public slots: void onCheckShowFrameClicked();
+    public slots: void onCheckShowFilterClicked();
 
     // KeyPoints
     public slots: void onCurrentKeyPointRowChanged( int currentRow );
@@ -116,12 +118,15 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     public: bool pickFromImage( const ImageViewDialog* pImageViewDialog,
         const QPointF& pickPoint, Eigen::Vector3f* pWorldPosOut=NULL, bool bDrawPickLine=true ) const;
 
+    public: void setBoxFilterFromImage( const ImageViewDialog* pImageViewDialog, const QRectF& filterRectangle  );
+
     //! Gets the current transformation matrix for the model in frame space. Returns the identity
     //! matrix if no frame is currently selected
     private: Eigen::Matrix4f getModelInFrameSpaceTransform() const;
 
     private: void refreshFrameList();
     private: void refreshKeyPointList();
+    private: void refreshPointCloudDisplay( const FrameData* pFrameData );
     private: void refreshImageDisplays( const FrameData* pFrameData );
     private: void refreshKeyPointInstances();
     private: void refreshModelTransform();
@@ -164,6 +169,12 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     private: vtkSmartPointer<vtkKeyPointInstancesSource> mpKeyPointInstancesSource;
     private: vtkSmartPointer<vtkPolyDataMapper> mpKeyPointInstancesMapper;
     private: vtkSmartPointer<vtkActor> mpKeyPointInstancesActor;
+
+    // Box filter
+    private: PointCloud::Ptr mpFilteredPointCloud;
+    private: vtkSmartPointer<vtkBoxFilterSource> mpBoxFilterSource;
+    private: vtkSmartPointer<vtkPolyDataMapper> mpBoxFilterMapper;
+    private: vtkSmartPointer<vtkActor> mpBoxFilterActor;
 
     // Members to render pick point
     private: vtkSmartPointer<vtkCubeSource> mpPickCubeSource;

@@ -51,11 +51,18 @@ class ImageViewDialog;
 class ImageViewPixmap : public QGraphicsPixmapItem
 {
     public: ImageViewPixmap( const QPixmap &pixmap, ImageViewDialog* pParentDialog )
-        : QGraphicsPixmapItem( pixmap ), mpParentDialog( pParentDialog ) {}
+        : QGraphicsPixmapItem( pixmap ), mpParentDialog( pParentDialog ), mbDraggingRectangle( false ) {}
 
     public: virtual void mousePressEvent( QGraphicsSceneMouseEvent *pEvent );
+    public: virtual void mouseMoveEvent( QGraphicsSceneMouseEvent *pEvent );
+    public: virtual void mouseReleaseEvent( QGraphicsSceneMouseEvent *pEvent );
+
+    private: void updateDragRectangle( const QPointF& curPos );
 
     private: ImageViewDialog* mpParentDialog;
+    private: bool mbDraggingRectangle;
+    private: QPointF mDragStartPoint;
+    private: QRectF mDragRectangle;
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -66,6 +73,8 @@ class ImageViewDialog : public QDialog, private Ui::image_view_dialog
     public: ImageViewDialog( TmMainWindow* pParentWindow );
     public: virtual ~ImageViewDialog();
 	
+    public slots: void onBtnSetFilterClicked();
+
 	public: void setImage( const cv::Mat& image );
 	public: void setKeyPointInstancesToDisplay(
 		const std::vector<KeyPointInstanceData>& keyPointInstances );
@@ -73,12 +82,19 @@ class ImageViewDialog : public QDialog, private Ui::image_view_dialog
 	public: void addKeyPointInstanceToFrameAtImagePos( const QPointF& pickPoint );
 	public: void pickFromImage( const QPointF& pickPoint ) const;
 
+	public: void setDragRectangle( const QRectF& dragRectangle );
+	public: void clearDragRectangle();
+
 	private: QGraphicsScene* mpScene;
     private: QGraphicsPixmapItem* mpPixmapItem;
     private: cv::Mat mImage;
     private: TmMainWindow* mpParentWindow;
     private: std::vector<KeyPointInstanceData> mKeyPointInstances;
     private: std::vector<QGraphicsItem*> mKeyPointGraphicItems;
+
+    private: QRectF mDragRectangle;
+    private: bool mbDragRectangleSet;
+    private: QGraphicsRectItem* mpDragRectangleItem;
 };
 
 #endif // IMAGE_VIEW_DIALOG_H_

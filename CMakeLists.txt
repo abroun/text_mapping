@@ -63,11 +63,13 @@ LINK_DIRECTORIES(
 	)
 
 ADD_LIBRARY( TextMapping
+    src/box_filter.cpp
     src/letter.cpp
     src/point_cloud.cpp
     src/signed_distance_field.cpp
     src/text_map.cpp
     src/utilities.cpp
+    src/vtk/vtk_box_filter_source.cpp
     src/vtk/vtk_point_cloud_source.cpp
     src/vtk/vtk_text_map_source.cpp
     )

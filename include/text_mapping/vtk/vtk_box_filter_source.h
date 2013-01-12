@@ -27,38 +27,46 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef VTK_POINT_CLOUD_SOURCE_H_
-#define VTK_POINT_CLOUD_SOURCE_H_
+#ifndef VTK_BOX_FILTER_SOURCE_H_
+#define VTK_BOX_FILTER_SOURCE_H_
 
 //--------------------------------------------------------------------------------------------------
 #include <vtkPolyDataAlgorithm.h>
-#include "text_mapping/point_cloud.h"
+#include "text_mapping/box_filter.h"
 
 //--------------------------------------------------------------------------------------------------
-//! Produces the PolyData used to display a PointCloud with VTK.
-class vtkPointCloudSource : public vtkPolyDataAlgorithm
+//! Produces the PolyData used to display a BoxFilter with VTK.
+class vtkBoxFilterSource : public vtkPolyDataAlgorithm
 {
-    public: vtkTypeMacro( vtkPointCloudSource, vtkPolyDataAlgorithm );
+    public: vtkTypeMacro( vtkBoxFilterSource, vtkPolyDataAlgorithm );
     public: void PrintSelf( std::ostream& os, vtkIndent indent );
 
-    // Constructs an empty PointCloud source
-    public: static vtkPointCloudSource* New();
+    // Constructs an empty BoxFilter source
+    public: static vtkBoxFilterSource* New();
 
-    // Sets the point cloud for the class
-    public: vtkSetMacro( PointCloudPtr, PointCloud::ConstPtr );
-    public: vtkGetMacro( PointCloudPtr, PointCloud::ConstPtr );
+    // Sets the BoxFilter for the class
+    public: virtual void SetBoxFilter( const BoxFilter& boxFilter )
+    {
+        mBoxFilter = boxFilter;
+        Modified();
+    }
 
-    protected: vtkPointCloudSource();
-    protected: ~vtkPointCloudSource() {}
+    public: virtual BoxFilter GetBoxFilter()
+    {
+        return mBoxFilter;
+    }
+
+    protected: vtkBoxFilterSource();
+    protected: ~vtkBoxFilterSource() {}
 
     protected: virtual int RequestData( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
     protected: virtual int RequestInformation( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
 
-    protected: PointCloud::ConstPtr PointCloudPtr;
+    protected: BoxFilter mBoxFilter;
 
-    private: vtkPointCloudSource( const vtkPointCloudSource& );  // Not implemented.
-    void operator=( const vtkPointCloudSource& );  // Not implemented.
+    private: vtkBoxFilterSource( const vtkBoxFilterSource& );  // Not implemented.
+    void operator=( const vtkBoxFilterSource& );  // Not implemented.
 };
 
 
-#endif // VTK_POINT_CLOUD_SOURCE_H_
+#endif // VTK_BOX_FILTER_SOURCE_H_

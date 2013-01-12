@@ -289,6 +289,19 @@ With Frame</string>
          <string>Build Model</string>
         </property>
        </widget>
+       <widget class="QCheckBox" name="checkShowFilter">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>210</y>
+          <width>141</width>
+          <height>20</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Show Filter</string>
+        </property>
+       </widget>
       </widget>
      </item>
     </layout>

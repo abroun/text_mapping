@@ -326,26 +326,55 @@ PointCloud::Ptr PointCloud::filterOutPointsFarFromPointSet(
 			}
 		}
 
-		// If the point was close enough, pass it through to the new point cloud
+		// If the point was close enough, copy it over to the new point cloud
 		if ( bPointCloseEnough )
 		{
-			Eigen::Vector2i pointImagePos = getPointImagePos( pointIdx ).cast<int>();
-
-			// Add the point world position
-			uint32_t newPointIdx = pPointCloud->mPointWorldPositions.size();
-			pPointCloud->mPointWorldPositions.push_back( pointWorldPos );
-
-			// Update the new point map
-			uint32_t pixelIdx = pointImagePos[ 1 ]*mImage.cols + pointImagePos[ 0 ];
-			pPointCloud->mPointMap[ pixelIdx ] = (int32_t)newPointIdx;
-
-			// Copy over the point's pixel
-			pPointCloud->mImage.at<uint32_t>( pointImagePos[ 1 ], pointImagePos[ 0 ] ) =
-			    mImage.at<uint32_t>( pointImagePos[ 1 ], pointImagePos[ 0 ] );
+		    copyPointToPointCloud( pointIdx, pPointCloud );
 		}
 	}
 
 	return pPointCloud;
+}
+
+//--------------------------------------------------------------------------------------------------
+PointCloud::Ptr PointCloud::filterWithBoxFilter( const BoxFilter& boxFilter ) const
+{
+    Ptr pPointCloud( new PointCloud( mImage.cols, mImage.rows, mFocalLengthPixels ) );
+
+    const Eigen::Vector3f& axisX = boxFilter.mTransform.block<3,1>( 0, 0 );
+    const Eigen::Vector3f& axisY = boxFilter.mTransform.block<3,1>( 0, 1 );
+    const Eigen::Vector3f& axisZ = boxFilter.mTransform.block<3,1>( 0, 2 );
+    const Eigen::Vector3f& boxCentre = boxFilter.mTransform.block<3,1>( 0, 3 );
+
+    Eigen::Vector3f halfDimensions = boxFilter.mDimensions / 2.0f;
+
+    for ( int32_t pointIdx = 0; pointIdx < (int32_t)mPointWorldPositions.size(); pointIdx++ )
+    {
+        // Check the point against each of the planes that make up the box
+        Eigen::Vector3f vectorFromCentre = mPointWorldPositions[ pointIdx ] - boxCentre;
+        float dotX = vectorFromCentre.dot( axisX );
+        if ( dotX < -halfDimensions[ 0 ] || dotX > halfDimensions[ 0 ] )
+        {
+            continue;   // Outside
+        }
+
+        float dotY = vectorFromCentre.dot( axisY );
+        if ( dotY < -halfDimensions[ 1 ] || dotY > halfDimensions[ 1 ] )
+        {
+            continue;   // Outside
+        }
+
+        float dotZ = vectorFromCentre.dot( axisZ );
+        if ( dotZ < -halfDimensions[ 2 ] || dotZ > halfDimensions[ 2 ] )
+        {
+            continue;   // Outside
+        }
+
+        // The point is inside the box so copy it over to the new point cloud
+        copyPointToPointCloud( pointIdx, pPointCloud );
+    }
+
+    return pPointCloud;
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -541,6 +570,9 @@ float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Ve
     }
     else
     {
+        //printf( "Closest point at\n" );
+        //std::cout << mPointWorldPositions[ closestPointIdx ] << std::endl;
+
         if ( NULL != pClosestPointIdxOut )
         {
             *pClosestPointIdxOut = closestPointIdx;
@@ -548,4 +580,24 @@ float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Ve
 
         return distanceAlongRayToClosestApproach;
     }
+}
+
+//--------------------------------------------------------------------------------------------------
+void PointCloud::copyPointToPointCloud( int32_t pointIdx, Ptr pPointCloud ) const
+{
+
+    Eigen::Vector2i pointImagePos = getPointImagePos( pointIdx ).cast<int>();
+    const Eigen::Vector3f& pointWorldPos = mPointWorldPositions[ pointIdx ];
+
+    // Add the point world position
+    uint32_t newPointIdx = pPointCloud->mPointWorldPositions.size();
+    pPointCloud->mPointWorldPositions.push_back( pointWorldPos );
+
+    // Update the new point map
+    uint32_t pixelIdx = pointImagePos[ 1 ]*mImage.cols + pointImagePos[ 0 ];
+    pPointCloud->mPointMap[ pixelIdx ] = (int32_t)newPointIdx;
+
+    // Copy over the point's pixel
+    pPointCloud->mImage.at<uint32_t>( pointImagePos[ 1 ], pointImagePos[ 0 ] ) =
+        mImage.at<uint32_t>( pointImagePos[ 1 ], pointImagePos[ 0 ] );
 }

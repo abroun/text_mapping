@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <boost/shared_ptr.hpp>
 #include <Eigen/Core>
 #include <opencv2/core/core.hpp>
+#include "text_mapping/box_filter.h"
 
 //--------------------------------------------------------------------------------------------------
 //! Holds a point cloud from a depth camera, such as the Kinect.
@@ -76,6 +77,12 @@ class PointCloud
     //! @return A new point cloud containing all of the points that weren't filtered out
     public: PointCloud::Ptr filterOutPointsFarFromPointSet(
 		const std::vector<Eigen::Vector3f>& filterPoints, float filterDistance ) const;
+
+    //! Creates and returns a filtered version of the point cloud, where each point is only allowed
+    //! through if it is within a box filter
+    //! @param boxFilter The box to filter the points against
+    //! @return A new point cloud containing all of the points that weren't filtered out
+    public: PointCloud::Ptr filterWithBoxFilter( const BoxFilter& boxFilter ) const;
 
     //! Gets the focal length of the depth camera used to capture the point cloud
     public: float getFocalLengthInPixels() const { return mFocalLengthPixels; }
@@ -134,8 +141,24 @@ class PointCloud
 	//! @param[out] pSecondCornerOut Variable to hold the second bounding box corner
 	public: void getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const;
 
+	//! Casts a ray into the point cloud
+	//! @param lineStart The start of the ray
+	//! @param lineDir The direction of the ray
+	//! @param pClosestPointIdxOut Optional pointer that can be used to find the closest point
+	//!        the ray got to
+	//! @param close How close the ray has to pass to a point for it to be considered a hit
+	//! @return The distance along the ray to get to the closest point approach, or -1 if we
+	//!         didn't come close to any point. NOTE: At the moment this routine returns the
+	//!         absolute closest point to the ray. This should be fine for a range point cloud
+	//!         where the point cloud is essentially a plane, but it may run into problems with
+	//!         true 3D clouds.
     public: float pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir,
          int32_t* pClosestPointIdxOut=NULL, float close=0.005f ) const;
+
+    //! A helper routine for copying points when implementing filters
+    //! @param pointIdx The index of the point to copy
+    //! @param pPointCloud The target point cloud
+    protected: void copyPointToPointCloud( int32_t pointIdx, Ptr pPointCloud ) const;
 
     private: float mFocalLengthPixels;
     private: cv::Mat mImage;

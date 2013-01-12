@@ -48,10 +48,67 @@ void ImageViewPixmap::mousePressEvent( QGraphicsSceneMouseEvent *pEvent )
         {
             mpParentDialog->addKeyPointInstanceToFrameAtImagePos( pos );
         }
+        else if ( pEvent->modifiers() & Qt::ShiftModifier )
+        {
+            mDragStartPoint = pos;
+            mbDraggingRectangle = true;
+        }
         else
         {
             mpParentDialog->pickFromImage( pos );
         }
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewPixmap::mouseMoveEvent( QGraphicsSceneMouseEvent *pEvent )
+{
+    if ( mbDraggingRectangle && Qt::LeftButton & pEvent->buttons() )
+    {
+        updateDragRectangle( pEvent->lastPos() );
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewPixmap::mouseReleaseEvent( QGraphicsSceneMouseEvent *pEvent )
+{
+    if ( mbDraggingRectangle && Qt::LeftButton & pEvent->buttons() )
+    {
+        // TODO: This isn't called. Find out how to fix it...
+        printf( "Released\n" );
+        updateDragRectangle( pEvent->lastPos() );
+        mbDraggingRectangle = false;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewPixmap::updateDragRectangle( const QPointF& curPos )
+{
+    if ( mbDraggingRectangle )
+    {
+        if ( curPos.x() < mDragStartPoint.x() )
+        {
+            mDragRectangle.setLeft( curPos.x() );
+            mDragRectangle.setWidth( mDragStartPoint.x() - curPos.x() );
+        }
+        else
+        {
+            mDragRectangle.setLeft( mDragStartPoint.x() );
+            mDragRectangle.setWidth( curPos.x() - mDragStartPoint.x() );
+        }
+
+        if ( curPos.y() < mDragStartPoint.y() )
+        {
+            mDragRectangle.setTop( curPos.y() );
+            mDragRectangle.setHeight( mDragStartPoint.y() - curPos.y() );
+        }
+        else
+        {
+            mDragRectangle.setTop( mDragStartPoint.y() );
+            mDragRectangle.setHeight( curPos.y() - mDragStartPoint.y() );
+        }
+
+        mpParentDialog->setDragRectangle( mDragRectangle );
     }
 }
 
@@ -64,7 +121,9 @@ const int32_t DEFAULT_MAX_IMAGE_HEIGHT = 600;
 //--------------------------------------------------------------------------------------------------
 ImageViewDialog::ImageViewDialog( TmMainWindow* pParentWindow )
     : mpPixmapItem( NULL ),
-      mpParentWindow( pParentWindow )
+      mpParentWindow( pParentWindow ),
+      mbDragRectangleSet( false ),
+      mpDragRectangleItem( NULL )
 {
     setupUi( this );
 
@@ -74,6 +133,11 @@ ImageViewDialog::ImageViewDialog( TmMainWindow* pParentWindow )
     mpScene = new QGraphicsScene( this->graphicsView );
     mpScene->setSceneRect( 0, 0, DEFAULT_MAX_IMAGE_WIDTH, DEFAULT_MAX_IMAGE_HEIGHT );
     this->graphicsView->setScene( mpScene );
+
+    this->btnSetFilter->setEnabled( false );
+
+    // Hook up signals
+    connect( this->btnSetFilter, SIGNAL( clicked() ), this, SLOT( onBtnSetFilterClicked() ) );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -83,6 +147,16 @@ ImageViewDialog::~ImageViewDialog()
     {
         delete mpScene;
         mpScene = NULL;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewDialog::onBtnSetFilterClicked()
+{
+    if ( mbDragRectangleSet )
+    {
+        mpParentWindow->setBoxFilterFromImage( this, mDragRectangle );
+        clearDragRectangle();
     }
 }
 
@@ -124,6 +198,8 @@ void ImageViewDialog::setImage( const cv::Mat& image )
 	{
 		mpPixmapItem->setPixmap( pixmap );
 	}
+
+	clearDragRectangle();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -166,4 +242,37 @@ void ImageViewDialog::addKeyPointInstanceToFrameAtImagePos( const QPointF& pickP
 void ImageViewDialog::pickFromImage( const QPointF& pickPoint ) const
 {
     mpParentWindow->pickFromImage( this, pickPoint );
+}
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewDialog::setDragRectangle( const QRectF& dragRectangle )
+{
+    mDragRectangle = dragRectangle;
+    mbDragRectangleSet = true;
+
+    if ( NULL != mpDragRectangleItem )
+    {
+        mpDragRectangleItem->setRect( dragRectangle );
+        mpDragRectangleItem->setVisible( true );
+    }
+    else
+    {
+        QPen outlinePen( QColor( 255, 255, 0 ) );
+        outlinePen.setWidth( 2 );
+        mpDragRectangleItem = mpScene->addRect( dragRectangle, outlinePen );
+    }
+
+    this->btnSetFilter->setEnabled( true );
+}
+
+//--------------------------------------------------------------------------------------------------
+void ImageViewDialog::clearDragRectangle()
+{
+    mbDragRectangleSet = false;
+
+    if ( NULL != mpDragRectangleItem )
+    {
+        mpDragRectangleItem->setVisible( false );
+    }
+    this->btnSetFilter->setEnabled( false );
 }

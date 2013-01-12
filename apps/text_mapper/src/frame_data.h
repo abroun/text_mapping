@@ -39,6 +39,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <string>
 #include <Eigen/Core>
 #include <opencv2/core/core.hpp>
+#include "text_mapping/box_filter.h"
 #include "text_mapping/point_cloud.h"
 
 //--------------------------------------------------------------------------------------------------
@@ -48,6 +49,7 @@ struct FrameData
     {
         mModelInFrameSpaceTransform = Eigen::Matrix4f::Identity();
         mbModelInFrameSpaceTransformSet = false;
+        mbHasBoxFilter = true;
     }
 
     std::string mHighResImageFilename;
@@ -60,6 +62,9 @@ struct FrameData
 
     private: Eigen::Matrix4f mModelInFrameSpaceTransform;
     private: bool mbModelInFrameSpaceTransformSet;
+
+    private: BoxFilter mBoxFilter;
+    private: bool mbHasBoxFilter;
 
     //! Tries to load in the images referenced by the filenames.
     //! @param bShowErrorMsgBox If set to true, the user will be shown a message box telling them
@@ -82,6 +87,19 @@ struct FrameData
     }
 
     public: bool isModelInFrameSpaceTransformSet() const { return mbModelInFrameSpaceTransformSet; }
+
+    public: void seBoxFilter( const BoxFilter& boxFilter )
+    {
+        mBoxFilter = boxFilter;
+        mbHasBoxFilter = true;
+    }
+
+    public: const BoxFilter& getBoxFilter() const
+    {
+        return mBoxFilter;
+    }
+
+    public: bool hasBoxFilter() const { return mbHasBoxFilter; }
 
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };

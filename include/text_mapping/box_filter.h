@@ -27,38 +27,40 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef VTK_POINT_CLOUD_SOURCE_H_
-#define VTK_POINT_CLOUD_SOURCE_H_
+#ifndef BOX_FILTER_H_
+#define BOX_FILTER_H_
 
 //--------------------------------------------------------------------------------------------------
-#include <vtkPolyDataAlgorithm.h>
-#include "text_mapping/point_cloud.h"
+#include <stdint.h>
+#include <vector>
+#include <Eigen/Core>
 
 //--------------------------------------------------------------------------------------------------
-//! Produces the PolyData used to display a PointCloud with VTK.
-class vtkPointCloudSource : public vtkPolyDataAlgorithm
+//! Defines a 3D box that can be used to filter point clouds
+class BoxFilter
 {
-    public: vtkTypeMacro( vtkPointCloudSource, vtkPolyDataAlgorithm );
-    public: void PrintSelf( std::ostream& os, vtkIndent indent );
+    public: BoxFilter()
+        : mTransform( Eigen::Matrix4f::Identity() ), mDimensions( 1.0f, 1.0f, 1.0f ) {}
+    public: BoxFilter( const Eigen::Matrix4f& transform, const Eigen::Vector3f& dimensions )
+        : mTransform( transform ), mDimensions( dimensions ) {}
 
-    // Constructs an empty PointCloud source
-    public: static vtkPointCloudSource* New();
+    //! Calculates the 8 corners of the bounding box, and returns them in a vector
+    //! @return A vector of corners in the order
+    //!             top-front-left
+    //!             top-back-left
+    //!             top-back-right
+    //!             top-front-right
+    //!             bottom-front-left
+    //!             bottom-back-left
+    //!             bottom-back-right
+    //!             bottom-front-right
+    public: std::vector<Eigen::Vector3f> calculateCorners() const;
 
-    // Sets the point cloud for the class
-    public: vtkSetMacro( PointCloudPtr, PointCloud::ConstPtr );
-    public: vtkGetMacro( PointCloudPtr, PointCloud::ConstPtr );
+    public: Eigen::Matrix4f mTransform;
+    public: Eigen::Vector3f mDimensions;
 
-    protected: vtkPointCloudSource();
-    protected: ~vtkPointCloudSource() {}
-
-    protected: virtual int RequestData( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
-    protected: virtual int RequestInformation( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
-
-    protected: PointCloud::ConstPtr PointCloudPtr;
-
-    private: vtkPointCloudSource( const vtkPointCloudSource& );  // Not implemented.
-    void operator=( const vtkPointCloudSource& );  // Not implemented.
+    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
 
-#endif // VTK_POINT_CLOUD_SOURCE_H_
+#endif // BOX_FILTER_H_

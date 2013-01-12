@@ -144,6 +144,18 @@ TmMainWindow::TmMainWindow()
 
     mpRenderer->AddActor( mpKeyPointInstancesActor );
 
+    // Prepare to render a box filter
+    mpBoxFilterSource = vtkSmartPointer<vtkBoxFilterSource>::New();
+    mpBoxFilterMapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+    mpBoxFilterActor = vtkSmartPointer<vtkActor>::New();
+
+    mpBoxFilterMapper->SetInputConnection( mpBoxFilterSource->GetOutputPort() );
+    mpBoxFilterActor->SetMapper( mpBoxFilterMapper );
+    mpBoxFilterActor->GetProperty()->SetLineWidth( 3.0 );
+    mpBoxFilterActor->SetVisibility( 0 );
+
+    mpRenderer->AddActor( mpBoxFilterActor );
+
     // Load in object model
     std::string dataDir = Utilities::getDataDir();
     QString modelFilename = QString( dataDir.c_str() ) + "/models/carrs_crackers.obj";
@@ -207,6 +219,7 @@ TmMainWindow::TmMainWindow()
 
     connect( this->checkShowModel, SIGNAL( clicked() ), this, SLOT( onCheckShowModelClicked() ) );
     connect( this->checkShowFrame, SIGNAL( clicked() ), this, SLOT( onCheckShowFrameClicked() ) );
+    connect( this->checkShowFilter, SIGNAL( clicked() ), this, SLOT( onCheckShowFilterClicked() ) );
 
     connect( this->listWidgetKeyPoints, SIGNAL( currentRowChanged( int ) ),
              this, SLOT( onCurrentKeyPointRowChanged( int ) ) );
@@ -743,6 +756,20 @@ void TmMainWindow::onCheckShowFrameClicked()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::onCheckShowFilterClicked()
+{
+    int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+    if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
+    {
+        refreshPointCloudDisplay( &mFrames[ curFrameIdx ] );
+    }
+    else
+    {
+        refreshPointCloudDisplay( NULL );
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::onCurrentKeyPointRowChanged( int currentRow )
 {
     refreshKeyPointInstances();
@@ -1077,6 +1104,13 @@ void TmMainWindow::addKeyPointInstanceToFrameAtImagePos( const ImageViewDialog* 
 bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const QPointF& pickPoint,
                                   Eigen::Vector3f* pWorldPosOut, bool bDrawPickLine ) const
 {
+    int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+    if ( curFrameIdx < 0 && curFrameIdx >= (int32_t)mFrames.size() )
+    {
+        // No frame selected...
+        return false;
+    }
+
     // Get the start point, and direction of the ray
     Eigen::Vector3d lineStartPos;
     Eigen::Vector3d lineDir;
@@ -1102,8 +1136,7 @@ bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
 
     bool bSurfacePointFound = false;
 
-    
-    float distanceToSurface = mpPointCloudSource->GetPointCloudPtr()->pickSurface(
+    float distanceToSurface = mFrames[ curFrameIdx ].mpKinectDepthPointCloud->pickSurface(
         lineStartPos.cast<float>(), lineDir.cast<float>() );
 
     // Place the pick point
@@ -1167,6 +1200,13 @@ bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::setBoxFilterFromImage( const ImageViewDialog* pImageViewDialog,
+                                          const QRectF& filterRectangle  )
+{
+
+}
+
+//--------------------------------------------------------------------------------------------------
 Eigen::Matrix4f TmMainWindow::getModelInFrameSpaceTransform() const
 {
     Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
@@ -1212,6 +1252,39 @@ void TmMainWindow::refreshKeyPointList()
 }
 
 //--------------------------------------------------------------------------------------------------
+void TmMainWindow::refreshPointCloudDisplay( const FrameData* pFrameData )
+{
+    if ( NULL == pFrameData )
+    {
+        // Clear the frame display
+        mpPointCloudActor->SetVisibility( 0 );
+        mpBoxFilterActor->SetVisibility( 0 );
+    }
+    else
+    {
+        if ( this->checkShowFilter->isChecked()
+            && pFrameData->hasBoxFilter() )
+        {
+            mpFilteredPointCloud = pFrameData->mpKinectDepthPointCloud->filterWithBoxFilter(
+                pFrameData->getBoxFilter() );
+            mpPointCloudSource->SetPointCloudPtr( mpFilteredPointCloud );
+
+            mpBoxFilterSource->SetBoxFilter( pFrameData->getBoxFilter() );
+            mpBoxFilterActor->SetVisibility( 1 );
+        }
+        else
+        {
+            mpPointCloudSource->SetPointCloudPtr( pFrameData->mpKinectDepthPointCloud );
+            mpBoxFilterActor->SetVisibility( 0 );
+        }
+
+        mpPointCloudActor->SetVisibility( 1 );
+    }
+
+    this->qvtkWidget->update();
+}
+
+//--------------------------------------------------------------------------------------------------
 void TmMainWindow::refreshImageDisplays( const FrameData* pFrameData )
 {
     if ( NULL == pFrameData )
@@ -1221,9 +1294,6 @@ void TmMainWindow::refreshImageDisplays( const FrameData* pFrameData )
         {
             mpImageViewDialogs[ dialogIdx ]->hide();
         }
-
-        // Clear the frame display
-        mpPointCloudActor->SetVisibility( 0 );
     }
     else
     {
@@ -1236,11 +1306,9 @@ void TmMainWindow::refreshImageDisplays( const FrameData* pFrameData )
         mKinectDepthColorImageViewDialog.setImage( pFrameData->mpKinectDepthPointCloud->getImage() );
         mKinectDepthColorImageViewDialog.setWindowTitle( "Kinect Depth Camera Color Image" );
         mKinectDepthColorImageViewDialog.show();
-
-        mpPointCloudSource->SetPointCloudPtr( pFrameData->mpKinectDepthPointCloud );
-        mpPointCloudActor->SetVisibility( 1 );
     }
 
+    refreshPointCloudDisplay( pFrameData );
     refreshKeyPointInstances();
     this->qvtkWidget->update();
 }

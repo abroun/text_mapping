@@ -27,38 +27,30 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-#ifndef VTK_POINT_CLOUD_SOURCE_H_
-#define VTK_POINT_CLOUD_SOURCE_H_
+//--------------------------------------------------------------------------------------------------
+#include "text_mapping/box_filter.h"
 
 //--------------------------------------------------------------------------------------------------
-#include <vtkPolyDataAlgorithm.h>
-#include "text_mapping/point_cloud.h"
-
+// BoxFilter
 //--------------------------------------------------------------------------------------------------
-//! Produces the PolyData used to display a PointCloud with VTK.
-class vtkPointCloudSource : public vtkPolyDataAlgorithm
+std::vector<Eigen::Vector3f> BoxFilter::calculateCorners() const
 {
-    public: vtkTypeMacro( vtkPointCloudSource, vtkPolyDataAlgorithm );
-    public: void PrintSelf( std::ostream& os, vtkIndent indent );
+    std::vector<Eigen::Vector3f> corners;
+    corners.reserve( 8 );
 
-    // Constructs an empty PointCloud source
-    public: static vtkPointCloudSource* New();
+    Eigen::Vector3f boxCentre = mTransform.block<3,1>( 0, 3 );
+    Eigen::Vector3f halfX = mDimensions[ 0 ]*mTransform.block<3,1>( 0, 0 );
+    Eigen::Vector3f halfY = mDimensions[ 1 ]*mTransform.block<3,1>( 0, 1 );
+    Eigen::Vector3f halfZ = mDimensions[ 2 ]*mTransform.block<3,1>( 0, 2 );
 
-    // Sets the point cloud for the class
-    public: vtkSetMacro( PointCloudPtr, PointCloud::ConstPtr );
-    public: vtkGetMacro( PointCloudPtr, PointCloud::ConstPtr );
+    corners.push_back( Eigen::Vector3f( boxCentre + halfY - halfZ + halfX ) ); // top-front-left
+    corners.push_back( Eigen::Vector3f( boxCentre + halfY + halfZ + halfX ) ); // top-back-left
+    corners.push_back( Eigen::Vector3f( boxCentre + halfY + halfZ - halfX ) ); // top-back-right
+    corners.push_back( Eigen::Vector3f( boxCentre + halfY - halfZ - halfX ) ); // top-front-right
+    corners.push_back( Eigen::Vector3f( boxCentre - halfY - halfZ + halfX ) ); // bottom-front-left
+    corners.push_back( Eigen::Vector3f( boxCentre - halfY + halfZ + halfX ) ); // bottom-back-left
+    corners.push_back( Eigen::Vector3f( boxCentre - halfY + halfZ - halfX ) ); // bottom-back-right
+    corners.push_back( Eigen::Vector3f( boxCentre - halfY - halfZ - halfX ) ); // bottom-front-right
 
-    protected: vtkPointCloudSource();
-    protected: ~vtkPointCloudSource() {}
-
-    protected: virtual int RequestData( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
-    protected: virtual int RequestInformation( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
-
-    protected: PointCloud::ConstPtr PointCloudPtr;
-
-    private: vtkPointCloudSource( const vtkPointCloudSource& );  // Not implemented.
-    void operator=( const vtkPointCloudSource& );  // Not implemented.
-};
-
-
-#endif // VTK_POINT_CLOUD_SOURCE_H_
+    return corners;
+}
