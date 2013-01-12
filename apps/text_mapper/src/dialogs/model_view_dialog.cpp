@@ -127,6 +127,26 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 		mPointCloudWidgets.push_back( widget );
 	}*/
 
+	// Output all of the points to a text file
+	FILE* pPointFile = fopen( "modelPoints.txt", "w" );
+
+	for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
+    {
+	    const PointCloudWithPose& p = pointCloudsAndPoses[ i ];
+
+	    Eigen::Vector3f normal = -p.mTransform.block<3,1>( 0, 2 );
+
+	    for ( uint32_t pointIdx = 0; pointIdx < p.mpCloud->getNumPoints(); pointIdx++ )
+	    {
+	        Eigen::Vector3f pos = p.mpCloud->getPointWorldPos( pointIdx );
+	        pos = p.mTransform.block<3,3>( 0, 0 )*pos + p.mTransform.block<3,1>( 0, 3 );
+	        fprintf( pPointFile, "%f %f %f %f %f %f\n",
+	            pos[ 0 ], pos[ 1 ], pos[ 2 ], normal[ 0 ], normal[ 1 ], normal[ 2 ] );
+	    }
+    }
+
+    fclose( pPointFile );
+
 	if ( pointCloudsAndPoses.size() > 0 )
 	{
 		const float VOXEL_SIDE_LENGTH = 0.001;

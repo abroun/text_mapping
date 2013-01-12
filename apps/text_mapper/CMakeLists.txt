@@ -45,8 +45,10 @@ INCLUDE_DIRECTORIES(
 	"C:/Program Files (x86)/Tesseract-OCR/Build/neural_networks/runtime"
 	"C:/Program Files (x86)/Tesseract-OCR/Build/textord")
 
+IF( WIN32 )
 LINK_DIRECTORIES(
 	"C:/Program Files (x86)/Tesseract-OCR/Build/vs2010/Release.dll/")
+ENDIF( WIN32 )
 
 
 ADD_EXECUTABLE( text_mapper ${TEXT_MAPPER_SOURCES} 

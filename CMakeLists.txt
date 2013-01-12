@@ -1,7 +1,7 @@
 CMAKE_MINIMUM_REQUIRED( VERSION 2.8 )
 
 SET( DEFAULT_BUILD_TYPE Release )
-SET( DEFAULT_CXX_FLAGS_RELEASE " -Wall -O3 -std=c++0x -fPIC" ) #-fno-implicit-templates" )
+SET( DEFAULT_CXX_FLAGS_RELEASE " -Wall -O3 -std=c++0x -fPIC -fopenmp -fpermissive" ) #-fno-implicit-templates" )
 SET( BUILD_TYPE_DOC "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel." )
 SET( CXX_FLAGS_RELEASE_DOC "Flags used by the compiler during release builds (/MD /Ob1 /Oi /Ot /Oy /Gs will produce slightly smaller files" )
 
@@ -141,6 +141,9 @@ ENDIF( DOXYGEN_FOUND )
 
 #SET(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE) 
 #SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# Add in 3rd party libraries
+ADD_SUBDIRECTORY( 3rd_party/poisson_surface_reconstruction )
 
 # Add in applications
 ADD_SUBDIRECTORY( apps/camera_apps )

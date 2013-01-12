@@ -339,8 +339,9 @@ PointCloud::Ptr PointCloud::filterOutPointsFarFromPointSet(
 			uint32_t pixelIdx = pointImagePos[ 1 ]*mImage.cols + pointImagePos[ 0 ];
 			pPointCloud->mPointMap[ pixelIdx ] = (int32_t)newPointIdx;
 
-			// Copy over the points pixel
-			pPointCloud->mImage.at<uint32_t>( pixelIdx ) = mImage.at<uint32_t>( pixelIdx );
+			// Copy over the point's pixel
+			pPointCloud->mImage.at<uint32_t>( pointImagePos[ 1 ], pointImagePos[ 0 ] ) =
+			    mImage.at<uint32_t>( pointImagePos[ 1 ], pointImagePos[ 0 ] );
 		}
 	}
 
