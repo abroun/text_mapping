@@ -141,19 +141,16 @@ class PointCloud
 	//! @param[out] pSecondCornerOut Variable to hold the second bounding box corner
 	public: void getBoundingBox( Eigen::Vector3f* pFirstCornerOut, Eigen::Vector3f* pSecondCornerOut ) const;
 
-	//! Casts a ray into the point cloud
+	//! Casts a ray into the point cloud. If the ray gets close enough to a point then we assume
+	//! that we've hit a surface and return the distance to the surface.
 	//! @param lineStart The start of the ray
 	//! @param lineDir The direction of the ray
-	//! @param pClosestPointIdxOut Optional pointer that can be used to find the closest point
-	//!        the ray got to
+	//! @param pClosestPointIdxOut Optional pointer that can be used to find the point the ray 'hit'
 	//! @param close How close the ray has to pass to a point for it to be considered a hit
-	//! @return The distance along the ray to get to the closest point approach, or -1 if we
-	//!         didn't come close to any point. NOTE: At the moment this routine returns the
-	//!         absolute closest point to the ray. This should be fine for a range point cloud
-	//!         where the point cloud is essentially a plane, but it may run into problems with
-	//!         true 3D clouds.
+	//! @return The distance along the ray to get to the 'surface', or -1 if we didn't come close
+	//!         to any point.
     public: float pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Vector3f& lineDir,
-         int32_t* pClosestPointIdxOut=NULL, float close=0.005f ) const;
+         int32_t* pClosestPointIdxOut=NULL, float close=0.002f ) const;
 
     //! A helper routine for copying points when implementing filters
     //! @param pointIdx The index of the point to copy

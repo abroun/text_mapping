@@ -89,18 +89,70 @@ Frames:
       HighResImage: "../images/high_res/new_cracker_z4_0007.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0007.jpg"
       KinectDepthPointCloud: "../point_clouds/new_cracker_0007.spc"
+      BoxFilter:
+         Transform: !!opencv-matrix
+            rows: 4
+            cols: 4
+            dt: f
+            data: [ 1., 0., 0., -3.52447554e-02, 0., 1., 0.,
+                -8.40927437e-02, 0., 0., 1., 7.06460178e-01, 0., 0., 0.,
+                1. ]
+         Dimensions: !!opencv-matrix
+            rows: 3
+            cols: 1
+            dt: f
+            data: [ 1.18920229e-01, 2.06128389e-01, 1.38920233e-01 ]
    -
       HighResImage: "../images/high_res/new_cracker_z4_0008.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0008.jpg"
       KinectDepthPointCloud: "../point_clouds/new_cracker_0008.spc"
+      BoxFilter:
+         Transform: !!opencv-matrix
+            rows: 4
+            cols: 4
+            dt: f
+            data: [ 1., 0., 0., -1.77118126e-02, 0., 1., 0.,
+                -7.87870511e-02, 0., 0., 1., 6.97803617e-01, 0., 0., 0.,
+                1. ]
+         Dimensions: !!opencv-matrix
+            rows: 3
+            cols: 1
+            dt: f
+            data: [ 1.25607133e-01, 2.03416854e-01, 1.45607129e-01 ]
    -
       HighResImage: "../images/high_res/new_cracker_z4_0009.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0009.jpg"
       KinectDepthPointCloud: "../point_clouds/new_cracker_0009.spc"
+      BoxFilter:
+         Transform: !!opencv-matrix
+            rows: 4
+            cols: 4
+            dt: f
+            data: [ 1., 0., 0., -1.92025434e-02, 0., 1., 0.,
+                -7.61907548e-02, 0., 0., 1., 7.07726121e-01, 0., 0., 0.,
+                1. ]
+         Dimensions: !!opencv-matrix
+            rows: 3
+            cols: 1
+            dt: f
+            data: [ 1.57452241e-01, 2.01494813e-01, 1.77452236e-01 ]
    -
       HighResImage: "../images/high_res/new_cracker_z4_0010.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0010.jpg"
       KinectDepthPointCloud: "../point_clouds/new_cracker_0010.spc"
+      BoxFilter:
+         Transform: !!opencv-matrix
+            rows: 4
+            cols: 4
+            dt: f
+            data: [ 1., 0., 0., -4.56449874e-02, 0., 1., 0.,
+                -7.69086629e-02, 0., 0., 1., 7.14394689e-01, 0., 0., 0.,
+                1. ]
+         Dimensions: !!opencv-matrix
+            rows: 3
+            cols: 1
+            dt: f
+            data: [ 1.66789398e-01, 2.13181153e-01, 1.86789393e-01 ]
 KeyPoints:
    -
       FrameInstances:
@@ -366,3 +418,129 @@ KeyPoints:
             FrameIndex: 4
             Pos: [ -6.5601076930761337e-03, -1.5784277021884918e-01,
                 6.4995622634887695e-01 ]
+         -
+            FrameIndex: 5
+            Pos: [ -5.7889312505722046e-02, -1.5788932144641876e-01,
+                6.4629107713699341e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 4
+            Pos: [ 6.4667202532291412e-03, -1.2364710122346878e-01,
+                6.6696155071258545e-01 ]
+         -
+            FrameIndex: 5
+            Pos: [ -3.8493588566780090e-02, -1.2156088650226593e-01,
+                6.5801262855529785e-01 ]
+         -
+            FrameIndex: 6
+            Pos: [ -4.9151301383972168e-02, -1.2630842626094818e-01,
+                6.7595762014389038e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 4
+            Pos: [ 3.6153692752122879e-02, -1.2285044044256210e-01,
+                6.9596606492996216e-01 ]
+         -
+            FrameIndex: 5
+            Pos: [ 1.1658519506454468e-03, -1.1409656703472137e-01,
+                6.6299843788146973e-01 ]
+         -
+            FrameIndex: 6
+            Pos: [ -2.3761728778481483e-02, -1.1807148158550262e-01,
+                6.5280473232269287e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 4
+            Pos: [ 2.0983070135116577e-03, -1.1013532429933548e-01,
+                6.6998118162155151e-01 ]
+         -
+            FrameIndex: 5
+            Pos: [ -4.3715782463550568e-02, -1.0858501493930817e-01,
+                6.6297948360443115e-01 ]
+         -
+            FrameIndex: 6
+            Pos: [ -5.2071139216423035e-02, -1.1417966336011887e-01,
+                6.8173873424530029e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 4
+            Pos: [ 2.7493778616189957e-02, -1.1403512954711914e-01,
+                6.8900072574615479e-01 ]
+         -
+            FrameIndex: 5
+            Pos: [ -9.8156388849020004e-03, -1.0680545866489410e-01,
+                6.6397470235824585e-01 ]
+         -
+            FrameIndex: 6
+            Pos: [ -2.7890475466847420e-02, -1.0631919652223587e-01,
+                6.5979778766632080e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 4
+            Pos: [ -1.3935653492808342e-02, 9.5164775848388672e-04,
+                6.9097006320953369e-01 ]
+         -
+            FrameIndex: 5
+            Pos: [ -5.8358475565910339e-02, -1.3986229896545410e-04,
+                6.9191551208496094e-01 ]
+         -
+            FrameIndex: 6
+            Pos: [ -5.7988233864307404e-02, -7.8454762697219849e-03,
+                7.2075998783111572e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 4
+            Pos: [ 2.6637151837348938e-02, 4.5039877295494080e-04,
+                7.2701698541641235e-01 ]
+         -
+            FrameIndex: 5
+            Pos: [ -3.5714078694581985e-03, 8.6980015039443970e-03,
+                6.9801962375640869e-01 ]
+         -
+            FrameIndex: 6
+            Pos: [ -1.7804635688662529e-02, 1.2106373906135559e-02,
+                6.8582260608673096e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 4
+            Pos: [ -8.5039567202329636e-03, -3.7304408848285675e-02,
+                6.8401396274566650e-01 ]
+         -
+            FrameIndex: 5
+            Pos: [ -5.3347587585449219e-02, -3.7489969283342361e-02,
+                6.8197250366210938e-01 ]
+         -
+            FrameIndex: 6
+            Pos: [ -5.6136205792427063e-02, -4.4398128986358643e-02,
+                7.0887804031372070e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 4
+            Pos: [ 3.4568447619676590e-02, -6.4860165119171143e-02,
+                7.1200436353683472e-01 ]
+         -
+            FrameIndex: 5
+            Pos: [ 3.7141535431146622e-03, -5.5113971233367920e-02,
+                6.7998194694519043e-01 ]
+         -
+            FrameIndex: 6
+            Pos: [ -1.5364969149231911e-02, -5.0950616598129272e-02,
+                6.6487109661102295e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 5
+            Pos: [ 1.0238541290163994e-02, -1.5466143190860748e-01,
+                6.4995598793029785e-01 ]
+         -
+            FrameIndex: 6
+            Pos: [ -1.5271676704287529e-02, -1.5067556500434875e-01,
+                6.3506603240966797e-01 ]

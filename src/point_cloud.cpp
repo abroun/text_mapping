@@ -524,9 +524,9 @@ float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Ve
     Eigen::Vector3f normLineDir = lineDir / dirLength;
 
     bool bPointFound = false;
-    float closestRayToPointSquared = FLT_MAX;
+    float closestDistanceToClosestApproach = FLT_MAX;
     float distanceAlongRayToClosestApproach = -1.0;
-   int32_t closestPointIdx = INVALID_POINT_IDX;
+    int32_t closestPointIdx = INVALID_POINT_IDX;
 
 	//printf( "Start Pos is %f %f %f\n", lineStart[ 0 ], lineStart[ 1 ], lineStart[ 2 ] );
     //printf( "Dir length is %f\n", normLineDir.squaredNorm() );
@@ -539,23 +539,20 @@ float PointCloud::pickSurface( const Eigen::Vector3f& lineStart, const Eigen::Ve
         Eigen::Vector3f vectorToPos = pos - lineStart;
         float distanceToClosestApproach = vectorToPos.dot( normLineDir );
 
-        if ( distanceToClosestApproach > 0.0f )
+        if ( distanceToClosestApproach > 0.0f
+            && distanceToClosestApproach < closestDistanceToClosestApproach )
         {
             Eigen::Vector3f closestPoint = lineStart + distanceToClosestApproach*normLineDir;
 
             float rayToPointSquared = ( pos - closestPoint ).squaredNorm();
 
-            if ( rayToPointSquared < closestRayToPointSquared )
+            if (  rayToPointSquared < close*close )
             {
-                closestRayToPointSquared = rayToPointSquared;
-
-                if ( rayToPointSquared < close*close )
-                {
-                    // The ray comes close enough for contact
-                    bPointFound = true;
-                    closestPointIdx = pointIdx;
-                    distanceAlongRayToClosestApproach = distanceToClosestApproach;
-                }
+                // The ray comes close enough for contact
+                bPointFound = true;
+                closestPointIdx = pointIdx;
+                closestDistanceToClosestApproach = distanceToClosestApproach;
+                distanceAlongRayToClosestApproach = distanceToClosestApproach;
             }
         }
     }
