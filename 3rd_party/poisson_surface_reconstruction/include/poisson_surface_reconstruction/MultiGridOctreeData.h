@@ -72,6 +72,7 @@ DAMAGE.
 #include "Hash.h"
 #include "BSplineData.h"
 #include "PointStream.h"
+#include "SparseMatrix.h"
 typedef float Real;
 typedef float MatrixReal;
 typedef OctNode< class TreeNodeData , Real > TreeOctNode;

@@ -30,6 +30,7 @@ DAMAGE.
 #include "time.h"
 #include "MemoryUsage.h"
 #include "MAT.h"
+#include "Time.h"
 
 #define ITERATION_POWER 1.0/3
 #define MEMORY_ALLOCATOR_BLOCK_SIZE 1<<12
@@ -883,8 +884,12 @@ int Octree<Degree>::setTree( char* fileName , int maxDepth , int minDepth ,
     else                                    pointStream = new  ASCIIPointStream< Real >( fileName );
     delete[] ext;
     
-    return setTree( pointStream, maxDepth , minDepth , splatDepth , samplesPerNode , scaleFactor ,
+    int result = setTree( pointStream, maxDepth , minDepth , splatDepth , samplesPerNode , scaleFactor ,
                     useConfidence , constraintWeight , adaptiveExponent , xForm );
+                    
+    delete pointStream;
+    
+    return result;
 }
 
 template< int Degree >
@@ -1074,7 +1079,7 @@ int Octree<Degree>::setTree( PointStream< Real >* pointStream , int maxDepth , i
 	constraintWeight /= cnt;
 
 	MemoryUsage( );
-	delete pointStream;
+	
 	if( _constrainValues )
 		for( TreeOctNode* node=tree.nextNode() ; node ; node=tree.nextNode(node) )
 			if( node->nodeData.pointIndex!=-1 )

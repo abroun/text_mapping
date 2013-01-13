@@ -55,7 +55,8 @@ INCLUDE_DIRECTORIES(
 	${Boost_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
 	${TESSERACT_INCLUDE_DIR}
-    ${PROJECT_SOURCE_DIR}/include )
+    ${PROJECT_SOURCE_DIR}/include 
+    ${PROJECT_SOURCE_DIR}/3rd_party/poisson_surface_reconstruction/include )
 
 LINK_DIRECTORIES(
 	${Boost_LIBRARY_DIRS}

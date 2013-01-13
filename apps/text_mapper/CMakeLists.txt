@@ -67,4 +67,5 @@ TARGET_LINK_LIBRARIES( text_mapper
     ${OpenCV_LIBS} 
     TextMapping 
     ${BOOST_LIBRARIES} 
-    ${TESSERACT_LIBS} )
+    ${TESSERACT_LIBS}
+    PoissonRecon )

@@ -34,12 +34,282 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include "model_view_dialog.h"
+#include <math.h>
 #include <Eigen/Dense>
 #include <vtkProperty.h>
 #include <vtkRenderWindow.h>
 #include <vtkOBJExporter.h>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
 #include "text_mapping/signed_distance_field.h"
 #include "text_mapping/utilities.h"
+
+void DumpOutput( const char* format , ... )
+{
+}
+void DumpOutput2( char* str , const char* format , ... )
+{
+}
+
+#include "poisson_surface_reconstruction/Geometry.h"
+#include "poisson_surface_reconstruction/MultiGridOctreeData.h"
+#include "poisson_surface_reconstruction/Octree.h"
+#include "poisson_surface_reconstruction/PointStream.h"
+
+//--------------------------------------------------------------------------------------------------
+typedef std::vector<std::pair<Eigen::Vector3f, Eigen::Vector3f> > PointNormalVector;
+
+//--------------------------------------------------------------------------------------------------
+template< class Real >
+class EigenPointStream : public PointStream< Real >
+{
+    PointNormalVector mPointNormalVector;
+    int32_t mCurrentPointIndex;
+
+public:
+    EigenPointStream( const PointNormalVector& pointNormalVector );
+    ~EigenPointStream( void );
+    void reset( void );
+    bool nextPoint( Point3D< Real >& p , Point3D< Real >& n );
+};
+
+//--------------------------------------------------------------------------------------------------
+template< class Real >
+EigenPointStream< Real >::EigenPointStream( const PointNormalVector& pointNormalVector )
+    : mPointNormalVector( pointNormalVector ),
+      mCurrentPointIndex( 0 )
+{
+}
+
+//--------------------------------------------------------------------------------------------------
+template< class Real >
+EigenPointStream< Real >::~EigenPointStream( void )
+{
+}
+
+//--------------------------------------------------------------------------------------------------
+template< class Real >
+void EigenPointStream< Real >::reset( void )
+{
+    mCurrentPointIndex = 0;
+}
+
+//--------------------------------------------------------------------------------------------------
+template< class Real >
+bool EigenPointStream< Real >::nextPoint( Point3D< Real >& p , Point3D< Real >& n )
+{
+    if ( mCurrentPointIndex < mPointNormalVector.size() )
+    {
+        const Eigen::Vector3f& pos = mPointNormalVector[ mCurrentPointIndex ].first;
+        const Eigen::Vector3f& normal = mPointNormalVector[ mCurrentPointIndex ].second;
+
+        p[0] = pos[ 0 ];
+        p[1] = pos[ 1 ];
+        p[2] = pos[ 2 ];
+        n[0] = normal[ 0 ];
+        n[1] = normal[ 1 ];
+        n[2] = normal[ 2 ];
+
+        mCurrentPointIndex++;
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+//--------------------------------------------------------------------------------------------------
+static void buildPolyModel( const PointNormalVector& pointNormalVector, CoredFileMeshData* pMeshOut )
+{
+    const int32_t THREADS = 4;
+    const int32_t SOLVER_DIVIDE = 8;
+    const int32_t ISO_DIVIDE = 8;
+    const int32_t DEPTH = 5;
+    const int32_t MIN_DEPTH = 5;
+    const int32_t MAX_SOLVE_DEPTH = 5;
+    const int32_t KERNEL_DEPTH = DEPTH - 2;
+    const int32_t MIN_ITERS = 24;
+    const float SAMPLES_PER_NODE = 1.0f;
+    const float SCALE = 1.1f;
+    const int32_t CONFIDENCE_FLAG = 0;
+    const int32_t SHOW_RESIDUAL_FLAG = 0;
+    const float POINT_WEIGHT = 4.0f;
+    const int32_t ADAPTIVE_EXPONENT = 1;
+    const int32_t BOUNDARY_TYPE = 1;
+    const float SOLVER_ACCURACY = 1e-3;
+    const int32_t FIXED_ITERS = -1;
+    const int32_t POLYGON_MESH_FLAG = 0;
+    const int32_t NON_MANIFOLD_FLAG = 0;
+
+    EigenPointStream<float> pointStream( pointNormalVector );
+
+    printf( "Created point stream\n" );
+    fflush( stdout );
+
+    Octree<2> tree;
+    tree.threads = THREADS;
+
+    printf( "Created tree\n" );
+    fflush( stdout );
+
+    XForm4x4<float> xForm = XForm4x4< Real >::Identity();
+    XForm4x4<float> iXForm = xForm.inverse();
+
+    printf( "Setup transform\n" );
+    fflush( stdout );
+
+    tree.setBSplineData( DEPTH, BOUNDARY_TYPE );
+
+    printf( "set BSplineData\n" );
+    fflush( stdout );
+
+    int32_t pointCount = tree.setTree( &pointStream, DEPTH, MIN_DEPTH, KERNEL_DEPTH,
+        SAMPLES_PER_NODE, SCALE, CONFIDENCE_FLAG, POINT_WEIGHT, ADAPTIVE_EXPONENT, xForm );
+
+    printf( "Setup tree\n" );
+    fflush( stdout );
+
+    tree.ClipTree();
+
+    printf( "Clipped tree\n" );
+    fflush( stdout );
+
+    tree.finalize( ISO_DIVIDE );
+
+    printf( "Finalized tree\n" );
+    fflush( stdout );
+
+    tree.SetLaplacianConstraints();
+
+    printf( "Constrained tree\n" );
+    fflush( stdout );
+
+    tree.LaplacianMatrixIteration( SOLVER_DIVIDE, SHOW_RESIDUAL_FLAG, MIN_ITERS,
+        SOLVER_ACCURACY, MAX_SOLVE_DEPTH, FIXED_ITERS );
+
+    float isoValue = tree.GetIsoValue();
+    tree.GetMCIsoTriangles( isoValue , ISO_DIVIDE, pMeshOut,
+        0, 1, !NON_MANIFOLD_FLAG, POLYGON_MESH_FLAG );
+
+    PlyWritePolygons( "model.ply", pMeshOut, PLY_BINARY_NATIVE, NULL, 0, iXForm );
+}
+
+//--------------------------------------------------------------------------------------------------
+struct TexCoord
+{
+    TexCoord() : u( 0.0 ), v( 0.0 ) {}
+    TexCoord( float u, float v ) : u( u ), v( v ) {}
+
+    float u;
+    float v;
+};
+
+//--------------------------------------------------------------------------------------------------
+struct FaceElem
+{
+    int32_t vertexIdx;
+    int32_t texCoordIdx;
+};
+
+//--------------------------------------------------------------------------------------------------
+typedef std::vector<FaceElem> Face;
+
+//--------------------------------------------------------------------------------------------------
+static void texturePolyModel( const PointCloudWithPoseVector& pointCloudsAndPoses,
+                              const Camera* pHighResCamera, CoredFileMeshData* pMesh )
+{
+    uint32_t numFrames = pointCloudsAndPoses.size();
+    if ( numFrames <= 0 )
+    {
+        return;
+    }
+
+    // Group all of the high resolution images onto a single texture
+    int32_t numImagesWide = (int32_t)ceilf( sqrtf( (float)numFrames ) );
+    int32_t numImagesHigh = (int32_t)ceilf( (float)numFrames/(float)numImagesWide );
+
+    const cv::Mat& firstImage = pointCloudsAndPoses[ 0 ].mHighResImage;
+    cv::Mat combinedImage = cv::Mat::zeros(
+        firstImage.rows*numImagesHigh, firstImage.cols*numImagesWide, firstImage.type() );
+
+    for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
+    {
+        int32_t frameX = frameIdx % numImagesWide;
+        int32_t frameY = frameIdx / numImagesWide;
+
+        cv::Mat copyTarget( combinedImage, cv::Rect(
+            frameX*firstImage.cols, frameY*firstImage.rows, firstImage.cols, firstImage.rows ) );
+        pointCloudsAndPoses[ frameIdx ].mHighResImage.copyTo( copyTarget );
+    }
+
+    cv::cvtColor( combinedImage, combinedImage, CV_BGR2RGB );
+
+    vector<int32_t> compressionParams;
+    compressionParams.push_back( CV_IMWRITE_JPEG_QUALITY );
+    compressionParams.push_back( 100 );
+    cv::imwrite( "model_texture.jpg", combinedImage, compressionParams );
+
+    // Build lists of vertices, texture cords, and faces
+    std::vector<Eigen::Vector3f> vertices;
+    std::vector<TexCoord> texCoords;
+    std::vector<Face> faces;
+
+    uint32_t numVertices = (uint32_t)pMesh->outOfCorePointCount() + pMesh->inCorePoints.size();
+    uint32_t numFaces = (uint32_t)pMesh->polygonCount();
+
+    vertices.reserve( numVertices );
+    texCoords.reserve( 4*numFaces );
+    faces.reserve( numFaces );
+
+    pMesh->resetIterator();
+
+    Point3D<float> p;
+    for( uint32_t i = 0; i < pMesh->inCorePoints.size(); i++ )
+    {
+        p = pMesh->inCorePoints[ i ];
+        vertices.push_back( Eigen::Vector3f( p[ 0 ], p[ 1 ], p[ 2 ] ) );
+    }
+
+    for( int32_t i = 0; i < pMesh->outOfCorePointCount(); i++ )
+    {
+        pMesh->nextOutOfCorePoint( p );
+        vertices.push_back( Eigen::Vector3f( p[ 0 ], p[ 1 ], p[ 2 ] ) );
+    }
+
+    std::vector<CoredVertexIndex> polygon;
+    for( uint32_t i = 0; i < numFaces; i++ )
+    {
+        pMesh->nextPolygon( polygon );
+        Face face;
+        face.reserve( polygon.size() );
+
+        for ( uint32_t vertexIdx = 0; vertexIdx < polygon.size(); vertexIdx++ )
+        {
+            FaceElem faceElem;
+            faceElem.texCoordIdx = (int32_t)texCoords.size();
+
+            if ( polygon[ vertexIdx ].inCore )
+            {
+                faceElem.vertexIdx = polygon[ vertexIdx ].idx;
+            }
+            else
+            {
+                faceElem.vertexIdx = polygon[ vertexIdx ].idx + (int32_t)pMesh->inCorePoints.size();
+            }
+
+            face.push_back( faceElem );
+
+
+            // Find out which camera has the best (most head on) view of the polygon
+
+                // Work out texture coordinates for the polygon
+
+            texCoords.push_back( TexCoord() );
+        }
+    }
+
+}
 
 //--------------------------------------------------------------------------------------------------
 // ModelViewDialog
@@ -130,6 +400,8 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 	// Output all of the points to a text file
 	FILE* pPointFile = fopen( "modelPoints.txt", "w" );
 
+	PointNormalVector pointNormalVector;
+
 	for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
     {
 	    const PointCloudWithPose& p = pointCloudsAndPoses[ i ];
@@ -142,10 +414,19 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 	        pos = p.mTransform.block<3,3>( 0, 0 )*pos + p.mTransform.block<3,1>( 0, 3 );
 	        fprintf( pPointFile, "%f %f %f %f %f %f\n",
 	            pos[ 0 ], pos[ 1 ], pos[ 2 ], normal[ 0 ], normal[ 1 ], normal[ 2 ] );
+
+	        pointNormalVector.push_back( std::pair<Eigen::Vector3f, Eigen::Vector3f>( pos, normal ) );
 	    }
     }
 
     fclose( pPointFile );
+
+    printf( "Building model...\n" );
+    CoredFileMeshData mesh;
+    buildPolyModel( pointNormalVector, &mesh );
+
+    printf( "Texturing model...\n" );
+    texturePolyModel( pointCloudsAndPoses, pHighResCamera, &mesh );
 
 	if ( pointCloudsAndPoses.size() > 0 )
 	{

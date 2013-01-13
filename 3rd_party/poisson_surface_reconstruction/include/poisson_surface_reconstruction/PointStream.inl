@@ -26,6 +26,7 @@ ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF S
 DAMAGE.
 */
 #include "ply.h"
+#include "Octree.h"
 
 template< class Real >
 ASCIIPointStream< Real >::ASCIIPointStream( const char* fileName )
