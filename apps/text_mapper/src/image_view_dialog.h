@@ -55,7 +55,6 @@ class ImageViewPixmap : public QGraphicsPixmapItem
 
     public: virtual void mousePressEvent( QGraphicsSceneMouseEvent *pEvent );
     public: virtual void mouseMoveEvent( QGraphicsSceneMouseEvent *pEvent );
-    public: virtual void mouseReleaseEvent( QGraphicsSceneMouseEvent *pEvent );
 
     private: void updateDragRectangle( const QPointF& curPos );
 

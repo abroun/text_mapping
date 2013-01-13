@@ -44,18 +44,24 @@ void ImageViewPixmap::mousePressEvent( QGraphicsSceneMouseEvent *pEvent )
     {
         QPointF pos = pEvent->lastPos();
 
-        if ( pEvent->modifiers() & Qt::ControlModifier )
-        {
-            mpParentDialog->addKeyPointInstanceToFrameAtImagePos( pos );
-        }
-        else if ( pEvent->modifiers() & Qt::ShiftModifier )
+        if ( pEvent->modifiers() & Qt::ShiftModifier )
         {
             mDragStartPoint = pos;
             mbDraggingRectangle = true;
         }
         else
         {
-            mpParentDialog->pickFromImage( pos );
+            mbDraggingRectangle = false;
+
+            if ( pEvent->modifiers() & Qt::ControlModifier )
+            {
+                mpParentDialog->addKeyPointInstanceToFrameAtImagePos( pos );
+            }
+
+            else
+            {
+                mpParentDialog->pickFromImage( pos );
+            }
         }
     }
 }
@@ -66,18 +72,6 @@ void ImageViewPixmap::mouseMoveEvent( QGraphicsSceneMouseEvent *pEvent )
     if ( mbDraggingRectangle && Qt::LeftButton & pEvent->buttons() )
     {
         updateDragRectangle( pEvent->lastPos() );
-    }
-}
-
-//--------------------------------------------------------------------------------------------------
-void ImageViewPixmap::mouseReleaseEvent( QGraphicsSceneMouseEvent *pEvent )
-{
-    if ( mbDraggingRectangle && Qt::LeftButton & pEvent->buttons() )
-    {
-        // TODO: This isn't called. Find out how to fix it...
-        printf( "Released\n" );
-        updateDragRectangle( pEvent->lastPos() );
-        mbDraggingRectangle = false;
     }
 }
 

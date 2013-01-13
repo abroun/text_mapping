@@ -32,8 +32,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 //--------------------------------------------------------------------------------------------------
 #include <stdint.h>
+#include <string>
 #include <vector>
 #include <Eigen/Core>
+#include <opencv2/core/core.hpp>
 
 //--------------------------------------------------------------------------------------------------
 //! Defines a 3D box that can be used to filter point clouds
@@ -43,6 +45,17 @@ class BoxFilter
         : mTransform( Eigen::Matrix4f::Identity() ), mDimensions( 1.0f, 1.0f, 1.0f ) {}
     public: BoxFilter( const Eigen::Matrix4f& transform, const Eigen::Vector3f& dimensions )
         : mTransform( transform ), mDimensions( dimensions ) {}
+
+    //! Tries to read a box filter from OpenCV file storage.
+    //! @param The OpenCV file node object containing the box filter
+    //! @param pBoxFilterOut Pointer to the box filter to be filled in with data read from the file
+    //! @return true if the box filter successfully read from the file node, and false otherwise.
+    public: static bool readBoxFilterFromFileStorage( cv::FileNode& fileNode, BoxFilter* pBoxFilterOut );
+
+    //! Writes the box filter to an OpenCV file storage object
+    //! @param fileStorage The file storage object to write to
+    //! @param nodeName The name of the node to put the box filter in
+    public: void writeToFileStorage( cv::FileStorage& fileStorage, const std::string& nodeName ) const;
 
     //! Calculates the 8 corners of the bounding box, and returns them in a vector
     //! @return A vector of corners in the order

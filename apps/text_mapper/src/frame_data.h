@@ -49,7 +49,7 @@ struct FrameData
     {
         mModelInFrameSpaceTransform = Eigen::Matrix4f::Identity();
         mbModelInFrameSpaceTransformSet = false;
-        mbHasBoxFilter = true;
+        mbHasBoxFilter = false;
     }
 
     std::string mHighResImageFilename;
@@ -88,7 +88,7 @@ struct FrameData
 
     public: bool isModelInFrameSpaceTransformSet() const { return mbModelInFrameSpaceTransformSet; }
 
-    public: void seBoxFilter( const BoxFilter& boxFilter )
+    public: void setBoxFilter( const BoxFilter& boxFilter )
     {
         mBoxFilter = boxFilter;
         mbHasBoxFilter = true;

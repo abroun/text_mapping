@@ -588,8 +588,6 @@ void TmMainWindow::onBtnAlignModelWithFrameClicked()
 //--------------------------------------------------------------------------------------------------
 void TmMainWindow::onBtnBuildModelClicked()
 {
-	const float FILTER_DISTANCE = 0.15f;
-
 	if ( mFrames.size() <= 0 )
 	{
 		return;
@@ -608,7 +606,7 @@ void TmMainWindow::onBtnBuildModelClicked()
 		}
 	}
 
-	// Roughly filter the frame based on proximity to its key points
+	// Load the frame if needed
 	if ( NULL == mFrames[ 0 ].mpKinectDepthPointCloud )
 	{
 		if ( !mFrames[ 0 ].tryToLoadImages( true ) )
@@ -616,9 +614,18 @@ void TmMainWindow::onBtnBuildModelClicked()
 			return;
 		}
 	}
-	PointCloud::Ptr pFilteredCloud =
-		mFrames[ 0 ].mpKinectDepthPointCloud->filterOutPointsFarFromPointSet(
-			firstFrameKeyPoints, FILTER_DISTANCE );
+
+	// Filter the frame if it has a box filter
+	PointCloud::Ptr pFilteredCloud;
+	if ( mFrames[ 0 ].hasBoxFilter() )
+	{
+	    pFilteredCloud = mFrames[ 0 ].mpKinectDepthPointCloud->filterWithBoxFilter(
+	        mFrames[ 0 ].getBoxFilter() );
+	}
+	else
+	{
+	    pFilteredCloud = mFrames[ 0 ].mpKinectDepthPointCloud;
+	}
 
 	Eigen::Matrix4f combinedTransform = Eigen::Matrix4f::Identity();
 	pointCloudsAndPoses.push_back( PointCloudWithPose(
@@ -656,7 +663,7 @@ void TmMainWindow::onBtnBuildModelClicked()
 			break;
 		}
 
-		// Roughly filter the frame based on proximity to its key points
+		// Load the frame if needed
 		if ( NULL == mFrames[ frameIdx ].mpKinectDepthPointCloud )
 		{
 			if ( !mFrames[ frameIdx ].tryToLoadImages( true ) )
@@ -664,9 +671,17 @@ void TmMainWindow::onBtnBuildModelClicked()
 				return;
 			}
 		}
-		pFilteredCloud =
-			mFrames[ frameIdx ].mpKinectDepthPointCloud->filterOutPointsFarFromPointSet(
-				frameFilterKeyPoints, FILTER_DISTANCE );
+
+		// Filter the frame if it has a box filter
+        if ( mFrames[ frameIdx ].hasBoxFilter() )
+        {
+            pFilteredCloud = mFrames[ frameIdx ].mpKinectDepthPointCloud->filterWithBoxFilter(
+                mFrames[ frameIdx ].getBoxFilter() );
+        }
+        else
+        {
+            pFilteredCloud = mFrames[ frameIdx ].mpKinectDepthPointCloud;
+        }
 
 		// Calculate the transform between frames
 		Eigen::Matrix3f rotationMtx;
@@ -908,6 +923,13 @@ void TmMainWindow::loadProject( const std::string& projectFilename )
         frameData.mKinectDepthPointCloudFilename = Utilities::decodeRelativeFilename(
             absProjectFilename, frameData.mKinectDepthPointCloudFilename );
 
+        BoxFilter boxFilter;
+        cv::FileNode boxFilterNode = frameNode[ "BoxFilter" ];
+        if ( BoxFilter::readBoxFilterFromFileStorage( boxFilterNode, &boxFilter ) )
+        {
+            frameData.setBoxFilter( boxFilter );
+        }
+
         newFrames.push_back( frameData );
     }
 
@@ -1013,6 +1035,11 @@ void TmMainWindow::saveProject( const std::string& projectFilename )
         fileStorage << "KinectDepthPointCloud"
             << Utilities::createRelativeFilename( absProjectFilename,
                 Utilities::makeFilenameAbsoluteFromCWD( frameData.mKinectDepthPointCloudFilename ) );
+
+        if ( frameData.hasBoxFilter() )
+        {
+            frameData.getBoxFilter().writeToFileStorage( fileStorage, "BoxFilter" );
+        }
 
         fileStorage << "}";
     }
@@ -1203,7 +1230,107 @@ bool TmMainWindow::pickFromImage( const ImageViewDialog* pImageViewDialog, const
 void TmMainWindow::setBoxFilterFromImage( const ImageViewDialog* pImageViewDialog,
                                           const QRectF& filterRectangle  )
 {
+    // Check that we have a frame selected, and get the current point cloud
+    int32_t curFrameIdx = this->listViewFrames->selectionModel()->currentIndex().row();
+    if ( curFrameIdx < 0 && curFrameIdx >= (int32_t)mFrames.size() )
+    {
+        // No frame selected...
+        return;
+    }
+    PointCloud::Ptr pPointCloud = mFrames[ curFrameIdx ].mpKinectDepthPointCloud;
 
+    // Get the camera for the image view dialog
+    Camera* pCamera = NULL;
+    if ( &mHighResImageViewDialog == pImageViewDialog )
+    {
+        pCamera = &mHighResCamera;
+    }
+    else if ( &mKinectColorImageViewDialog == pImageViewDialog )
+    {
+        pCamera = &mKinectColorCamera;
+    }
+    else if ( &mKinectDepthColorImageViewDialog == pImageViewDialog )
+    {
+        pCamera = &mKinectDepthCamera;
+    }
+    else
+    {
+        // Invalid image view dialog...
+        return;
+    }
+
+    // Get information about the camera
+    Eigen::Matrix4f cameraInWorldSpaceMtx = pCamera->getCameraInWorldSpaceMatrix().cast<float>();
+    Eigen::Matrix3f cameraCalibMtx = pCamera->getCalibrationMatrix().cast<float>();
+
+    const Eigen::Vector3f& cameraAxisX = cameraInWorldSpaceMtx.block<3,1>( 0, 0 );
+    const Eigen::Vector3f& cameraAxisY = cameraInWorldSpaceMtx.block<3,1>( 0, 1 );
+    const Eigen::Vector3f& cameraAxisZ = cameraInWorldSpaceMtx.block<3,1>( 0, 2 );
+    const Eigen::Vector3f& cameraPos = cameraInWorldSpaceMtx.block<3,1>( 0, 3 );
+
+
+    // Check every point against the z-plane, the closest that falls inside the filter rectangle
+    // gives the near plane of the box filter
+    bool bFoundClosestZ = false;
+    float closestZ = FLT_MAX;
+
+    for ( uint32_t pointIdx = 0; pointIdx < pPointCloud->getNumPoints(); pointIdx++ )
+    {
+        Eigen::Vector3f cameraToPoint = pPointCloud->getPointWorldPos( pointIdx ) - cameraPos;
+
+        float pointZ = cameraToPoint.dot( cameraAxisZ );
+        if ( pointZ > 0.0 && pointZ < closestZ )
+        {
+            // Check that the point projects into the filter rectangle
+            float pointX = cameraToPoint.dot( cameraAxisX );
+            float imageX = cameraCalibMtx( 0, 0 )*pointX/pointZ + cameraCalibMtx( 0, 2 );
+            if ( imageX >= filterRectangle.left() && imageX <= filterRectangle.right() )
+            {
+                float pointY = cameraToPoint.dot( cameraAxisY );
+                float imageY = cameraCalibMtx( 1, 1 )*pointY/pointZ + cameraCalibMtx( 1, 2 );
+                if ( imageY >= filterRectangle.top() && imageY <= filterRectangle.bottom() )
+                {
+                    bFoundClosestZ = true;
+                    closestZ = pointZ;
+                }
+            }
+        }
+    }
+
+    // Set up the rest of the box filter.
+    if ( bFoundClosestZ )
+    {
+        float SAFETY_MARGIN_Z = 0.01f;  // Extra space to try make sure we don't cut out points
+                                        // due to errors in the relative camera poses
+
+        float boxWidth = filterRectangle.width()*closestZ/cameraCalibMtx( 0, 0 );
+        float boxHeight = filterRectangle.height()*closestZ/cameraCalibMtx( 1, 1 );
+        float boxDepth = boxWidth + 2.0*SAFETY_MARGIN_Z;    // Add safety margin front and back
+
+        // Cast a ray to find the centre of the box
+        float distanceToBoxCentreZ = closestZ - SAFETY_MARGIN_Z + boxDepth/2.0f;
+        Eigen::Vector3d rayStart;
+        Eigen::Vector3d dirToBoxCentre;
+        QPointF rectangleCentre = filterRectangle.center();
+        pCamera->getLineForPickPoint(
+            Eigen::Vector2d( rectangleCentre.x(), rectangleCentre.y() ),
+            &rayStart, &dirToBoxCentre );
+
+        float scaleZ = distanceToBoxCentreZ/(float)dirToBoxCentre[ 2 ];
+        Eigen::Vector3d boxCentre = rayStart + dirToBoxCentre*scaleZ;
+
+        Eigen::Matrix4f filterTransform = Eigen::Matrix4f::Identity();
+        filterTransform.block<3,1>( 0, 0 ) = cameraAxisX;
+        filterTransform.block<3,1>( 0, 1 ) = cameraAxisY;
+        filterTransform.block<3,1>( 0, 2 ) = cameraAxisZ;
+        filterTransform.block<3,1>( 0, 3 ) = boxCentre.cast<float>();
+
+        // Build, set and show the filter
+        BoxFilter boxFilter( filterTransform, Eigen::Vector3f( boxWidth, boxHeight, boxDepth ) );
+        mFrames[ curFrameIdx ].setBoxFilter( boxFilter );
+        this->checkShowFilter->setChecked( true );
+        refreshPointCloudDisplay( &mFrames[ curFrameIdx ] );
+    }
 }
 
 //--------------------------------------------------------------------------------------------------

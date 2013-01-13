@@ -4,22 +4,87 @@ Frames:
       HighResImage: "../images/high_res/new_cracker_z4_0001.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0001.jpg"
       KinectDepthPointCloud: "../point_clouds/new_cracker_0001.spc"
+      BoxFilter:
+         Transform: !!opencv-matrix
+            rows: 4
+            cols: 4
+            dt: f
+            data: [ 1., 0., 0., -1.32496115e-02, 0., 1., 0.,
+                -8.33621770e-02, 0., 0., 1., 6.30754173e-01, 0., 0., 0.,
+                1. ]
+         Dimensions: !!opencv-matrix
+            rows: 3
+            cols: 1
+            dt: f
+            data: [ 1.23508289e-01, 2.18131572e-01, 1.43508285e-01 ]
    -
       HighResImage: "../images/high_res/new_cracker_z4_0002.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0002.jpg"
       KinectDepthPointCloud: "../point_clouds/new_cracker_0002.spc"
+      BoxFilter:
+         Transform: !!opencv-matrix
+            rows: 4
+            cols: 4
+            dt: f
+            data: [ 1., 0., 0., 5.52707212e-03, 0., 1., 0.,
+                -3.96943130e-02, 0., 0., 1., 5.74075997e-01, 0., 0., 0.,
+                1. ]
+         Dimensions: !!opencv-matrix
+            rows: 3
+            cols: 1
+            dt: f
+            data: [ 2.08151966e-01, 2.06506491e-01, 2.28151962e-01 ]
    -
       HighResImage: "../images/high_res/new_cracker_z4_0004.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0004.jpg"
       KinectDepthPointCloud: "../point_clouds/new_cracker_0004.spc"
+      BoxFilter:
+         Transform: !!opencv-matrix
+            rows: 4
+            cols: 4
+            dt: f
+            data: [ 1., 0., 0., -3.59654948e-02, 0., 1., 0.,
+                -9.63603780e-02, 0., 0., 1., 7.75314987e-01, 0., 0., 0.,
+                1. ]
+         Dimensions: !!opencv-matrix
+            rows: 3
+            cols: 1
+            dt: f
+            data: [ 1.74629897e-01, 2.16781944e-01, 1.94629893e-01 ]
    -
       HighResImage: "../images/high_res/new_cracker_z4_0005.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0005.jpg"
       KinectDepthPointCloud: "../point_clouds/new_cracker_0005.spc"
+      BoxFilter:
+         Transform: !!opencv-matrix
+            rows: 4
+            cols: 4
+            dt: f
+            data: [ 1., 0., 0., -6.22571632e-02, 0., 1., 0.,
+                -9.54158530e-02, 0., 0., 1., 7.73160160e-01, 0., 0., 0.,
+                1. ]
+         Dimensions: !!opencv-matrix
+            rows: 3
+            cols: 1
+            dt: f
+            data: [ 1.62320361e-01, 2.19253629e-01, 1.82320356e-01 ]
    -
       HighResImage: "../images/high_res/new_cracker_z4_0006.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0006.jpg"
       KinectDepthPointCloud: "../point_clouds/new_cracker_0006.spc"
+      BoxFilter:
+         Transform: !!opencv-matrix
+            rows: 4
+            cols: 4
+            dt: f
+            data: [ 1., 0., 0., -9.75105166e-03, 0., 1., 0.,
+                -7.99587071e-02, 0., 0., 1., 7.42726147e-01, 0., 0., 0.,
+                1. ]
+         Dimensions: !!opencv-matrix
+            rows: 3
+            cols: 1
+            dt: f
+            data: [ 1.87452301e-01, 2.35167429e-01, 2.07452297e-01 ]
    -
       HighResImage: "../images/high_res/new_cracker_z4_0007.jpg"
       KinectColorImage: "../images/kinect/new_cracker_0007.jpg"
