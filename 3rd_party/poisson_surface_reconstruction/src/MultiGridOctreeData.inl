@@ -29,7 +29,6 @@ DAMAGE.
 #include "Octree.h"
 #include "time.h"
 #include "MemoryUsage.h"
-#include "PointStream.h"
 #include "MAT.h"
 
 #define ITERATION_POWER 1.0/3
@@ -877,6 +876,23 @@ int Octree<Degree>::setTree( char* fileName , int maxDepth , int minDepth ,
 							int splatDepth , Real samplesPerNode , Real scaleFactor ,
 							int useConfidence , Real constraintWeight , int adaptiveExponent , XForm4x4< Real > xForm )
 {
+    PointStream< Real >* pointStream;
+    char* ext = GetFileExtension( fileName );
+    if     ( !strcasecmp( ext , "bnpts" ) ) pointStream = new BinaryPointStream< Real >( fileName );
+    else if( !strcasecmp( ext , "ply"   ) ) pointStream = new    PLYPointStream< Real >( fileName );
+    else                                    pointStream = new  ASCIIPointStream< Real >( fileName );
+    delete[] ext;
+    
+    return setTree( pointStream, maxDepth , minDepth , splatDepth , samplesPerNode , scaleFactor ,
+                    useConfidence , constraintWeight , adaptiveExponent , xForm );
+}
+
+template< int Degree >
+int Octree<Degree>::setTree( PointStream< Real >* pointStream , int maxDepth , int minDepth , 
+                            int splatDepth , Real samplesPerNode , Real scaleFactor ,
+                            int useConfidence , Real constraintWeight , int adaptiveExponent , XForm4x4< Real > xForm )
+{
+
 	if( splatDepth<0 ) splatDepth = 0;
 	XForm3x3< Real > xFormN;
 	for( int i=0 ; i<3 ; i++ ) for( int j=0 ; j<3 ; j++ ) xFormN(i,j) = xForm(i,j);
@@ -894,12 +910,6 @@ int Octree<Degree>::setTree( char* fileName , int maxDepth , int minDepth ,
 
 	TreeOctNode::NeighborKey3 neighborKey;
 	neighborKey.set( maxDepth );
-	PointStream< Real >* pointStream;
-	char* ext = GetFileExtension( fileName );
-	if     ( !strcasecmp( ext , "bnpts" ) ) pointStream = new BinaryPointStream< Real >( fileName );
-	else if( !strcasecmp( ext , "ply"   ) ) pointStream = new    PLYPointStream< Real >( fileName );
-	else                                    pointStream = new  ASCIIPointStream< Real >( fileName );
-	delete[] ext;
 
 	tree.setFullDepth( _minDepth );
 	// Read through once to get the center and scale

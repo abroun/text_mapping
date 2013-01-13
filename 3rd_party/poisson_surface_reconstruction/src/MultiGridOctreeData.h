@@ -71,6 +71,7 @@ DAMAGE.
 
 #include "Hash.h"
 #include "BSplineData.h"
+#include "PointStream.h"
 typedef float Real;
 typedef float MatrixReal;
 typedef OctNode< class TreeNodeData , Real > TreeOctNode;
@@ -328,7 +329,11 @@ public:
 	void finalize( int subdivisionDepth );
 	int refineBoundary( int subdivisionDepth );
 	Real* GetSolutionGrid( int& res , Real isoValue=0.f , int depth=-1 );
+
 	int setTree( char* fileName , int maxDepth , int minDepth , int kernelDepth , Real samplesPerNode ,
+	        Real scaleFactor , int useConfidence , Real constraintWeight , int adaptiveExponent , XForm4x4< Real > xForm=XForm4x4< Real >::Identity );
+
+	int setTree( PointStream< Real >* pointStream , int maxDepth , int minDepth , int kernelDepth , Real samplesPerNode ,
 		Real scaleFactor , int useConfidence , Real constraintWeight , int adaptiveExponent , XForm4x4< Real > xForm=XForm4x4< Real >::Identity );
 
 	void SetLaplacianConstraints(void);
