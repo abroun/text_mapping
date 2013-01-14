@@ -120,7 +120,12 @@ bool EigenPointStream< Real >::nextPoint( Point3D< Real >& p , Point3D< Real >& 
 }
 
 //--------------------------------------------------------------------------------------------------
-static void buildPolyModel( const PointNormalVector& pointNormalVector, CoredFileMeshData* pMeshOut )
+static void texturePolyModel( const PointCloudWithPoseVector& pointCloudsAndPoses,
+                              const Camera* pHighResCamera, CoredFileMeshData* pMesh );
+
+//--------------------------------------------------------------------------------------------------
+static void buildPolyModel( const PointNormalVector& pointNormalVector,
+    const PointCloudWithPoseVector& pointCloudsAndPoses, const Camera* pHighResCamera )
 {
     const int32_t THREADS = 4;
     const int32_t SOLVER_DIVIDE = 8;
@@ -189,10 +194,15 @@ static void buildPolyModel( const PointNormalVector& pointNormalVector, CoredFil
         SOLVER_ACCURACY, MAX_SOLVE_DEPTH, FIXED_ITERS );
 
     float isoValue = tree.GetIsoValue();
-    tree.GetMCIsoTriangles( isoValue , ISO_DIVIDE, pMeshOut,
+    CoredFileMeshData mesh;
+
+    tree.GetMCIsoTriangles( isoValue , ISO_DIVIDE, &mesh,
         0, 1, !NON_MANIFOLD_FLAG, POLYGON_MESH_FLAG );
 
-    PlyWritePolygons( "model.ply", pMeshOut, PLY_BINARY_NATIVE, NULL, 0, iXForm );
+    //PlyWritePolygons( "model.ply", &mesh, PLY_ASCII, NULL, 0, iXForm );
+
+    printf( "Texturing model...\n" );
+    texturePolyModel( pointCloudsAndPoses, pHighResCamera, &mesh );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -223,6 +233,17 @@ static void texturePolyModel( const PointCloudWithPoseVector& pointCloudsAndPose
     if ( numFrames <= 0 )
     {
         return;
+    }
+
+    std::vector<Eigen::Matrix4f, Eigen::aligned_allocator<Eigen::Matrix4f> > cameraMatrices;
+    cameraMatrices.reserve( numFrames );
+
+    for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
+    {
+        Eigen::Matrix4f cameraInWorldSpaceMatrix =
+            pointCloudsAndPoses[ frameIdx ].mTransform*pHighResCamera->getCameraInWorldSpaceMatrix().cast<float>();
+
+        cameraMatrices.push_back( cameraInWorldSpaceMatrix.inverse() );
     }
 
     // Group all of the high resolution images onto a single texture
@@ -257,6 +278,7 @@ static void texturePolyModel( const PointCloudWithPoseVector& pointCloudsAndPose
 
     uint32_t numVertices = (uint32_t)pMesh->outOfCorePointCount() + pMesh->inCorePoints.size();
     uint32_t numFaces = (uint32_t)pMesh->polygonCount();
+    printf( "Number of faces is %u\n", numFaces );
 
     vertices.reserve( numVertices );
     texCoords.reserve( 4*numFaces );
@@ -277,9 +299,12 @@ static void texturePolyModel( const PointCloudWithPoseVector& pointCloudsAndPose
         vertices.push_back( Eigen::Vector3f( p[ 0 ], p[ 1 ], p[ 2 ] ) );
     }
 
-    std::vector<CoredVertexIndex> polygon;
+    printf( "Processing %i faces\n", numFaces );
+
+
     for( uint32_t i = 0; i < numFaces; i++ )
     {
+        std::vector<CoredVertexIndex> polygon;
         pMesh->nextPolygon( polygon );
         Face face;
         face.reserve( polygon.size() );
@@ -299,16 +324,124 @@ static void texturePolyModel( const PointCloudWithPoseVector& pointCloudsAndPose
             }
 
             face.push_back( faceElem );
-
-
-            // Find out which camera has the best (most head on) view of the polygon
-
-                // Work out texture coordinates for the polygon
-
             texCoords.push_back( TexCoord() );
         }
+
+        // Ignore degenerate faces
+        if ( face.size() < 3 )
+        {
+            continue;
+        }
+
+        // Find out which camera has the best (most head on) view of the polygon
+        const Eigen::Vector3f& v0 = vertices[ face[ 0 ].vertexIdx ];
+        const Eigen::Vector3f& v1 = vertices[ face[ 1 ].vertexIdx ];
+        const Eigen::Vector3f& v2 = vertices[ face[ 2 ].vertexIdx ];
+
+        Eigen::Vector3f normal = (v2 - v1).cross( v0 - v1 );
+        normal.normalize();
+
+        int32_t mostHeadOnFrameIdx = -1;
+        float cosOfMostHeadOnAngle = 0.0;   // The camera axis must point in the opposite direction
+                                            // to the face normal
+        for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
+        {
+            const Eigen::Vector3f& axisZ = pointCloudsAndPoses[ frameIdx ].mTransform.block<3,1>( 0, 2 );
+            float cosOfAngle = normal.dot( axisZ );
+
+            if ( cosOfAngle < cosOfMostHeadOnAngle )
+            {
+                mostHeadOnFrameIdx = frameIdx;
+                cosOfMostHeadOnAngle = cosOfAngle;
+            }
+        }
+
+        // Work out texture coordinates for the polygon
+        if ( mostHeadOnFrameIdx < 0 )
+        {
+            fprintf( stderr, "Warning: Found a face which is not visible in any frame\n" );
+        }
+        else
+        {
+            const Eigen::Matrix3f calibMtx = pHighResCamera->getCalibrationMatrix().cast<float>();
+            const Eigen::Matrix4f& camMtx = cameraMatrices[ mostHeadOnFrameIdx ];
+
+            int32_t frameX = mostHeadOnFrameIdx % numImagesWide;
+            int32_t frameY = mostHeadOnFrameIdx / numImagesWide;
+            float offsetU = (float)frameX / (float)numImagesWide;
+            float offsetV = (float)frameY/ (float)numImagesHigh;
+
+            // Project each vertex onto the image plane of the frame
+            for ( uint32_t faceElemIdx = 0; faceElemIdx < face.size(); faceElemIdx++ )
+            {
+                const FaceElem& faceElem = face[ faceElemIdx ];
+                const Eigen::Vector3f& vertexWorldPos = vertices[ faceElem.vertexIdx ];
+                Eigen::Vector3f camSpacePos = camMtx.block<3,3>( 0 , 0 )*vertexWorldPos + camMtx.block<3,1>( 0, 3 );
+
+                float screenPosX = calibMtx( 0, 0 )*camSpacePos[ 0 ]/camSpacePos[ 2 ] + calibMtx( 0, 2 );
+                float screenPosY = calibMtx( 1, 1 )*camSpacePos[ 1 ]/camSpacePos[ 2 ] + calibMtx( 1, 2 );
+
+                texCoords[ faceElem.texCoordIdx ].u = offsetU + screenPosX / (float)(firstImage.cols*numImagesWide);
+                texCoords[ faceElem.texCoordIdx ].v = 1.0 - (offsetV + screenPosY / (float)(firstImage.rows*numImagesHigh));
+            }
+        }
+
+        faces.push_back( face );
     }
 
+    // Write out a MTL file for the mesh
+    FILE* pMtlFile = fopen( "model_material.mtl", "w" );
+
+    fprintf( pMtlFile, "# Material Count: 1\n" );
+    fprintf( pMtlFile, "newmtl Material_model_texture.jpg\n" );
+    fprintf( pMtlFile, "Ns 96.078431\n" );
+    fprintf( pMtlFile, "Ka 0.000000 0.000000 0.000000\n" );
+    fprintf( pMtlFile, "Kd 0.640000 0.640000 0.640000\n" );
+    fprintf( pMtlFile, "Ks 0.500000 0.500000 0.500000\n" );
+    fprintf( pMtlFile, "Ni 1.000000\n" );
+    fprintf( pMtlFile, "d 1.000000\n" );
+    fprintf( pMtlFile, "illum 2\n" );
+    fprintf( pMtlFile, "map_Kd model_texture.jpg\n" );
+    fprintf( pMtlFile, "\n" );
+
+    fclose( pMtlFile );
+
+    // Write out the mesh to an OBJ file
+    FILE* pObjFile = fopen( "model.obj", "w" );
+
+    fprintf( pObjFile, "mtllib model_material.mtl\n" );
+    fprintf( pObjFile, "o ObjectModel\n" );
+
+    for ( uint32_t vertexIdx = 0; vertexIdx < vertices.size(); vertexIdx++ )
+    {
+        const Eigen::Vector3f& v = vertices[ vertexIdx ];
+        fprintf( pObjFile, "v %f %f %f\n", v[ 0 ], v[ 1 ], v[ 2 ] );
+    }
+
+    for ( uint32_t texCoordIdx = 0; texCoordIdx < texCoords.size(); texCoordIdx++ )
+    {
+        const TexCoord& t = texCoords[ texCoordIdx ];
+        fprintf( pObjFile, "vt %f %f\n", t.u, t.v );
+    }
+
+    fprintf( pObjFile, "usemtl Material_model_texture.jpg\n" );
+    fprintf( pObjFile, "s off\n" );
+
+    for ( uint32_t faceIdx = 0; faceIdx < faces.size(); faceIdx++ )
+    {
+        const Face& face = faces[ faceIdx ];
+        fprintf( pObjFile, "f " );
+
+        for ( uint32_t faceElemIdx = 0; faceElemIdx < face.size(); faceElemIdx++ )
+        {
+            const FaceElem& faceElem = face[ faceElemIdx ];
+            fprintf( pObjFile, "%i/%i ", faceElem.vertexIdx + 1, faceElem.texCoordIdx + 1 );
+        }
+
+        fprintf( pObjFile, "\n" );
+    }
+
+    fclose( pObjFile );
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -423,14 +556,11 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 
     printf( "Building model...\n" );
     CoredFileMeshData mesh;
-    buildPolyModel( pointNormalVector, &mesh );
-
-    printf( "Texturing model...\n" );
-    texturePolyModel( pointCloudsAndPoses, pHighResCamera, &mesh );
+    buildPolyModel( pointNormalVector, pointCloudsAndPoses, pHighResCamera );
 
 	if ( pointCloudsAndPoses.size() > 0 )
 	{
-		const float VOXEL_SIDE_LENGTH = 0.001;
+		const float VOXEL_SIDE_LENGTH = 0.005;
 		const float BOX_SIZE_X = 0.2;
 		const float BOX_SIZE_Y = 0.4;
 		const float BOX_SIZE_Z = 0.2;
