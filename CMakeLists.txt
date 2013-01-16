@@ -56,7 +56,8 @@ INCLUDE_DIRECTORIES(
 	${OpenCV_INCLUDE_DIRS}
 	${TESSERACT_INCLUDE_DIR}
     ${PROJECT_SOURCE_DIR}/include 
-    ${PROJECT_SOURCE_DIR}/3rd_party/poisson_surface_reconstruction/include )
+    ${PROJECT_SOURCE_DIR}/3rd_party/poisson_surface_reconstruction/include
+    ${PROJECT_SOURCE_DIR}/3rd_party/sba/include )
 
 LINK_DIRECTORIES(
 	${Boost_LIBRARY_DIRS}
@@ -147,6 +148,7 @@ ENDIF( DOXYGEN_FOUND )
 
 # Add in 3rd party libraries
 ADD_SUBDIRECTORY( 3rd_party/poisson_surface_reconstruction )
+ADD_SUBDIRECTORY( 3rd_party/sba )
 
 # Add in applications
 ADD_SUBDIRECTORY( apps/camera_apps )

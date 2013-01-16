@@ -53,6 +53,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "frame_dialog.h"
 #include "tm_main_window.h"
 #include <opencv2/core/eigen.hpp>
+#include <sba/sba.h>
 
 //--------------------------------------------------------------------------------------------------
 static bool readVectorFromFileNode( cv::FileNode node, Eigen::Vector3f* pVectorOut )
@@ -629,7 +630,7 @@ void TmMainWindow::onBtnBuildModelClicked()
 
 	Eigen::Matrix4f combinedTransform = Eigen::Matrix4f::Identity();
 	pointCloudsAndPoses.push_back( PointCloudWithPose(
-		pFilteredCloud, combinedTransform, mFrames[ 0 ].mHighResImage ) );
+		pFilteredCloud, combinedTransform, mFrames[ 0 ].mHighResImage, 0 ) );
 
 	// Go through each of the remaining frames
 	for ( uint32_t frameIdx = 1; frameIdx < mFrames.size(); frameIdx++ )
@@ -701,10 +702,11 @@ void TmMainWindow::onBtnBuildModelClicked()
 
 		combinedTransform = combinedTransform*curFrameInPrevFrameSpaceTransform;
 		pointCloudsAndPoses.push_back( PointCloudWithPose(
-			pFilteredCloud, combinedTransform, mFrames[ frameIdx ].mHighResImage ) );
+			pFilteredCloud, combinedTransform, mFrames[ frameIdx ].mHighResImage, frameIdx ) );
 	}
 
 	// Send a vector of point clouds and transforms to the model viewer dialog
+	refineAlignmentUsingSBA( pointCloudsAndPoses, &mHighResCamera );
 	mModelViewDialog.buildModel( pointCloudsAndPoses, &mHighResCamera );
 	mModelViewDialog.show();
 }
@@ -1348,6 +1350,119 @@ Eigen::Matrix4f TmMainWindow::getModelInFrameSpaceTransform() const
     }
 
     return transform;
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloudsAndPoses,
+                                       const Camera* pCamera ) const
+{
+    if ( pointCloudsAndPoses.size() <= 0 )
+    {
+        return;
+    }
+
+    // Set up an SBA system containing the initial guess for camera transforms and key point
+    // positions
+    sba::SysSBA sysSBA;
+
+    // Create camera parameters.
+    const Eigen::Matrix3d& calibMtx = pCamera->getCalibrationMatrix();
+    frame_common::CamParams camParams;
+    camParams.fx = calibMtx( 0, 0 ); // Focal length in x
+    camParams.fy = calibMtx( 1, 1 ); // Focal length in y
+    camParams.cx = calibMtx( 0, 2 ); // X position of principal point
+    camParams.cy = calibMtx( 1, 2 ); // Y position of principal point
+    camParams.tx = 0;   // Baseline (no baseline since this is monocular)
+
+    // Add each of the cameras as nodes
+    std::map<uint32_t, uint32_t> frameIdxToNodeIdxMap;
+
+    for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
+    {
+        Eigen::Matrix4d cameraInWorldSpaceMtx = pCamera->getCameraInWorldSpaceMatrix()
+            * pointCloudsAndPoses[ i ].mTransform.cast<double>();
+
+        Eigen::Quaterniond rot( cameraInWorldSpaceMtx.block<3,3>( 0, 0 ) );
+        rot.normalize();
+        Eigen::Vector4d trans = cameraInWorldSpaceMtx.block<4,1>( 0, 3 );
+
+        frameIdxToNodeIdxMap[ pointCloudsAndPoses[ i ].mFrameIdx ] = i;
+
+        bool bCameraFixed = (0 == i);   // Fix only the first node
+        sysSBA.addNode( trans, rot, camParams, bCameraFixed );
+    }
+
+    // Add each of the key points, both in world space, and in image space
+    Eigen::Matrix4d worldInCameraSpaceMtx = pCamera->getCameraInWorldSpaceMatrix().inverse();
+    int32_t imageWidth = pointCloudsAndPoses[ 0 ].mHighResImage.cols;
+    int32_t imageHeight = pointCloudsAndPoses[ 0 ].mHighResImage.rows;
+
+    for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+    {
+        // Loop through all of the supplied frames to see if the key points are used there
+        int32_t worldPointIdx = -1;
+
+        for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
+        {
+            uint32_t frameIdx = pointCloudsAndPoses[ i ].mFrameIdx;
+            const KeyPointInstance* pInstance =
+                mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( frameIdx );
+            if ( NULL != pInstance )
+            {
+                // Add a world position for the key point if needed
+                if ( worldPointIdx < 0 )
+                {
+                    Eigen::Vector4d worldPos( pInstance->mPos[ 0 ],
+                        pInstance->mPos[ 1 ], pInstance->mPos[ 2 ], 1.0 );
+                    worldPos = pointCloudsAndPoses[ i ].mTransform.cast<double>()*worldPos;
+
+                    worldPointIdx = sysSBA.addPoint( worldPos );
+                    printf( "Added world point %i for key point %u\n", worldPointIdx, keyPointIdx );
+                }
+
+                // Now add the projected position of the key point for this frame
+                Eigen::Vector3d posInCameraSpace =
+                    worldInCameraSpaceMtx.block<3,3>( 0, 0 )*pInstance->mPos.cast<double>()
+                    + worldInCameraSpaceMtx.block<3,1>( 0, 3 );
+                Eigen::Vector2d projectedPosition(
+                    calibMtx( 0, 0 )*posInCameraSpace[ 0 ]/posInCameraSpace[ 2 ] + calibMtx( 0, 2 ),
+                    calibMtx( 1, 1 )*posInCameraSpace[ 1 ]/posInCameraSpace[ 2 ] + calibMtx( 1, 2 ) );
+
+                if ( projectedPosition[ 0 ] >= 0 && projectedPosition[ 0 ] < imageWidth
+                    && projectedPosition[ 1 ] >= 0 && projectedPosition[ 1 ] < imageHeight )
+                {
+                    int32_t nodeIdx = frameIdxToNodeIdxMap[ frameIdx ];
+                    sysSBA.addMonoProj( nodeIdx, worldPointIdx, projectedPosition );
+                }
+            }
+        }
+    }
+
+    // Run bundle adjustment
+    printf( "Preparing for SBA - Cameras (nodes): %d, Points: %d\n",
+        (int32_t)sysSBA.nodes.size(), (int32_t)sysSBA.tracks.size() );
+
+    int32_t numPoints = (int32_t)sysSBA.tracks.size();
+    printf( "Bad projs (> 10 pix): %d, Cost without: %f\n",
+        (int)sysSBA.countBad(10.0), sqrt(sysSBA.calcCost(10.0)/numPoints) );
+    printf( "Bad projs (> 5 pix): %d, Cost without: %f\n",
+        (int)sysSBA.countBad(5.0), sqrt(sysSBA.calcCost(5.0)/numPoints)) ;
+    printf( "Bad projs (> 2 pix): %d, Cost without: %f\n",
+        (int)sysSBA.countBad(2.0), sqrt(sysSBA.calcCost(2.0)/numPoints) );
+
+    sysSBA.verbose = 1;
+    sysSBA.doSBA(10, 1e-3, SBA_DENSE_CHOLESKY); //SBA_SPARSE_CHOLESKY);
+
+    printf( "Done SBA\n" );
+
+        printf( "Bad projs (> 10 pix): %d, Cost without: %f\n",
+            (int)sysSBA.countBad(10.0), sqrt(sysSBA.calcCost(10.0)/numPoints) );
+        printf( "Bad projs (> 5 pix): %d, Cost without: %f\n",
+            (int)sysSBA.countBad(5.0), sqrt(sysSBA.calcCost(5.0)/numPoints)) ;
+        printf( "Bad projs (> 2 pix): %d, Cost without: %f\n",
+            (int)sysSBA.countBad(2.0), sqrt(sysSBA.calcCost(2.0)/numPoints) );
+
+    // Update the point cloud poses
 }
 
 //--------------------------------------------------------------------------------------------------

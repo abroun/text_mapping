@@ -68,4 +68,5 @@ TARGET_LINK_LIBRARIES( text_mapper
     TextMapping 
     ${BOOST_LIBRARIES} 
     ${TESSERACT_LIBS}
-    PoissonRecon )
+    PoissonRecon
+    sba )

@@ -56,13 +56,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //--------------------------------------------------------------------------------------------------
 struct PointCloudWithPose
 {
-	PointCloudWithPose() {}
-	PointCloudWithPose( PointCloud::Ptr pCloud, const Eigen::Matrix4f& transform, cv::Mat highResImage )
-		: mpCloud( pCloud ), mTransform( transform ), mHighResImage( highResImage ) {}
+	PointCloudWithPose() : mFrameIdx( 0 ) {}
+	PointCloudWithPose( PointCloud::Ptr pCloud, const Eigen::Matrix4f& transform,
+	                    cv::Mat highResImage, uint32_t frameIdx )
+		: mpCloud( pCloud ), mTransform( transform ),
+		  mHighResImage( highResImage ), mFrameIdx( frameIdx ) {}
 
 	PointCloud::Ptr mpCloud;
 	Eigen::Matrix4f mTransform;
 	cv::Mat mHighResImage;
+	uint32_t mFrameIdx;
 
 	public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
