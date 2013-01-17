@@ -59,11 +59,11 @@ struct PointCloudWithPose
 	PointCloudWithPose() : mFrameIdx( 0 ) {}
 	PointCloudWithPose( PointCloud::Ptr pCloud, const Eigen::Matrix4f& transform,
 	                    cv::Mat highResImage, uint32_t frameIdx )
-		: mpCloud( pCloud ), mTransform( transform ),
+		: mpCloud( pCloud ), mPointCloudInWorldSpaceTransform( transform ),
 		  mHighResImage( highResImage ), mFrameIdx( frameIdx ) {}
 
 	PointCloud::Ptr mpCloud;
-	Eigen::Matrix4f mTransform;
+	Eigen::Matrix4f mPointCloudInWorldSpaceTransform;
 	cv::Mat mHighResImage;
 	uint32_t mFrameIdx;
 

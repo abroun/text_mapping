@@ -66,7 +66,7 @@ namespace sba
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW // needed for 16B alignment
 
     // 6DOF pose as a unit quaternion and translation vector
-    Eigen::Matrix<double,4,1> trans; ///< Translation in homogeneous coordinates, last element is 1.0.
+    Eigen::Matrix<double,4,1> EIGEN_ALIGN16 trans; ///< Translation in homogeneous coordinates, last element is 1.0.
     Eigen::Quaternion<double> qrot;  ///< Rotation of the node expressed as a Quaternion.
     
     /// \brief Normalize quaternion to unit. 
@@ -77,7 +77,7 @@ namespace sba
     void normRotLocal();
 
     /// Resultant transform from world to node coordinates.
-    Eigen::Matrix<double,3,4> w2n; 
+    Eigen::Matrix<double,3,4> EIGEN_ALIGN16 w2n;
     
     /// \brief Sets the transform matrices of the node.
     void setTransform();
@@ -108,7 +108,7 @@ namespace sba
     }
 
     /// \brief The transform from world to image coordinates.
-    Eigen::Matrix<double,3,4> w2i;
+    Eigen::Matrix<double,3,4> EIGEN_ALIGN16 w2i;
     
     /// Project a point into image coordinates.
     /// \param pi The u, v projection of the point into image coordinates.
@@ -141,7 +141,7 @@ namespace sba
     bool isFixed;
 
     /// Previous translation, saved for downdating within LM.
-    Eigen::Matrix<double,4,1> oldtrans;
+    Eigen::Matrix<double,4,1> EIGEN_ALIGN16 oldtrans;
     
     /// Previous quaternion rotation, saved for downdating within LM.
     Eigen::Quaternion<double> oldqrot;

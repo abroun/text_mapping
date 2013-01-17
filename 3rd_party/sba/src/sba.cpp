@@ -105,8 +105,8 @@ namespace sba
   // \return the index of the point added.
   int SysSBA::addPoint(Point& p)
   {
-    tracks.push_back(Track(p));
-    return tracks.size()-1;
+	  tracks.push_back(Track(p));
+	  return tracks.size()-1;
   }
   
 
@@ -190,9 +190,9 @@ namespace sba
   }
   
   // Add a point-plane match, forward and backward.
-  void SysSBA::addPointPlaneMatch(int ci0, int pi0, Eigen::Vector3d normal0, int ci1, int pi1, Eigen::Vector3d normal1)
+  void SysSBA::addPointPlaneMatch(int ci0, int pi0, Eigen::Vector3d& normal0, int ci1, int pi1, Eigen::Vector3d& normal1)
   {
-    Point pt0 = tracks[pi0].point;
+    //Point pt0 = tracks[pi0].point;
     Point pt1 = tracks[pi1].point;
     
     // works best with single constraint
@@ -263,12 +263,13 @@ namespace sba
             
             // Update projections
             //nodes[prj.ndi].projectStereo(tracks[prj.plane_point_index].point, prj.kp);
-            Point &pt0 = tracks[i].point;
-            Vector3d &plane_point = prj.plane_point;
-            Vector3d &plane_normal = prj.plane_normal;
-            Vector3d w = pt0.head<3>()-plane_point;
-            Vector3d projpt = pt0.head<3>() - (w.dot(plane_normal))*plane_normal;
             
+            //Point &pt0 = tracks[i].point;
+            //Vector3d &plane_point = prj.plane_point;
+            //Vector3d &plane_normal = prj.plane_normal;
+            //Vector3d w = pt0.head<3>()-plane_point;
+            //Vector3d projpt = pt0.head<3>() - (w.dot(plane_normal))*plane_normal;
+
           }
       }
   }
@@ -1051,19 +1052,13 @@ namespace sba
   // but not projection Jacobians
 
 void SysSBA::setupSys(double sLambda)
-  {
-    printf( "Started setup\n" );
-    fflush( stdout );
-
+{
     // set matrix sizes and clear (step 3)
     int nFree = nodes.size() - nFixed;
     A.setZero(6*nFree,6*nFree);
     B.setZero(6*nFree);
     VectorXi dcnt(nFree);
     dcnt.setZero(nFree);
-
-    printf( "Set zeros\n" );
-    fflush( stdout );
 
     // lambda augmentation
     double lam = 1.0 + sLambda;
@@ -1078,8 +1073,6 @@ void SysSBA::setupSys(double sLambda)
 	if (prjs.size() > jps.size())
 	  jps.resize(prjs.size());
 
-	printf( "Product storage\n" );
-	    fflush( stdout );
 
 	// local storage
         Matrix3d Hpp;
@@ -1109,50 +1102,14 @@ void SysSBA::setupSys(double sLambda)
               }
           }
 
-        printf( "Computed derivatives\n" );
-        fflush( stdout );
-
         // Augment Hpp, invert it and save Hpp' * bp
         // Hmm, shouldn't need this (augmented diagonal at end), 
         //   but seems to work better...
         Hpp.diagonal() *= lam;
         Matrix3d Hppi = Hpp.inverse(); // Which inverse should we use???? Note Hpp is symmetric
 
-        printf( "Calculated inverse\n" );
-        fflush( stdout );
-
-        //printf( "pi is %lu. tps size is %lu\n", pi, tps.size() );
-        //fflush( stdout );
-
         Vector3d &tp = tps[pi];
-
-        std::cout << "Hppi" << std::endl;
-        std::cout << Hppi << std::endl;
-
-        std::cout << "bp" << std::endl;
-        std::cout << bp << std::endl;
-
-        std::cout << "tps[pi]" << std::endl;
-        std::cout << tps[pi] << std::endl;
-
-
-
-        std::cout << "&tps[pi]" << std::endl;
-        std::cout << &tps[pi] << std::endl;
-
-        std::cout << "&tps[1]" << std::endl;
-        std::cout << &tps[1] << std::endl;
-
-        std::cout << "Hppi * bp" << std::endl;
-        std::cout << Hppi * bp << std::endl;
-
-
-
-        tps[pi] = Hppi * bp;
-        //tp = Hppi * bp;
-
-        printf( "Calculated tp\n" );
-        fflush( stdout );
+        tp = Hppi * bp;
 
         // "outer product of track" in Step 4
         for(ProjMap::iterator itr = prjs.begin(); itr != prjs.end(); itr++)
@@ -1164,9 +1121,6 @@ void SysSBA::setupSys(double sLambda)
                                              // NOTE: assumes fixed cams are at beginning
             B.block<6,1>(ci,0) -= prj.jp->Hpc.transpose() * tp; // Hpc * tp subtracted from B
             prj.Tpc = prj.jp->Hpc.transpose() * Hppi;
-
-            printf( "prj.Tpc\n" );
-            fflush( stdout );
 
             // iterate over nodes left on the track, plus yourself
             for(ProjMap::iterator itr2 = itr; itr2 != prjs.end(); itr2++)
@@ -1181,14 +1135,8 @@ void SysSBA::setupSys(double sLambda)
                 // lower triangular part - this can be dropped for CSparse, uses ~30% of setup time
                 if (ci != ci2)
                   A.block<6,6>(ci2,ci) = A.block<6,6>(ci,ci2).transpose();
-
-                printf( "Other node\n" );
-                fflush( stdout );
               }
           } // finish outer product
-
-        printf( "finished outer product\n" );
-        fflush( stdout );
 
       } // finish track
     
@@ -1221,6 +1169,8 @@ void SysSBA::setupSys(double sLambda)
 
   void SysSBA::setupSparseSys(double sLambda, int iter, int sparseType)
   {
+	  printf( "Error: setupSparseSys not working\n" );
+#if 0
     // set matrix sizes and clear (step 3)
     int nFree = nodes.size() - nFixed;
     if (nFree < 0) nFree = 0;
@@ -1232,10 +1182,6 @@ void SysSBA::setupSys(double sLambda)
     else
       csp.setupBlockStructure(0); // zero out CSparse structures
     t1 = utime();
-    
-
-    printf( "Set up block structure\n" );
-    fflush( stdout );
 
     VectorXi dcnt(nFree);
     dcnt.setZero(nFree);
@@ -1359,36 +1305,29 @@ void SysSBA::setupSys(double sLambda)
     if (ndc > 0)
       cout << "[SetupSys] " << ndc << " disconnected nodes" << endl;
 
+#endif
+
   } // finish all tracks
   
 
 
-  /// Run the LM algorithm that computes a nonlinear SBA estimate.
-  /// <niter> is the max number of iterations to perform; returns the
-  /// number actually performed.
-  /// <useCSparse> = 0 for dense Cholesky, 1 for sparse system, 
-  ///                2 for gradient system, 3 for block jacobian PCG
-  /// <initTol> is the initial tolerance for CG 
-  int SysSBA::doSBA(int niter, double sLambda, int useCSparse, double initTol, int maxCGiter)
-  {
-      printf( "Started...\n" );
-      fflush( stdout );
+/// Run the LM algorithm that computes a nonlinear SBA estimate.
+/// <niter> is the max number of iterations to perform; returns the
+/// number actually performed.
+/// <useCSparse> = 0 for dense Cholesky, 1 for sparse system,
+///                2 for gradient system, 3 for block jacobian PCG
+/// <initTol> is the initial tolerance for CG
+int SysSBA::doSBA(int niter, double sLambda, int useCSparse, double initTol, int maxCGiter)
+{
 
     // set aux buffer
     oldpoints.clear();
     oldpoints.resize(tracks.size());
     
-    printf( "Resized...\n" );
-  fflush( stdout );
-
     // storage
     int npts = tracks.size();
     int ncams = nodes.size();
-    //tps.resize(npts);
-    tps = new Eigen::Vector3d[ npts ];
-
-    printf( "Resized 2...\n" );
-    fflush( stdout );
+    tps.resize(npts);
 
     // set number of projections
     int nprjs = 0;
@@ -1406,9 +1345,6 @@ void SysSBA::setupSys(double sLambda)
     // initialize vars
     if (sLambda > 0.0)          // do we initialize lambda?
       lambda = sLambda;
-
-    printf( "Checking for fixed frames\n" );
-    fflush( stdout );
 
     // check for fixed frames
     if (nFixed <= 0)
@@ -1428,8 +1364,6 @@ void SysSBA::setupSys(double sLambda)
         nd.setDr(useLocalAngles);
       }
 
-    printf( "Set up cameras\n" );
-    fflush( stdout );
 
     // initialize vars
     double laminc = 2.0;        // how much to increment lambda if we fail
@@ -1447,38 +1381,25 @@ void SysSBA::setupSys(double sLambda)
 	           << numBadPoints() << " bad points" << endl;
       }
 
-    printf( "Calculated initial cost\n" );
-    fflush( stdout );
 
     for (; iter<niter; iter++)  // loop at most <niter> times
-      {
+    {
         // set up and solve linear system
         // NOTE: shouldn't need to redo all calcs in setupSys if we 
         //   got here from a bad update
 
         // If we have point-plane matches, should update normals here.
         updateNormals();
-        
-        printf( "Updated normals\n" );
-        fflush( stdout );
 
         t0 = utime();
         if (useCSparse)
         {
-
-            printf( "Setting up sparse system\n" );
-            fflush( stdout );
             setupSparseSys(lambda,iter,useCSparse); // sparse version
         }
         else
         {
-            printf( "Setting up linear system\n" );
-            fflush( stdout );
             setupSys(lambda);     // set up linear system
         }
-
-        printf( "Set up system\n" );
-        fflush( stdout );
 
         //        if (iter == 0)
         //          cout << endl << A << endl << endl;
@@ -1506,26 +1427,33 @@ void SysSBA::setupSys(double sLambda)
 
         t1 = utime();
 	
-	// use appropriate linear solver
-	if (useCSparse == SBA_BLOCK_JACOBIAN_PCG)
-	  {
-            if (csp.B.rows() != 0)
-	      {
-		int iters = csp.doBPCG(maxCGiter,initTol,iter);
-		cout << "[Block PCG] " << iters << " iterations" << endl;
-	      }
-	  }
-        else if (useCSparse > 0)
-          {
-            if (csp.B.rows() != 0)
-	      {
-		bool ok = csp.doChol();
-		if (!ok)
-		  cout << "[DoSBA] Sparse Cholesky failed!" << endl;
-	      }
-          }
-        else
-          {
+		// use appropriate linear solver
+#if 0
+		if (useCSparse == SBA_BLOCK_JACOBIAN_PCG)
+		{
+			if (csp.B.rows() != 0)
+			{
+				int iters = csp.doBPCG(maxCGiter,initTol,iter);
+				cout << "[Block PCG] " << iters << " iterations" << endl;
+			}
+		}
+		else if (useCSparse > 0)
+		{
+			if (csp.B.rows() != 0)
+			{
+				bool ok = csp.doChol();
+				if (!ok)
+					cout << "[DoSBA] Sparse Cholesky failed!" << endl;
+			}
+		}
+#endif
+		if (useCSparse > 0)
+		{
+			printf( "Error: CSparse not working\n" );
+		}
+		else
+
+		{
 #if 1
             A.llt().solveInPlace(B); // Cholesky decomposition and solution
 #else
@@ -1537,14 +1465,15 @@ void SysSBA::setupSys(double sLambda)
             F77_FUNC(dpotrf)("U", (int *)&m, a, (int *)&m, (int *)&info);
             F77_FUNC(dpotrs)("U", (int *)&m, (int *)&nrhs, a, (int *)&m, x, (int *)&m, &info);
 #endif
-          }
+		}
         t2 = utime();
         //        printf("Matrix size: %d  Time: %d\n", B.size(), t2-t1);
 
         //        cout << "solved" << endl;
 
         // get correct result vector
-        VectorXd &BB = useCSparse ? csp.B : B;
+        //VectorXd &BB = useCSparse ? csp.B : B;
+        VectorXd &BB = B;
 
         // check for convergence
         // this is a pretty crummy convergence measure...

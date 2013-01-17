@@ -30,19 +30,19 @@ namespace sba
     }
 
     /// Point-to-point Hessian (JpT*Jp).
-    Eigen::Matrix<double,3,3> Hpp;
+    Eigen::Matrix<double,3,3> EIGEN_ALIGN16 Hpp;
       
     /// Point-to-camera Hessian (JpT*Jc)
-    Eigen::Matrix<double,3,6> Hpc;
+    Eigen::Matrix<double,3,6> EIGEN_ALIGN16 Hpc;
       
     /// Camera-to-camera Hessian (JcT*Jc)
-    Eigen::Matrix<double,6,6> Hcc;
+    Eigen::Matrix<double,6,6> EIGEN_ALIGN16 Hcc;
       
     /// The B matrix with respect to points (JpT*Err)
-    Eigen::Matrix<double,3,1> Bp;
+    Eigen::Matrix<double,3,1> EIGEN_ALIGN16 Bp;
       
     /// Another matrix with respect to cameras (JcT*Err)
-    Eigen::Matrix<double,6,1> JcTE;
+    Eigen::Matrix<double,6,1> EIGEN_ALIGN16 JcTE;
   };
 
   class Proj; // Forward reference.
@@ -121,7 +121,7 @@ namespace sba
       
       /// Point-to-camera matrix (HpcT*Hpp^-1)
       /// Need to save this
-      Eigen::Matrix<double,6,3> Tpc;
+      Eigen::Matrix<double,6,3> EIGEN_ALIGN16 Tpc;
       
       /// valid or not (could be out of bounds)
       bool isValid;
@@ -192,11 +192,11 @@ namespace sba
       
       /// \brief A map of all the projections of the point with camera index 
       /// as key, based off an STL map.
-      ProjMap projections;
+      ProjMap EIGEN_ALIGN16 projections;
       
       /// \brief An Eigen 4-vector containing the <x, y, z, w> coordinates of 
       /// the point associated with the track.
-      Point point;
+      Point EIGEN_ALIGN16 point;
   };
   
   

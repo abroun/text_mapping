@@ -51,108 +51,6 @@ Frames:
             cols: 1
             dt: f
             data: [ 1.74629897e-01, 2.16781944e-01, 1.94629893e-01 ]
-   -
-      HighResImage: "../images/high_res/new_cracker_z4_0005.jpg"
-      KinectColorImage: "../images/kinect/new_cracker_0005.jpg"
-      KinectDepthPointCloud: "../point_clouds/new_cracker_0005.spc"
-      BoxFilter:
-         Transform: !!opencv-matrix
-            rows: 4
-            cols: 4
-            dt: f
-            data: [ 1., 0., 0., -6.22571632e-02, 0., 1., 0.,
-                -9.54158530e-02, 0., 0., 1., 7.73160160e-01, 0., 0., 0.,
-                1. ]
-         Dimensions: !!opencv-matrix
-            rows: 3
-            cols: 1
-            dt: f
-            data: [ 1.62320361e-01, 2.19253629e-01, 1.82320356e-01 ]
-   -
-      HighResImage: "../images/high_res/new_cracker_z4_0006.jpg"
-      KinectColorImage: "../images/kinect/new_cracker_0006.jpg"
-      KinectDepthPointCloud: "../point_clouds/new_cracker_0006.spc"
-      BoxFilter:
-         Transform: !!opencv-matrix
-            rows: 4
-            cols: 4
-            dt: f
-            data: [ 1., 0., 0., -9.75105166e-03, 0., 1., 0.,
-                -7.99587071e-02, 0., 0., 1., 7.42726147e-01, 0., 0., 0.,
-                1. ]
-         Dimensions: !!opencv-matrix
-            rows: 3
-            cols: 1
-            dt: f
-            data: [ 1.87452301e-01, 2.35167429e-01, 2.07452297e-01 ]
-   -
-      HighResImage: "../images/high_res/new_cracker_z4_0007.jpg"
-      KinectColorImage: "../images/kinect/new_cracker_0007.jpg"
-      KinectDepthPointCloud: "../point_clouds/new_cracker_0007.spc"
-      BoxFilter:
-         Transform: !!opencv-matrix
-            rows: 4
-            cols: 4
-            dt: f
-            data: [ 1., 0., 0., -3.52447554e-02, 0., 1., 0.,
-                -8.40927437e-02, 0., 0., 1., 7.06460178e-01, 0., 0., 0.,
-                1. ]
-         Dimensions: !!opencv-matrix
-            rows: 3
-            cols: 1
-            dt: f
-            data: [ 1.18920229e-01, 2.06128389e-01, 1.38920233e-01 ]
-   -
-      HighResImage: "../images/high_res/new_cracker_z4_0008.jpg"
-      KinectColorImage: "../images/kinect/new_cracker_0008.jpg"
-      KinectDepthPointCloud: "../point_clouds/new_cracker_0008.spc"
-      BoxFilter:
-         Transform: !!opencv-matrix
-            rows: 4
-            cols: 4
-            dt: f
-            data: [ 1., 0., 0., -1.77118126e-02, 0., 1., 0.,
-                -7.87870511e-02, 0., 0., 1., 6.97803617e-01, 0., 0., 0.,
-                1. ]
-         Dimensions: !!opencv-matrix
-            rows: 3
-            cols: 1
-            dt: f
-            data: [ 1.25607133e-01, 2.03416854e-01, 1.45607129e-01 ]
-   -
-      HighResImage: "../images/high_res/new_cracker_z4_0009.jpg"
-      KinectColorImage: "../images/kinect/new_cracker_0009.jpg"
-      KinectDepthPointCloud: "../point_clouds/new_cracker_0009.spc"
-      BoxFilter:
-         Transform: !!opencv-matrix
-            rows: 4
-            cols: 4
-            dt: f
-            data: [ 1., 0., 0., -1.92025434e-02, 0., 1., 0.,
-                -7.61907548e-02, 0., 0., 1., 7.07726121e-01, 0., 0., 0.,
-                1. ]
-         Dimensions: !!opencv-matrix
-            rows: 3
-            cols: 1
-            dt: f
-            data: [ 1.57452241e-01, 2.01494813e-01, 1.77452236e-01 ]
-   -
-      HighResImage: "../images/high_res/new_cracker_z4_0010.jpg"
-      KinectColorImage: "../images/kinect/new_cracker_0010.jpg"
-      KinectDepthPointCloud: "../point_clouds/new_cracker_0010.spc"
-      BoxFilter:
-         Transform: !!opencv-matrix
-            rows: 4
-            cols: 4
-            dt: f
-            data: [ 1., 0., 0., -4.56449874e-02, 0., 1., 0.,
-                -7.69086629e-02, 0., 0., 1., 7.14394689e-01, 0., 0., 0.,
-                1. ]
-         Dimensions: !!opencv-matrix
-            rows: 3
-            cols: 1
-            dt: f
-            data: [ 1.66789398e-01, 2.13181153e-01, 1.86789393e-01 ]
 KeyPoints:
    -
       FrameInstances:
@@ -162,8 +60,8 @@ KeyPoints:
                 5.8697706460952759e-01 ]
          -
             FrameIndex: 1
-            Pos: [ -3.1731151044368744e-02, -7.1794815361499786e-02,
-                5.1000010967254639e-01 ]
+            Pos: [ -3.1377315521240234e-02, -7.1254514157772064e-02,
+                5.0780099630355835e-01 ]
          -
             FrameIndex: 2
             Pos: [ -6.4593032002449036e-02, -1.4385300874710083e-01,
@@ -244,10 +142,6 @@ KeyPoints:
             FrameIndex: 2
             Pos: [ -2.9415959492325783e-02, -1.7388597130775452e-01,
                 6.9098186492919922e-01 ]
-         -
-            FrameIndex: 3
-            Pos: [ -8.7278038263320923e-02, -1.7501820623874664e-01,
-                6.9110447168350220e-01 ]
       ModelInstance:
          Pos: [ -3.4182582050561905e-02, 8.9569672942161560e-02,
              3.3794999122619629e-02 ]
@@ -321,10 +215,6 @@ KeyPoints:
             Pos: [ -9.3044396489858627e-03, -1.5672338008880615e-01,
                 7.0595479011535645e-01 ]
          -
-            FrameIndex: 3
-            Pos: [ -6.1256349086761475e-02, -1.5408542752265930e-01,
-                6.9605302810668945e-01 ]
-         -
             FrameIndex: 4
             Pos: [ -3.6796651780605316e-02, -1.4980423450469971e-01,
                 6.8197703361511230e-01 ]
@@ -338,10 +228,6 @@ KeyPoints:
             FrameIndex: 2
             Pos: [ 6.8841315805912018e-03, -1.5639612078666687e-01,
                 7.2402346134185791e-01 ]
-         -
-            FrameIndex: 3
-            Pos: [ -3.8029491901397705e-02, -1.4917376637458801e-01,
-                6.9605368375778198e-01 ]
          -
             FrameIndex: 4
             Pos: [ -2.1882990375161171e-02, -1.4033606648445129e-01,
@@ -357,10 +243,6 @@ KeyPoints:
             Pos: [ -1.1191794648766518e-02, -1.4813132584095001e-01,
                 7.0305746793746948e-01 ]
          -
-            FrameIndex: 3
-            Pos: [ -6.3920035958290100e-02, -1.4620436728000641e-01,
-                6.9594162702560425e-01 ]
-         -
             FrameIndex: 4
             Pos: [ -3.9296545088291168e-02, -1.4271095395088196e-01,
                 6.8593305349349976e-01 ]
@@ -374,10 +256,6 @@ KeyPoints:
             FrameIndex: 2
             Pos: [ 2.5732927024364471e-03, -1.5106123685836792e-01,
                 7.1808463335037231e-01 ]
-         -
-            FrameIndex: 3
-            Pos: [ -4.4448934495449066e-02, -1.4541223645210266e-01,
-                6.9794899225234985e-01 ]
          -
             FrameIndex: 4
             Pos: [ -2.6226205751299858e-02, -1.3795402646064758e-01,
@@ -393,10 +271,6 @@ KeyPoints:
             Pos: [ -1.0592537000775337e-02, -5.7072419673204422e-02,
                 7.2200834751129150e-01 ]
          -
-            FrameIndex: 3
-            Pos: [ -6.6271185874938965e-02, -5.4654590785503387e-02,
-                7.1493053436279297e-01 ]
-         -
             FrameIndex: 4
             Pos: [ -4.4190987944602966e-02, -5.1783494651317596e-02,
                 7.0496720075607300e-01 ]
@@ -410,10 +284,6 @@ KeyPoints:
             FrameIndex: 2
             Pos: [ 1.3248957693576813e-03, -3.6539532244205475e-02,
                 7.3602050542831421e-01 ]
-         -
-            FrameIndex: 3
-            Pos: [ -4.9809172749519348e-02, -3.0733143910765648e-02,
-                7.1898806095123291e-01 ]
          -
             FrameIndex: 4
             Pos: [ -3.4589074552059174e-02, -2.4569168686866760e-02,
@@ -680,3 +550,85 @@ KeyPoints:
             FrameIndex: 8
             Pos: [ -5.2974656224250793e-02, -2.0939964801073074e-02,
                 6.6978716850280762e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ -3.5163417458534241e-02, -4.1600890457630157e-02,
+                6.0480511188507080e-01 ]
+         -
+            FrameIndex: 1
+            Pos: [ -4.3309688568115234e-02, -1.3289012014865875e-02,
+                5.7277238368988037e-01 ]
+         -
+            FrameIndex: 2
+            Pos: [ -7.3450222611427307e-02, -5.7063415646553040e-02,
+                7.4688446521759033e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ -3.6473929882049561e-02, -5.8628480881452560e-02,
+                6.0287994146347046e-01 ]
+         -
+            FrameIndex: 1
+            Pos: [ -4.2700007557868958e-02, -2.5918398052453995e-02,
+                5.5981260538101196e-01 ]
+         -
+            FrameIndex: 2
+            Pos: [ -7.3668524622917175e-02, -7.4641108512878418e-02,
+                7.4382108449935913e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ 6.5971091389656067e-03, -2.0482841879129410e-02,
+                6.0287964344024658e-01 ]
+         -
+            FrameIndex: 2
+            Pos: [ -4.3361023068428040e-02, -3.0225401744246483e-02,
+                7.2086757421493530e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ -2.8938466683030128e-02, -2.9635690152645111e-03,
+                6.1178678274154663e-01 ]
+         -
+            FrameIndex: 2
+            Pos: [ -6.9948777556419373e-02, -1.7164893448352814e-02,
+                7.4586558341979980e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ -2.0487884059548378e-02, -2.6547238230705261e-03,
+                6.0984569787979126e-01 ]
+         -
+            FrameIndex: 2
+            Pos: [ -6.4231537282466888e-02, -1.5640404075384140e-02,
+                7.4282544851303101e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ -1.2274315580725670e-02, -2.2703297436237335e-03,
+                6.0879683494567871e-01 ]
+         -
+            FrameIndex: 2
+            Pos: [ -5.8198474347591400e-02, -1.4103036373853683e-02,
+                7.3787575960159302e-01 ]
+   -
+      FrameInstances:
+         -
+            FrameIndex: 0
+            Pos: [ 1.0722883045673370e-02, -6.7251689732074738e-02,
+                5.9097129106521606e-01 ]
+         -
+            FrameIndex: 1
+            Pos: [ -5.1712077111005783e-03, -1.1290322989225388e-02,
+                5.3084796667098999e-01 ]
+         -
+            FrameIndex: 2
+            Pos: [ -3.8342416286468506e-02, -7.7566601336002350e-02,
+                7.0783096551895142e-01 ]

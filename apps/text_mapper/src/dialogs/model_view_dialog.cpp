@@ -241,7 +241,8 @@ static void texturePolyModel( const PointCloudWithPoseVector& pointCloudsAndPose
     for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
     {
         Eigen::Matrix4f cameraInWorldSpaceMatrix =
-            pointCloudsAndPoses[ frameIdx ].mTransform*pHighResCamera->getCameraInWorldSpaceMatrix().cast<float>();
+            pointCloudsAndPoses[ frameIdx ].mPointCloudInWorldSpaceTransform
+            * pHighResCamera->getCameraInWorldSpaceMatrix().cast<float>();
 
         cameraMatrices.push_back( cameraInWorldSpaceMatrix.inverse() );
     }
@@ -346,7 +347,7 @@ static void texturePolyModel( const PointCloudWithPoseVector& pointCloudsAndPose
                                             // to the face normal
         for ( uint32_t frameIdx = 0; frameIdx < numFrames; frameIdx++ )
         {
-            const Eigen::Vector3f& axisZ = pointCloudsAndPoses[ frameIdx ].mTransform.block<3,1>( 0, 2 );
+            const Eigen::Vector3f& axisZ = pointCloudsAndPoses[ frameIdx ].mPointCloudInWorldSpaceTransform.block<3,1>( 0, 2 );
             float cosOfAngle = normal.dot( axisZ );
 
             if ( cosOfAngle < cosOfMostHeadOnAngle )
@@ -359,7 +360,7 @@ static void texturePolyModel( const PointCloudWithPoseVector& pointCloudsAndPose
         // Work out texture coordinates for the polygon
         if ( mostHeadOnFrameIdx < 0 )
         {
-            fprintf( stderr, "Warning: Found a face which is not visible in any frame\n" );
+            //fprintf( stderr, "Warning: Found a face which is not visible in any frame\n" );
         }
         else
         {
@@ -467,7 +468,7 @@ ModelViewDialog::ModelViewDialog()
 	mpModelMapper->SetInput( mpMarchingCubes->GetOutput() );
 	mpModelActor->SetMapper( mpModelMapper );
 
-	mpRenderer->AddActor( mpModelActor );
+	//mpRenderer->AddActor( mpModelActor );
 
 	// Hook up signals
 	connect( this->btnClose, SIGNAL( clicked() ), this, SLOT( onBtnCloseClicked() ) );
@@ -495,7 +496,7 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 	mPointCloudWidgets.clear();
 
 	// Create a point cloud widget for each point cloud
-	/*for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
+	for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
 	{
 		const PointCloudWithPose& p = pointCloudsAndPoses[ i ];
 
@@ -512,7 +513,7 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 		widget.mpPointCloudActor->GetProperty()->SetPointSize( 3.0 );
 
 		// Break the rotation matrix down into angles Z, X, Y. The order in which VTK will apply them
-		Eigen::Vector3f angles = p.mTransform.block<3,3>( 0, 0 ).eulerAngles( 2, 0, 1 );
+		Eigen::Vector3f angles = p.mPointCloudInWorldSpaceTransform.block<3,3>( 0, 0 ).eulerAngles( 2, 0, 1 );
 
 		// Now pass the angles as degrees to VTK
 		float degreesX = Utilities::radToDeg( angles[ 1 ] );
@@ -520,7 +521,7 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 		float degreesZ = Utilities::radToDeg( angles[ 0 ] );
 		widget.mpPointCloudActor->SetOrientation( degreesX, degreesY, degreesZ );
 
-		const Eigen::Vector3f& pos = p.mTransform.block<3,1>( 0, 3 );
+		const Eigen::Vector3f& pos = p.mPointCloudInWorldSpaceTransform.block<3,1>( 0, 3 );
 		widget.mpPointCloudActor->SetPosition( pos[ 0 ], pos[ 1 ], pos[ 2 ] );
 
 		widget.mpPointCloudActor->SetVisibility( 1 );
@@ -528,7 +529,7 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 		mpRenderer->AddActor( widget.mpPointCloudActor );
 
 		mPointCloudWidgets.push_back( widget );
-	}*/
+	}
 
 	// Output all of the points to a text file
 	FILE* pPointFile = fopen( "modelPoints.txt", "w" );
@@ -539,12 +540,12 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
     {
 	    const PointCloudWithPose& p = pointCloudsAndPoses[ i ];
 
-	    Eigen::Vector3f normal = -p.mTransform.block<3,1>( 0, 2 );
+	    Eigen::Vector3f normal = -p.mPointCloudInWorldSpaceTransform.block<3,1>( 0, 2 );
 
 	    for ( uint32_t pointIdx = 0; pointIdx < p.mpCloud->getNumPoints(); pointIdx++ )
 	    {
 	        Eigen::Vector3f pos = p.mpCloud->getPointWorldPos( pointIdx );
-	        pos = p.mTransform.block<3,3>( 0, 0 )*pos + p.mTransform.block<3,1>( 0, 3 );
+	        pos = p.mPointCloudInWorldSpaceTransform.block<3,3>( 0, 0 )*pos + p.mPointCloudInWorldSpaceTransform.block<3,1>( 0, 3 );
 	        fprintf( pPointFile, "%f %f %f %f %f %f\n",
 	            pos[ 0 ], pos[ 1 ], pos[ 2 ], normal[ 0 ], normal[ 1 ], normal[ 2 ] );
 
@@ -581,7 +582,7 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 		{
 			printf( "Adding frame %i to SDF\n", i );
 			signedDistanceField.addPointCloud(
-				*(pointCloudsAndPoses[ i ].mpCloud), pointCloudsAndPoses[ i ].mTransform );
+				*(pointCloudsAndPoses[ i ].mpCloud), pointCloudsAndPoses[ i ].mPointCloudInWorldSpaceTransform );
 		}
 
 		signedDistanceField.outputToVTKFile( "/home/abroun/modelSDF.vtk" );
@@ -604,6 +605,7 @@ void ModelViewDialog::buildModel( const PointCloudWithPoseVector& pointCloudsAnd
 			}
 		}
 
+		// Show the SDF
 		mpMarchingCubes->SetInput( mpImageData );
 
 		// Use a contour filter to extract a polygonal model

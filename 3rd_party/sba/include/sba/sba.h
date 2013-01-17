@@ -231,7 +231,7 @@ namespace sba
       /// \param ci1 Camera index of the second point in the match.
       /// \param pi1 Point index of the second point in the match.
       /// \param normal1 3D normal for the second point in camera1's coordinate frame.
-      void addPointPlaneMatch(int ci0, int pi0, Eigen::Vector3d normal0, int ci1, int pi1, Eigen::Vector3d normal1);
+      void addPointPlaneMatch(int ci0, int pi0, Eigen::Vector3d& normal0, int ci1, int pi1, Eigen::Vector3d& normal1);
       
       /// \brief Update normals in point-plane matches, if any.
       void updateNormals();
@@ -263,11 +263,7 @@ namespace sba
 
       /// use CHOLMOD or CSparse
       void useCholmod(bool yes)
-      { csp.useCholmod = yes; }
-
-      /// sparse matrix object
-      /// putting this at the end gets rid of alignment errors when making SBA objects      
-      CSparse csp;
+      { }//csp.useCholmod = yes; }
     
     // Private helper functions
     protected:
@@ -282,11 +278,15 @@ namespace sba
       std::vector<Point, Eigen::aligned_allocator<Point> > oldpoints;
       
       /// variables for each track
-      //std::vector<Eigen::Vector3d> tps;
-      Eigen::Vector3d* tps;
+      std::vector<Eigen::Vector3d> tps;
 
       /// storage for Jacobian products
-        std::vector<JacobProds, Eigen::aligned_allocator<JacobProds> > jps;
+      std::vector<JacobProds, Eigen::aligned_allocator<JacobProds> > jps;
+
+    public:
+        /// sparse matrix object
+        /// putting this at the end gets rid of alignment errors when making SBA objects
+        //CSparse EIGEN_ALIGN16 csp;
 
     };
 

@@ -130,7 +130,7 @@ namespace sba
     // max iterations <iter>, ending toleranace <tol>, current sba iteration <sba_iter>
     int doBPCG(int iters, double tol, int sba_iter);
     // CG structure for 6x6 matrices
-    jacobiBPCG<6> bpcg;
+    jacobiBPCG<6> EIGEN_ALIGN16 bpcg;
 
 #ifdef SBA_CHOLMOD
     // CHOLMOD structures

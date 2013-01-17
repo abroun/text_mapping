@@ -1363,7 +1363,7 @@ void TmMainWindow::refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloud
 
     // Set up an SBA system containing the initial guess for camera transforms and key point
     // positions
-    sba::SysSBA sysSBA;
+    sba::SysSBA* pSysSBA = new sba::SysSBA();
 
     // Create camera parameters.
     const Eigen::Matrix3d& calibMtx = pCamera->getCalibrationMatrix();
@@ -1379,8 +1379,10 @@ void TmMainWindow::refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloud
 
     for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
     {
-        Eigen::Matrix4d cameraInWorldSpaceMtx = pCamera->getCameraInWorldSpaceMatrix()
-            * pointCloudsAndPoses[ i ].mTransform.cast<double>();
+        Eigen::Matrix4d cameraInWorldSpaceMtx =
+            pointCloudsAndPoses[ i ].mPointCloudInWorldSpaceTransform.cast<double>()
+            * pCamera->getCameraInWorldSpaceMatrix();
+
 
         Eigen::Quaterniond rot( cameraInWorldSpaceMtx.block<3,3>( 0, 0 ) );
         rot.normalize();
@@ -1389,13 +1391,15 @@ void TmMainWindow::refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloud
         frameIdxToNodeIdxMap[ pointCloudsAndPoses[ i ].mFrameIdx ] = i;
 
         bool bCameraFixed = (0 == i);   // Fix only the first node
-        sysSBA.addNode( trans, rot, camParams, bCameraFixed );
+        pSysSBA->addNode( trans, rot, camParams, bCameraFixed );
     }
 
     // Add each of the key points, both in world space, and in image space
     Eigen::Matrix4d worldInCameraSpaceMtx = pCamera->getCameraInWorldSpaceMatrix().inverse();
     int32_t imageWidth = pointCloudsAndPoses[ 0 ].mHighResImage.cols;
     int32_t imageHeight = pointCloudsAndPoses[ 0 ].mHighResImage.rows;
+
+    std::map<uint32_t, int32_t> keyPointIdxToWorldPointIdxMap;
 
     for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
     {
@@ -1414,10 +1418,10 @@ void TmMainWindow::refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloud
                 {
                     Eigen::Vector4d worldPos( pInstance->mPos[ 0 ],
                         pInstance->mPos[ 1 ], pInstance->mPos[ 2 ], 1.0 );
-                    worldPos = pointCloudsAndPoses[ i ].mTransform.cast<double>()*worldPos;
+                    worldPos = pointCloudsAndPoses[ i ].mPointCloudInWorldSpaceTransform.cast<double>()*worldPos;
 
-                    worldPointIdx = sysSBA.addPoint( worldPos );
-                    printf( "Added world point %i for key point %u\n", worldPointIdx, keyPointIdx );
+                    worldPointIdx = pSysSBA->addPoint( worldPos );
+                    keyPointIdxToWorldPointIdxMap[ keyPointIdx ] = worldPointIdx;
                 }
 
                 // Now add the projected position of the key point for this frame
@@ -1429,40 +1433,90 @@ void TmMainWindow::refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloud
                     calibMtx( 1, 1 )*posInCameraSpace[ 1 ]/posInCameraSpace[ 2 ] + calibMtx( 1, 2 ) );
 
                 if ( projectedPosition[ 0 ] >= 0 && projectedPosition[ 0 ] < imageWidth
-                    && projectedPosition[ 1 ] >= 0 && projectedPosition[ 1 ] < imageHeight )
-                {
-                    int32_t nodeIdx = frameIdxToNodeIdxMap[ frameIdx ];
-                    sysSBA.addMonoProj( nodeIdx, worldPointIdx, projectedPosition );
+					&& projectedPosition[ 1 ] >= 0 && projectedPosition[ 1 ] < imageHeight )
+				{
+
+                	int32_t nodeIdx = frameIdxToNodeIdxMap[ frameIdx ];
+
+                	Eigen::Vector2d actualProj;
+					pSysSBA->nodes[ nodeIdx ].setProjection();
+					pSysSBA->nodes[ nodeIdx ].project2im( actualProj, pSysSBA->tracks[ worldPointIdx ].point );
+
+					double error = (actualProj - projectedPosition).norm();
+					if ( error > 10.0f )
+					{
+						printf( "Key point %u has more than 10 pixels error in frame %u\n", keyPointIdx, frameIdx );
+					}
+
+                    pSysSBA->addMonoProj( nodeIdx, worldPointIdx, projectedPosition );
                 }
             }
         }
     }
 
+    pSysSBA->removeBad( 10.0 );
+
     // Run bundle adjustment
     printf( "Preparing for SBA - Cameras (nodes): %d, Points: %d\n",
-        (int32_t)sysSBA.nodes.size(), (int32_t)sysSBA.tracks.size() );
+        (int32_t)pSysSBA->nodes.size(), (int32_t)pSysSBA->tracks.size() );
 
-    int32_t numPoints = (int32_t)sysSBA.tracks.size();
+    int32_t numPoints = (int32_t)pSysSBA->tracks.size();
     printf( "Bad projs (> 10 pix): %d, Cost without: %f\n",
-        (int)sysSBA.countBad(10.0), sqrt(sysSBA.calcCost(10.0)/numPoints) );
+        (int)pSysSBA->countBad(10.0), sqrt(pSysSBA->calcCost(10.0)/numPoints) );
     printf( "Bad projs (> 5 pix): %d, Cost without: %f\n",
-        (int)sysSBA.countBad(5.0), sqrt(sysSBA.calcCost(5.0)/numPoints)) ;
+        (int)pSysSBA->countBad(5.0), sqrt(pSysSBA->calcCost(5.0)/numPoints)) ;
     printf( "Bad projs (> 2 pix): %d, Cost without: %f\n",
-        (int)sysSBA.countBad(2.0), sqrt(sysSBA.calcCost(2.0)/numPoints) );
+        (int)pSysSBA->countBad(2.0), sqrt(pSysSBA->calcCost(2.0)/numPoints) );
 
-    sysSBA.verbose = 1;
-    sysSBA.doSBA(10, 1e-3, SBA_DENSE_CHOLESKY); //SBA_SPARSE_CHOLESKY);
+    pSysSBA->verbose = 1;
+    pSysSBA->doSBA(10, 1e-3, SBA_DENSE_CHOLESKY); //SBA_SPARSE_CHOLESKY);
 
     printf( "Done SBA\n" );
 
         printf( "Bad projs (> 10 pix): %d, Cost without: %f\n",
-            (int)sysSBA.countBad(10.0), sqrt(sysSBA.calcCost(10.0)/numPoints) );
+            (int)pSysSBA->countBad(10.0), sqrt(pSysSBA->calcCost(10.0)/numPoints) );
         printf( "Bad projs (> 5 pix): %d, Cost without: %f\n",
-            (int)sysSBA.countBad(5.0), sqrt(sysSBA.calcCost(5.0)/numPoints)) ;
+            (int)pSysSBA->countBad(5.0), sqrt(pSysSBA->calcCost(5.0)/numPoints)) ;
         printf( "Bad projs (> 2 pix): %d, Cost without: %f\n",
-            (int)sysSBA.countBad(2.0), sqrt(sysSBA.calcCost(2.0)/numPoints) );
+            (int)pSysSBA->countBad(2.0), sqrt(pSysSBA->calcCost(2.0)/numPoints) );
 
     // Update the point cloud poses
+    // Start from node 1, we don't need to do node 0 as it's fixed
+	for ( uint32_t i = 1; i < pointCloudsAndPoses.size(); i++ )
+	{
+		Eigen::Matrix4d cameraInWorldSpaceMtx = Eigen::Matrix4d::Identity();
+
+		cameraInWorldSpaceMtx.block<3,3>( 0, 0 ) = pSysSBA->nodes[ i ].qrot.matrix();
+		cameraInWorldSpaceMtx.block<4,1>( 0, 3 ) = pSysSBA->nodes[ i ].trans;
+
+		Eigen::Matrix4d newTransform = cameraInWorldSpaceMtx*worldInCameraSpaceMtx;
+		pointCloudsAndPoses[ i ].mPointCloudInWorldSpaceTransform = newTransform.cast<float>();
+
+		// Update the key point positions
+		for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+		{
+			// Loop through all of the supplied frames to see if the key points are used there
+			int32_t worldPointIdx = keyPointIdxToWorldPointIdxMap[ keyPointIdx ];
+
+			for ( uint32_t i = 0; i < pointCloudsAndPoses.size(); i++ )
+			{
+				uint32_t frameIdx = pointCloudsAndPoses[ i ].mFrameIdx;
+				const KeyPointInstance* pInstance =
+					mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( frameIdx );
+				if ( NULL != pInstance )
+				{
+					// Get the modified world position for the key point
+					Eigen::Vector4d newWorldPos = pSysSBA->tracks[ worldPointIdx ].point;
+
+					newWorldPos = pointCloudsAndPoses[ i ].mPointCloudInWorldSpaceTransform.inverse().cast<double>()*newWorldPos;
+					Eigen::Vector3f keyPointPos = newWorldPos.head<3>().cast<float>();
+					mKeyPoints[ keyPointIdx ].addKeyPointFrameInstance( frameIdx, keyPointPos );
+				}
+			}
+		}
+	}
+
+	delete pSysSBA;
 }
 
 //--------------------------------------------------------------------------------------------------
