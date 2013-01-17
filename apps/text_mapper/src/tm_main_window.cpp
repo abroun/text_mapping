@@ -159,7 +159,8 @@ TmMainWindow::TmMainWindow()
 
     // Load in object model
     std::string dataDir = Utilities::getDataDir();
-    QString modelFilename = QString( dataDir.c_str() ) + "/models/carrs_crackers.obj";
+    //QString modelFilename = QString( dataDir.c_str() ) + "/models/carrs_crackers.obj";
+    QString modelFilename = QString( dataDir.c_str() ) + "/models/kinect/carrs_crackers/carrs_crackers.obj";
     loadObjModel( modelFilename );
 
     loadCameras();
@@ -635,7 +636,6 @@ void TmMainWindow::onBtnBuildModelClicked()
 	// Go through each of the remaining frames
 	for ( uint32_t frameIdx = 1; frameIdx < mFrames.size(); frameIdx++ )
 	{
-		std::vector<Eigen::Vector3f> frameFilterKeyPoints;
 		std::vector<Eigen::Vector3f> prevAlignmentKeyPoints;
 		std::vector<Eigen::Vector3f> curAlignmentKeyPoints;
 
@@ -645,8 +645,6 @@ void TmMainWindow::onBtnBuildModelClicked()
 			const KeyPointInstance* pInstance = mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( frameIdx );
 			if ( NULL != pInstance )
 			{
-				frameFilterKeyPoints.push_back( pInstance->mPos );
-
 				const KeyPointInstance* pOtherInstance = mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( frameIdx - 1 );
 				if ( NULL != pOtherInstance )
 				{
@@ -706,7 +704,12 @@ void TmMainWindow::onBtnBuildModelClicked()
 	}
 
 	// Send a vector of point clouds and transforms to the model viewer dialog
-	refineAlignmentUsingSBA( pointCloudsAndPoses, &mHighResCamera );
+	if ( this->checkUseLoopClosure->isChecked() )
+	{
+	    //refineAlignmentUsingSBA( pointCloudsAndPoses, &mHighResCamera );
+	    refineAlignmentUsingLoopClosure( pointCloudsAndPoses );
+	}
+
 	mModelViewDialog.buildModel( pointCloudsAndPoses, &mHighResCamera );
 	mModelViewDialog.show();
 }
@@ -1354,7 +1357,7 @@ Eigen::Matrix4f TmMainWindow::getModelInFrameSpaceTransform() const
 
 //--------------------------------------------------------------------------------------------------
 void TmMainWindow::refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloudsAndPoses,
-                                       const Camera* pCamera ) const
+                                       const Camera* pCamera )
 {
     if ( pointCloudsAndPoses.size() <= 0 )
     {
@@ -1517,6 +1520,89 @@ void TmMainWindow::refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloud
 	}
 
 	delete pSysSBA;
+}
+
+//--------------------------------------------------------------------------------------------------
+void TmMainWindow::refineAlignmentUsingLoopClosure( PointCloudWithPoseVector& pointCloudsAndPoses ) const
+{
+    // Look for key points that link the first and last frame
+    if ( pointCloudsAndPoses.size() < 3 )
+    {
+        printf( "Not enough frames for loop closure\n" );
+        return;
+    }
+
+    uint32_t firstFrameIdx = pointCloudsAndPoses[ 0 ].mFrameIdx;
+    uint32_t lastFrameIdx = pointCloudsAndPoses[ pointCloudsAndPoses.size() - 1 ].mFrameIdx;
+
+    std::vector<Eigen::Vector3f> firstFrameKeyPoints;
+    std::vector<Eigen::Vector3f> lastFrameKeyPoints;
+    const Eigen::Matrix4f& lastFrameInFirstFrameTransform =
+        pointCloudsAndPoses[ lastFrameIdx ].mPointCloudInWorldSpaceTransform;
+
+    for ( uint32_t keyPointIdx = 0; keyPointIdx < mKeyPoints.size(); keyPointIdx++ )
+    {
+        const KeyPointInstance* pInstance =
+            mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( firstFrameIdx );
+        if ( NULL != pInstance )
+        {
+            const KeyPointInstance* pOtherInstance =
+                mKeyPoints[ keyPointIdx ].getKeyPointFrameInstance( lastFrameIdx );
+            if ( NULL != pOtherInstance )
+            {
+                firstFrameKeyPoints.push_back( pInstance->mPos );
+
+                lastFrameKeyPoints.push_back(
+                    lastFrameInFirstFrameTransform.block<3,3>( 0, 0 )*pOtherInstance->mPos
+                    + lastFrameInFirstFrameTransform.block<3,1>( 0, 3 ) );
+            }
+        }
+    }
+
+    // Check that we have enough key points to perform loop closure
+    uint32_t numCommonPoints = firstFrameKeyPoints.size();
+    if ( numCommonPoints < 3 )
+    {
+        printf( "Not enough common key points for loop closure\n" );
+        return;
+    }
+
+    // Look for the transform which will close the loop
+    Eigen::Matrix3f rotationMtx;
+    Eigen::Vector3f translation;
+    float scale = 1.0;
+    if ( !Utilities::findOptimumTransformation3D( &lastFrameKeyPoints[ 0 ],
+        &firstFrameKeyPoints[ 0 ], numCommonPoints, &rotationMtx, &translation, &scale, true ) )
+    {
+        printf( "Unable to calculate transform for loop closure\n" );
+        return;
+    }
+
+    Eigen::Vector3f extraRotation = rotationMtx.eulerAngles( 0, 1, 2 );
+    printf( "Extra rotation %f %f %f\n",
+        Utilities::radToDeg( extraRotation[ 0 ] ),
+        Utilities::radToDeg( extraRotation[ 1 ] ),
+        Utilities::radToDeg( extraRotation[ 2 ] ) );
+
+    // Spread this transform around the loop by breaking it up into little pieces
+    Eigen::Quaternionf initialRot( Eigen::Matrix3f::Identity() );
+    Eigen::Quaternionf finalRot( rotationMtx );
+
+    for ( uint32_t i = 1; i < pointCloudsAndPoses.size(); i++ )
+    {
+        Eigen::Matrix4f extraTransform = Eigen::Matrix4f::Identity();
+
+        float progress = (float)i/(float)pointCloudsAndPoses.size();
+        //float progress = 1.0f/(float)pointCloudsAndPoses.size();
+        Eigen::Quaternionf extraRot = initialRot.slerp( progress, finalRot );
+        Eigen::Vector3f extraTrans = progress*translation;
+
+        extraTransform.block<3,3>( 0, 0 ) = extraRot.matrix();
+        extraTransform.block<3,1>( 0, 3 ) = extraTrans;
+
+        pointCloudsAndPoses[ i ].mPointCloudInWorldSpaceTransform =
+            extraTransform * pointCloudsAndPoses[ i ].mPointCloudInWorldSpaceTransform;
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1899,8 +1985,10 @@ void TmMainWindow::loadObjModel( QString filename )
 
             mpRenderer->AddActor( mpModelActor );
             //mpModelActor->SetPosition( 0.02, -0.05, 0.72 );
-            const float CRACKER_MODEL_SCALE = 0.975f;
-            mpModelActor->SetScale( 0.5*CRACKER_MODEL_SCALE );
+
+            //const float CRACKER_MODEL_SCALE = 0.975f;
+            //mpModelActor->SetScale( 0.5*CRACKER_MODEL_SCALE );
+
             //mpModelActor->SetOrientation( 170.0, 120.0 + 175.0, 0.0 );
 
             mpModelActor->SetVisibility( this->checkShowModel->isChecked() ? 1 : 0 );

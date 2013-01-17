@@ -302,6 +302,19 @@ With Frame</string>
          <string>Show Filter</string>
         </property>
        </widget>
+       <widget class="QCheckBox" name="checkUseLoopClosure">
+        <property name="geometry">
+         <rect>
+          <x>20</x>
+          <y>230</y>
+          <width>97</width>
+          <height>22</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Use Loop Closure</string>
+        </property>
+       </widget>
       </widget>
      </item>
     </layout>

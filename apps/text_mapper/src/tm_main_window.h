@@ -124,7 +124,8 @@ class TmMainWindow : public QMainWindow, private Ui::tm_main_window
     //! matrix if no frame is currently selected
     private: Eigen::Matrix4f getModelInFrameSpaceTransform() const;
 
-    private: void refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloudsAndPoses, const Camera* pCamera ) const;
+    private: void refineAlignmentUsingSBA( PointCloudWithPoseVector& pointCloudsAndPoses, const Camera* pCamera );
+    private: void refineAlignmentUsingLoopClosure( PointCloudWithPoseVector& pointCloudsAndPoses ) const;
 
     private: void refreshFrameList();
     private: void refreshKeyPointList();
