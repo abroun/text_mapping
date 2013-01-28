@@ -1,0 +1,16 @@
+%YAML:1.0
+BoardSize: [ 10, 7 ]
+BoardSizeMM: [ 216, 144 ]
+FirstCameraName: KinectDepth
+SecondCameraName: BertCanonZoom4
+FirstCameraCalibrationFile: "../../point_clouds/calibration_data/KinectDepth_cameraMatrix.yml"
+SecondCameraCalibrationFile: "../Canon_Zoom4/CanonZoom4_cameraMatrix.yml"
+UseDotPattern: 1
+ImageFilePairs:
+    - First: "../../point_clouds/bert_calib_0001.spc"
+      Second: "../../images/high_res/bert_calib_0001.jpg"
+    - First: "../../point_clouds/bert_calib_0002.spc"
+      Second: "../../images/high_res/bert_calib_0002.jpg"
+    - First: "../../point_clouds/bert_calib_0003.spc"
+      Second: "../../images/high_res/bert_calib_0003.jpg"
+

@@ -1849,7 +1849,8 @@ void TmMainWindow::loadCameras()
     std::string kinectCalibrationFilename = dataDir + "/point_clouds/calibration_data/windows_kinect.yaml";
     std::string highResCalibrationFilename = dataDir + "/calibration_images/Canon_Zoom4/CanonZoom4_cameraMatrix.yml";
     //std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectRGB_to_CanonZoom4_calib.yml";
-    std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectDepth_to_CanonZoom4_calib.yml";
+    //std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectDepth_to_CanonZoom4_calib.yml";
+    std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectDepth_to_BertCanonZoom4_calib.yml";
 
     // Load in the Kinect calibration file
     cv::FileStorage fileStorage;
