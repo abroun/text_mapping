@@ -52,6 +52,7 @@ vtkStandardNewMacro( vtkTextMapSource );
 
 //--------------------------------------------------------------------------------------------------
 vtkTextMapSource::vtkTextMapSource()
+	: mFrameTransform( Eigen::Matrix4f::Identity() )
 {
     this->SetNumberOfInputPorts( 0 );
 }
@@ -109,7 +110,10 @@ int vtkTextMapSource::RequestData(
 
         for ( uint32_t letterIdx = 0; letterIdx < numLetters; letterIdx++ )
         {
-            const Letter& letter = this->TextMapPtr->getLetter( letterIdx );
+            Letter letter = this->TextMapPtr->getLetter( letterIdx );
+
+            // Transform into frame space
+            letter.mMtx = mFrameTransform*letter.mMtx;
             
             // Move letters forward just a bit to avoid z-fighting
             Eigen::Vector3d vertexOffset = letter.mMtx.block<3,1>( 0, 2 ).cast<double>() * 0.0005;

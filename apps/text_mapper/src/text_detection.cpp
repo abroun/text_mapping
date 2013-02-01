@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "text_detection.h"
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
+#include "opencv2/imgproc/imgproc_c.h"
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/ml/ml.hpp"
 #include "opencv2/features2d/features2d.hpp"
@@ -55,7 +56,16 @@ struct CompStruct
 	std::string textString;
 };
 
-Letter2DVector detect_text(cv::Mat inputImage)
+void ExtractMSER(cv::Mat GrayImage,CvSeq *allMSERregions);
+void CleanCompList(CvSeq *seq,cv::Mat CannyImage,cv::Mat EdgeOriImage,cv::Mat &LightComps,cv::Mat &DarkComps);
+void ProduceEdgeImage(cv::Mat Image,cv::Mat &CannyImage,cv::Mat &EdgeOriImage);
+void CleanComp(CvSeq *seq,cv::Mat CannyImage,cv::Mat EdgeOriImage,cv::Mat &OutputImage);
+double round(double r);
+void labelBlobs(const cv::Mat &binary, std::vector <std::vector<cv::Point>> &blobs);
+
+std::vector<CompStruct> extractTextRectangles( cv::Mat InputImage );
+
+Letter2DVector detect_text(cv::Mat inputImage, uint32_t frameIdx )
 {   
     Letter2DVector foundLetters;
 
@@ -74,23 +84,43 @@ Letter2DVector detect_text(cv::Mat inputImage)
 	CvFont font;
 	cvInitFont( &font, CV_FONT_HERSHEY_COMPLEX_SMALL, .6, .6, 0, 1, 6);
 
+	std::vector<CompStruct> textRectangles = extractTextRectangles( inputImage );
+
 	std::vector<CompStruct> good;
 	std::vector<CompStruct> bad;
 	CompStruct storeComp;
 	//list.push_back(cv::Rect(x,y,dx,dy));
 	//storeComp.boundingBox = cv::Rect(713,462,533,156);
 	//good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(869,632,223,61);
-	good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(860,702,251,54);
-	good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(935,411,104,19);
-	good.push_back(storeComp);
 	
-    storeComp.boundingBox = cv::Rect(888,429,199,15);
-	good.push_back(storeComp);
-	storeComp.boundingBox = cv::Rect(950,445,75,15);
-	good.push_back(storeComp);
+	/*if ( 2 == frameIdx )
+	{
+		storeComp.boundingBox = cv::Rect(1077,458,105,28);
+		good.push_back(storeComp);
+		storeComp.boundingBox = cv::Rect(1082,418,84,38);
+		good.push_back(storeComp);
+		storeComp.boundingBox = cv::Rect(1221,422,193,107);
+		good.push_back(storeComp);
+	}
+	if ( 1 == frameIdx )
+	{
+		storeComp.boundingBox = cv::Rect(1020,351,290,200);
+		good.push_back(storeComp);
+	}
+	else // 0 or otherwise*/
+	{
+		storeComp.boundingBox = cv::Rect(869,632,223,61);
+		good.push_back(storeComp);
+		storeComp.boundingBox = cv::Rect(860,702,251,54);
+		good.push_back(storeComp);
+		storeComp.boundingBox = cv::Rect(935,411,104,19);
+		good.push_back(storeComp);
+
+		storeComp.boundingBox = cv::Rect(888,429,199,15);
+		good.push_back(storeComp);
+		storeComp.boundingBox = cv::Rect(950,445,75,15);
+		good.push_back(storeComp);
+	}
 	
     /*storeComp.boundingBox = cv::Rect(917,394,42,38);
 	good.push_back(storeComp);
@@ -201,4 +231,167 @@ Letter2DVector detect_text(cv::Mat inputImage)
 	cv::destroyAllWindows();
 
 	return foundLetters;
+}
+
+void ExtractMSER(cv::Mat GrayImage,CvSeq *allMSERregions)
+{
+	cv::Ptr<CvMemStorage> storage(cvCreateMemStorage(0));
+	CvMSERParams params = cvMSERParams(5,50,6100);
+	cvExtractMSER(&(IplImage)GrayImage, NULL, &allMSERregions, storage, params);
+}
+
+void ProduceEdgeImage(cv::Mat Image,cv::Mat &CannyImage,cv::Mat &EdgeOriImage)
+{
+	blur(Image, CannyImage, cv::Size(3,3) );
+
+	cv::Canny(CannyImage,CannyImage,30,90);
+
+    cv::Mat Sx;
+    Sobel(Image, Sx, CV_32F, 1, 0, 3);
+
+    cv::Mat Sy;
+    Sobel(Image, Sy, CV_32F, 0, 1, 3);
+
+    cv::Mat mag;
+    magnitude(Sx, Sy, mag);
+    phase(Sx, Sy, EdgeOriImage, true);
+
+	cv::imwrite("C:\\Users\\Chris\\Desktop\\Fast Detection\\data\\Output\\Canny.png",CannyImage);
+}
+
+void CleanCompList(CvSeq *allMSERregions,cv::Mat CannyImage,cv::Mat EdgeOriImage,cv::Mat &LightComps,cv::Mat &DarkComps)
+{
+	CvSeq *currentseq;
+	CvSeq *nextseq;
+	for(size_t i = 0; i < allMSERregions->total; i++)
+	{
+		currentseq = *CV_GET_SEQ_ELEM(CvSeq *, allMSERregions, i);
+		if (currentseq->v_prev == NULL) // Only run if parent node
+		{
+			/*if(currentseq->v_next != NULL && currentseq->v_next->h_next ==NULL)
+			{
+				currentseq = currentseq->v_next;
+			}*/
+			if (((CvContour *)currentseq)->color >= 0)
+			{
+
+					CleanComp(currentseq,CannyImage,EdgeOriImage,LightComps);
+
+			}
+			else
+			{
+					CleanComp(currentseq,CannyImage,EdgeOriImage,DarkComps);
+			}
+		}
+	}
+
+}
+
+void CleanComp(CvSeq *seq,cv::Mat CannyImage,cv::Mat EdgeOriImage,cv::Mat &OutputImage)
+{
+	CvPoint CurrentPoint,*LocalPoint;
+	float Angle = 0;
+	CvRect BoundingBox = cvBoundingRect(seq,1);
+
+	cv::Mat StoreImage = cv::Mat::zeros(BoundingBox.height,BoundingBox.width, CV_8UC3);
+
+	for (size_t j = 0; j < seq->total; ++j)
+	{
+		LocalPoint = CV_GET_SEQ_ELEM(CvPoint, seq, j);
+		StoreImage.at<cv::Vec3b>(LocalPoint->y-BoundingBox.y, LocalPoint->x-BoundingBox.x) = cv::Vec3b(255,255,255);
+	}
+
+	int searchDirection = 0;
+	if (((CvContour *)seq)->color >= 0)
+		searchDirection = 1;
+	else
+		searchDirection = -1;
+
+	for (int j = 0; j < seq->total; ++j)
+	{
+		LocalPoint = CV_GET_SEQ_ELEM(CvPoint, seq, j);
+		CurrentPoint.x = LocalPoint->x-BoundingBox.x;
+		CurrentPoint.y = LocalPoint->y-BoundingBox.y;
+
+		float step = 1;
+		int currY = CurrentPoint.y;
+		int currX = CurrentPoint.x;
+
+		if(cvGet2D(&(IplImage)CannyImage,CurrentPoint.y+BoundingBox.y,CurrentPoint.x+BoundingBox.x).val[0] == 255)
+		{
+			Angle = cvGet2D(&(IplImage)EdgeOriImage,CurrentPoint.y+BoundingBox.y,CurrentPoint.x+BoundingBox.x).val[0];
+
+			while (step<5)
+			{
+				int nextY = round(CurrentPoint.y + sin(Angle*(M_PI/180))*searchDirection*step);
+				int nextX = round(CurrentPoint.x + cos(Angle*(M_PI/180))*searchDirection*step);
+
+				if (nextY < 0 || nextX < 0 ||
+					nextY >= BoundingBox.height||
+					nextX >= BoundingBox.width)
+					break;
+
+				step = step + 1;
+				if (currY == nextY && currX == nextX)
+				continue;
+
+				currY = nextY;
+				currX = nextX;
+
+				if(cvGet2D(&(IplImage)CannyImage,currY+BoundingBox.y,currX+BoundingBox.x).val[0] == 255)
+				 break;
+
+				StoreImage.at<cv::Vec3b>(currY,currX) = cv::Vec3b(0,0,0);
+
+			}
+		}
+	}
+
+	for (int j = 0; j < seq->total; ++j)
+	{
+		LocalPoint = CV_GET_SEQ_ELEM(CvPoint, seq, j);
+		if(cvGet2D(&(IplImage)StoreImage,LocalPoint->y-BoundingBox.y,LocalPoint->x-BoundingBox.x).val[0] != 0)
+		{
+				OutputImage.at<cv::Vec3b>(LocalPoint->y,LocalPoint->x) = cv::Vec3b(255,255,255);
+		}
+	}
+}
+
+double round(double r)
+{
+	return (r > 0.0) ? floor(r + 0.5) : ceil(r - 0.5);
+}
+
+std::vector<CompStruct> extractTextRectangles( cv::Mat InputImage )
+{
+	std::vector<CompStruct> textRectangles;
+
+	cv::Mat GrayImage, DarkComps, LightComps,CannyImage,EdgeOriImage,blank;
+	cv::cvtColor( InputImage, GrayImage, CV_RGB2GRAY );
+
+	DarkComps = cv::Mat::zeros(GrayImage.size().height,GrayImage.size().width, CV_8UC3);
+	LightComps = cv::Mat::zeros(GrayImage.size().height,GrayImage.size().width, CV_8UC3);
+	blank = cv::Mat::zeros(GrayImage.size().height,GrayImage.size().width, CV_8UC3);
+
+	ProduceEdgeImage(GrayImage,CannyImage,EdgeOriImage);
+
+	cv::Ptr<CvMemStorage> storage(cvCreateMemStorage(0));
+	CvMSERParams params = cvMSERParams(5,50,6100);
+	CvSeq *allMSERregions;
+	cvExtractMSER(&(IplImage)GrayImage, NULL, &allMSERregions, storage, params);
+
+	CleanCompList(allMSERregions,CannyImage,EdgeOriImage,LightComps,DarkComps);
+
+
+	cv::namedWindow( "LightComps", CV_WINDOW_NORMAL );
+	cv::namedWindow( "DarkComps", CV_WINDOW_NORMAL );
+
+	cv::imshow( "LightComps", LightComps );
+	cv::imshow( "DarkComps", DarkComps );
+
+	cv::waitKey();
+
+	GrayImage.release(), DarkComps.release(), LightComps.release();
+
+	return textRectangles;
 }

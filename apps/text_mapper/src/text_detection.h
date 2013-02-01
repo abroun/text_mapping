@@ -67,6 +67,6 @@ EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION( Letter2D );
 typedef std::vector<Letter2D, Eigen::aligned_allocator<Letter2D> > Letter2DVector;
 
 //--------------------------------------------------------------------------------------------------
-Letter2DVector detect_text(cv::Mat inputImage);
+Letter2DVector detect_text(cv::Mat inputImage, uint32_t frameIdx );
 
 #endif

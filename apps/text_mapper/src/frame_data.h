@@ -41,6 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <opencv2/core/core.hpp>
 #include "text_mapping/box_filter.h"
 #include "text_mapping/point_cloud.h"
+#include "text_mapping/text_map.h"
 
 //--------------------------------------------------------------------------------------------------
 struct FrameData
@@ -65,6 +66,9 @@ struct FrameData
 
     private: BoxFilter mBoxFilter;
     private: bool mbHasBoxFilter;
+
+    private: TextMap mTextMap;
+    private: bool mbHasTextMap;
 
     //! Tries to load in the images referenced by the filenames.
     //! @param bShowErrorMsgBox If set to true, the user will be shown a message box telling them
@@ -100,6 +104,19 @@ struct FrameData
     }
 
     public: bool hasBoxFilter() const { return mbHasBoxFilter; }
+
+    public: void setTextMap( const TextMap& textMap )
+	{
+		mTextMap = textMap;
+		mbHasTextMap = true;
+	}
+
+	public: const TextMap& getTextMap() const
+	{
+		return mTextMap;
+	}
+
+	public: bool hasTextMap() const { return mbHasTextMap; }
 
     public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };

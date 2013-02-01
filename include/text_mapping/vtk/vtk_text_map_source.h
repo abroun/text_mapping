@@ -48,6 +48,12 @@ class vtkTextMapSource : public vtkPolyDataAlgorithm
     public: vtkSetMacro( TextMapPtr, TextMap::ConstPtr );
     public: vtkGetMacro( TextMapPtr, TextMap::ConstPtr );
     
+    public: void SetFrameTransform( const Eigen::Matrix4f& transform )
+    {
+    	mFrameTransform = transform;
+    	this->Modified();
+    }
+
     protected: vtkTextMapSource();
     protected: ~vtkTextMapSource() {}
 
@@ -55,9 +61,12 @@ class vtkTextMapSource : public vtkPolyDataAlgorithm
     protected: virtual int RequestInformation( vtkInformation *, vtkInformationVector **, vtkInformationVector * );
 
     protected: TextMap::ConstPtr TextMapPtr;
+    Eigen::Matrix4f mFrameTransform;
     
     private: vtkTextMapSource( const vtkTextMapSource& );  // Not implemented.
     void operator=( const vtkTextMapSource& );  // Not implemented.
+
+    public: EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 };
 
 #endif // VTK_TEXT_MAP_SOURCE_H_

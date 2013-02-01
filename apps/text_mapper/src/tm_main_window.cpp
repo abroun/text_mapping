@@ -159,8 +159,8 @@ TmMainWindow::TmMainWindow()
 
     // Load in object model
     std::string dataDir = Utilities::getDataDir();
-    //QString modelFilename = QString( dataDir.c_str() ) + "/models/carrs_crackers.obj";
-    QString modelFilename = QString( dataDir.c_str() ) + "/models/kinect/carrs_crackers/carrs_crackers.obj";
+    QString modelFilename = QString( dataDir.c_str() ) + "/models/carrs_crackers.obj";
+    //QString modelFilename = QString( dataDir.c_str() ) + "/models/kinect/carrs_crackers/carrs_crackers.obj";
     loadObjModel( modelFilename );
 
     loadCameras();
@@ -299,16 +299,19 @@ void TmMainWindow::onCurrentFrameChanged( const QModelIndex& current, const QMod
 {
     if ( current.isValid() )
     {
-        int32_t currentFrameIdx = current.row();
-        if ( currentFrameIdx >= 0 && currentFrameIdx < (int32_t)mFrames.size() )
+        int32_t curFrameIdx = current.row();
+        if ( curFrameIdx >= 0 && curFrameIdx < (int32_t)mFrames.size() )
         {
-            mFrames[ currentFrameIdx ].tryToLoadImages( false );
-            refreshImageDisplays( &mFrames[ currentFrameIdx ] );
+            mFrames[ curFrameIdx ].tryToLoadImages( false );
+            refreshImageDisplays( &mFrames[ curFrameIdx ] );
             refreshModelTransform();
 
             // Create a new text map for the frame
-            mpFrameTextMap = TextMap::Ptr( new TextMap() );
-            mpTextMapSource->SetTextMapPtr( mpFrameTextMap );
+            //mpFrameTextMap = TextMap::Ptr( new TextMap() );
+            //mpTextMapSource->SetTextMapPtr( mpFrameTextMap );
+
+            // Set the transform for the text map
+            mpTextMapSource->SetFrameTransform( getModelInFrameSpaceTransform() );
         }
     }
 }
@@ -403,7 +406,7 @@ void TmMainWindow::onBtnDetectTextClicked()
     {
         printf( "Detecting text...\n" );
 
-        Letter2DVector letters2D = detect_text( mFrames[ curFrameIdx ].mHighResImage );
+        Letter2DVector letters2D = detect_text( mFrames[ curFrameIdx ].mHighResImage, curFrameIdx );
 
         printf( "Found %u letter%s\n", (uint32_t)letters2D.size(), ( letters2D.size() == 1 ? "" : "s" ) );
 
@@ -414,7 +417,7 @@ void TmMainWindow::onBtnDetectTextClicked()
 
         vtkSmartPointer<vtkCellPicker> pPicker = vtkSmartPointer<vtkCellPicker>::New();
 
-
+        TextMap frameTextMap;
         for ( uint32_t letterIdx = 0; letterIdx < letters2D.size(); letterIdx++ )
         {
             printf( "Adding letter %u of %lu\n", letterIdx + 1, letters2D.size() );
@@ -490,12 +493,48 @@ void TmMainWindow::onBtnDetectTextClicked()
 			letter.mWidth = width;
 			letter.mHeight = height;
 
-			mpFrameTextMap->addLetter( letter );
-			mpTextMapSource->Modified();
-
+			frameTextMap.addLetter( letter );
         }
 
-        
+        mFrames[ curFrameIdx ].setTextMap( frameTextMap );
+
+        // Combine the text maps into one
+        mpFrameTextMap = TextMap::Ptr( new TextMap() );
+
+        for ( uint32_t frameIdx = 0; frameIdx < mFrames.size(); frameIdx++ )
+        {
+        	const FrameData& frame = mFrames[ frameIdx ];
+
+        	if ( !frame.hasTextMap() )
+        	{
+        		continue;
+        	}
+
+        	Eigen::Matrix4f modelInFrameSpaceTransform = Eigen::Matrix4f::Identity();
+        	if ( frame.isModelInFrameSpaceTransformSet() )
+        	{
+        		modelInFrameSpaceTransform = frame.getModelInFrameSpaceTransform();
+        	}
+
+        	Eigen::Matrix4f frameInModelSpaceTransform = modelInFrameSpaceTransform.inverse();
+
+        	const TextMap& textMap = frame.getTextMap();
+        	for ( uint32_t letterIdx = 0; letterIdx < textMap.getNumLetters(); letterIdx++ )
+        	{
+        		Letter letter = textMap.getLetter( letterIdx );
+
+        		// Transform the letter into model space
+        		letter.mMtx = frameInModelSpaceTransform*letter.mMtx;
+
+        		// Add the letter to the combined text map
+        		mpFrameTextMap->addLetter( letter );
+        	}
+        }
+
+
+		mpTextMapSource->SetTextMapPtr( mpFrameTextMap );
+		mpTextMapSource->SetFrameTransform( getModelInFrameSpaceTransform() );
+
 
         // Restore the camera
         //mpRenderer->SetActiveCamera( pCurCamera );
@@ -583,6 +622,7 @@ void TmMainWindow::onBtnAlignModelWithFrameClicked()
         // Update the display
         refreshModelTransform();
         refreshKeyPointInstances();
+        mpTextMapSource->SetFrameTransform( getModelInFrameSpaceTransform() );
         this->qvtkWidget->update();
     }
 }
@@ -1849,8 +1889,8 @@ void TmMainWindow::loadCameras()
     std::string kinectCalibrationFilename = dataDir + "/point_clouds/calibration_data/windows_kinect.yaml";
     std::string highResCalibrationFilename = dataDir + "/calibration_images/Canon_Zoom4/CanonZoom4_cameraMatrix.yml";
     //std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectRGB_to_CanonZoom4_calib.yml";
-    //std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectDepth_to_CanonZoom4_calib.yml";
-    std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectDepth_to_BertCanonZoom4_calib.yml";
+    std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectDepth_to_CanonZoom4_calib.yml";
+    //std::string highResPoseFilename = dataDir + "/calibration_images/Kinect_Canon_Stereo/KinectDepth_to_BertCanonZoom4_calib.yml";
 
     // Load in the Kinect calibration file
     cv::FileStorage fileStorage;
@@ -1987,8 +2027,8 @@ void TmMainWindow::loadObjModel( QString filename )
             mpRenderer->AddActor( mpModelActor );
             //mpModelActor->SetPosition( 0.02, -0.05, 0.72 );
 
-            //const float CRACKER_MODEL_SCALE = 0.975f;
-            //mpModelActor->SetScale( 0.5*CRACKER_MODEL_SCALE );
+            const float CRACKER_MODEL_SCALE = 0.975f;
+            mpModelActor->SetScale( 0.5*CRACKER_MODEL_SCALE );
 
             //mpModelActor->SetOrientation( 170.0, 120.0 + 175.0, 0.0 );
 
